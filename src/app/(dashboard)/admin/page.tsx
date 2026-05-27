@@ -1,5 +1,6 @@
 "use client";
 
+import Link from 'next/link'
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -425,6 +426,7 @@ export default function AdminDashboard() {
         {
           icon: <IconShieldCheck size={15} />,
           label: "Validation CNI",
+          href: "/admin/validation-cni",
           badge: stats?.cni_en_attente ?? 0,
           badgeColor: "#D97706",
         },
@@ -437,6 +439,7 @@ export default function AdminDashboard() {
         {
           icon: <IconTool size={15} />,
           label: "Signalements",
+          href: "/admin/signalements",
           badge: signalements.filter((s) => s.urgent).length,
           badgeColor: "#DC2626",
         },
@@ -550,24 +553,17 @@ export default function AdminDashboard() {
                 </div>
                 {group.items.map((item) => {
                   const active = activeNav === item.label;
-                  return (
-                    <button
-                      key={item.label}
-                      onClick={() => {
-                        setActiveNav(item.label);
-                        setSidebar(false);
-                      }}
-                      className="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left"
-                      style={
-                        active
-                          ? {
-                              background: "rgba(37,99,235,.25)",
-                              color: "#93C5FD",
-                              fontWeight: 600,
-                            }
-                          : { color: "rgba(255,255,255,.5)" }
+                  const cls = `nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left`;
+                  const style = active
+                    ? {
+                        background: "rgba(37,99,235,.25)",
+                        color: "#93C5FD",
+                        fontWeight: 600,
                       }
-                    >
+                    : { color: "rgba(255,255,255,.5)" };
+
+                  const content = (
+                    <>
                       <span
                         style={{
                           color: active ? "#60A5FA" : "rgba(255,255,255,.35)",
@@ -589,6 +585,33 @@ export default function AdminDashboard() {
                           {item.badge}
                         </span>
                       )}
+                    </>
+                  );
+
+                  return "href" in item && item.href ? (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => {
+                        setActiveNav(item.label);
+                        setSidebar(false);
+                      }}
+                      className={cls}
+                      style={{ ...style, textDecoration: "none" }}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <button
+                      key={item.label}
+                      onClick={() => {
+                        setActiveNav(item.label);
+                        setSidebar(false);
+                      }}
+                      className={cls}
+                      style={style}
+                    >
+                      {content}
                     </button>
                   );
                 })}
