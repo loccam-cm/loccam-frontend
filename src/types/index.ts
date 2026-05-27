@@ -116,6 +116,20 @@ export interface Notification {
   date_creation: string
 }
 
+
+
+export interface Message {
+  id: number
+  expediteur: Utilisateur
+  destinataire: Utilisateur
+  bien: Bien
+  contenu: string
+  piece_jointe_url: string
+  est_lu: boolean
+  date_envoi: string
+  date_lecture: string | null
+}
+
 export interface AuthResponse {
   user: Utilisateur
   access_token: string
