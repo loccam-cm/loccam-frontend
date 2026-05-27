@@ -43,66 +43,59 @@ export interface Structure {
 
 export interface Bien {
   id: number
-  proprietaire: Utilisateur
-  structure: Structure | null
   titre: string
-  description: string
-  categorie: string
-  type_bien: string
-  type_bien_display: string
-  prix: number
-  surface: number | null
-  est_meuble: boolean
-  est_climatise: boolean
-  a_ascenseur: boolean
+  description?: string
   adresse: string
-  latitude: number | null
-  longitude: number | null
-  statut: StatutBien
-  statut_display: string
-  nb_vues: number
-  photo_principale: string | null
-  date_creation: string
+  ville?: string
+  prix: number
+  caution?: number
+  type_bien: string
+  categorie: string
+  surface?: number
+  nb_pieces?: number
+  nb_chambres?: number
+  etage?: number
+  structure?: number
+  statut: string
+  meuble?: boolean
+  eau_incluse?: boolean
+  elec_incluse?: boolean
+  photos?: string[]
+  date_creation?: string
 }
-
 export interface Contrat {
   id: number
-  bien: Bien
-  locataire: Utilisateur
-  bailleur: Utilisateur
+  bien?: Bien
+  locataire?: Utilisateur
+  bailleur?: Utilisateur
+  statut: string
   date_debut: string
-  date_fin: string | null
+  date_fin?: string
   loyer_mensuel: number
-  caution: number
-  signe_bailleur: boolean
-  signe_locataire: boolean
-  date_signature: string | null
-  pdf_url: string
-  statut: StatutContrat
-  statut_display: string
-  est_signe: boolean
-  date_creation: string
+  caution?: number
+  jour_echeance?: number
+  notes?: string
+  pdf_url?: string
+  signe_bailleur?: boolean
+  signe_locataire?: boolean
 }
 
 export interface Paiement {
   id: number
-  contrat: Contrat
-  montant_loyer: number
-  montant_eau: number
-  montant_elec: number
-  montant_total: number
+  contrat?: Contrat
   mois: number
   annee: number
-  date_paiement: string | null
-  statut: StatutPaiement
-  statut_display: string
-  transaction_id: string
-  moyen_paiement: MoyenPaiement
-  moyen_display: string
-  quittance_url: string
-  est_confirme: boolean
-  est_en_retard: boolean
-  date_creation: string
+  montant_loyer: number
+  montant_eau?: number
+  montant_elec?: number
+  montant_total: number
+  moyen_paiement: string
+  moyen_display?: string
+  statut: string
+  date_paiement?: string
+  transaction_id?: string
+  quittance_url?: string
+  est_en_retard?: boolean
 }
 
 export interface Notification {

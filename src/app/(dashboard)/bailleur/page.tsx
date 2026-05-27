@@ -160,16 +160,20 @@ export default function BailleurDashboard() {
       label: "Principal",
       items: [
         { icon: <IconLayoutDashboard size={16} />, label: "Dashboard" },
-        { icon: <IconBuilding size={16} />, label: "Structures" },
-        { icon: <IconHome2 size={16} />, label: "Mes biens" },
-        { icon: <IconUsers size={16} />, label: "Locataires" },
+        { icon: <IconBuilding size={16} />, label: 'Structures', href: '/bailleur/structures' },
+        {
+          icon: <IconHome2 size={15} />,
+          label: "Mes biens",
+          href: "/bailleur/biens",
+        },
+        { icon: <IconUsers size={16} />, label: 'Locataires', href: '/bailleur/locataires' },
       ],
     },
     {
       label: "Finances",
       items: [
-        { icon: <IconCreditCard size={16} />, label: "Paiements" },
-        { icon: <IconFileText size={16} />, label: "Documents" },
+        { icon: <IconCreditCard size={16} />, label: 'Paiements', href: '/bailleur/paiements' },
+        { icon: <IconFileText size={16} />, label: 'Contrats', href: '/bailleur/contrats' },
         { icon: <IconDroplet size={16} />, label: "Eau / Électricité" },
       ],
     },
@@ -385,30 +389,8 @@ export default function BailleurDashboard() {
                 </div>
                 {group.items.map((item) => {
                   const isActive = activeNav === item.label;
-                  return (
-                    <button
-                      key={item.label}
-                      onClick={() => {
-                        setActiveNav(item.label);
-                        setSidebarOpen(false);
-                      }}
-                      className="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left"
-                      style={
-                        isActive
-                          ? {
-                              background: "rgba(37,99,235,.25)",
-                              color: "#93C5FD",
-                              fontWeight: 600,
-                            }
-                          : { color: "rgba(255,255,255,.5)" }
-                      }
-                    >
-                      {isActive && (
-                        <div
-                          className="absolute left-3 w-0.5 h-5 rounded-full"
-                          style={{ background: "#3B82F6" }}
-                        />
-                      )}
+                  const content = (
+                    <>
                       <span
                         style={{
                           color: isActive ? "#60A5FA" : "rgba(255,255,255,.4)",
@@ -430,6 +412,39 @@ export default function BailleurDashboard() {
                           {item.badge}
                         </span>
                       )}
+                    </>
+                  );
+
+                  const cls = `nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left`;
+                  const style = isActive
+                    ? {
+                        background: "rgba(37,99,235,.25)",
+                        color: "#93C5FD",
+                        fontWeight: 600,
+                      }
+                    : { color: "rgba(255,255,255,.5)" };
+
+                  return "href" in item && item.href ? (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setActiveNav(item.label)}
+                      className={cls}
+                      style={{ ...style, textDecoration: "none" }}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <button
+                      key={item.label}
+                      onClick={() => {
+                        setActiveNav(item.label);
+                        setSidebarOpen(false);
+                      }}
+                      className={cls}
+                      style={style}
+                    >
+                      {content}
                     </button>
                   );
                 })}
