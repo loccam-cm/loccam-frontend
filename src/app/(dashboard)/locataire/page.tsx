@@ -288,27 +288,34 @@ export default function LocataireDashboard() {
     {
       label: "Mon logement",
       items: [
-        { icon: <IconLayoutDashboard size={15} />, label: "Tableau de bord" },
+        {
+          icon: <IconLayoutDashboard size={15} />,
+          label: "Tableau de bord",
+          href: "/locataire",
+        },
         { icon: <IconHome2 size={15} />, label: "Mon logement" },
-        { icon: <IconFileText size={15} />, label: "Mon contrat" },
+        {
+          icon: <IconFileText size={15} />,
+          label: "Mon contrat",
+          href: "/locataire/contrat",
+        },
       ],
     },
     {
       label: "Finances",
       items: [
-        { icon: <IconCreditCard size={15} />, label: "Payer mon loyer" },
+        {
+          icon: <IconCreditCard size={15} />,
+          label: "Payer mon loyer",
+          href: "/locataire/paiement",
+        },
         { icon: <IconFileText size={15} />, label: "Mes quittances" },
       ],
     },
     {
       label: "Communication",
       items: [
-        {
-          icon: <IconMessage size={15} />,
-          label: "Messagerie",
-          badge: data?.messages.length ?? 0,
-          badgeColor: "#059669",
-        },
+        { icon: <IconMessage size={15} />, label: 'Messagerie', href: '/locataire/messagerie', badge: data?.messages.length ?? 0, badgeColor: '#059669' },
         {
           icon: <IconTool size={15} />,
           label: "Signalements",
@@ -476,27 +483,20 @@ export default function LocataireDashboard() {
                   {group.label}
                 </div>
                 {group.items.map((item) => {
-                  const active = activeNav === item.label;
-                  return (
-                    <button
-                      key={item.label}
-                      onClick={() => {
-                        setActiveNav(item.label);
-                        setSidebarOpen(false);
-                      }}
-                      className="nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left"
-                      style={
-                        active
-                          ? {
-                              background: "#ECFDF5",
-                              color: "#059669",
-                              fontWeight: 600,
-                              boxShadow: "inset 2px 0 0 #059669",
-                            }
-                          : { color: "#64748B" }
+                  const isActive = activeNav === item.label;
+                  const cls = `nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left`;
+                  const style = isActive
+                    ? {
+                        background: "#ECFDF5",
+                        color: "#059669",
+                        fontWeight: 600,
+                        boxShadow: "inset 2px 0 0 #059669",
                       }
-                    >
-                      <span style={{ color: active ? "#059669" : "#94A3B8" }}>
+                    : { color: "#64748B" };
+
+                  const content = (
+                    <>
+                      <span style={{ color: isActive ? "#059669" : "#94A3B8" }}>
                         {item.icon}
                       </span>
                       <span className="flex-1">{item.label}</span>
@@ -513,6 +513,33 @@ export default function LocataireDashboard() {
                           {item.badge}
                         </span>
                       )}
+                    </>
+                  );
+
+                  return "href" in item && item.href ? (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => {
+                        setActiveNav(item.label);
+                        setSidebarOpen(false);
+                      }}
+                      className={cls}
+                      style={{ ...style, textDecoration: "none" }}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <button
+                      key={item.label}
+                      onClick={() => {
+                        setActiveNav(item.label);
+                        setSidebarOpen(false);
+                      }}
+                      className={cls}
+                      style={style}
+                    >
+                      {content}
                     </button>
                   );
                 })}
