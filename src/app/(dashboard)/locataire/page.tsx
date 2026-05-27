@@ -989,8 +989,8 @@ export default function LocataireDashboard() {
                         alt="Orange Money"
                         className="relative z-10 h-7 w-auto object-contain"
                         style={{
-                          filter: "brightness(0) invert(1)",
-                          maxWidth: "80px",
+                          // filter: "brightness(0) invert(1)",
+                          maxWidth: "100px",
                         }}
                       />
                       <span className="relative z-10 text-xs sm:text-sm">
@@ -1019,7 +1019,7 @@ export default function LocataireDashboard() {
                         src="/mtn-money.jpg"
                         alt="MTN Mobile Money"
                         className="relative z-10 h-7 w-auto object-contain"
-                        style={{ maxWidth: "80px" }}
+                        style={{ maxWidth: "100px" }}
                       />
                       <span className="relative z-10 text-xs sm:text-sm">
                         MTN Mobile Money
