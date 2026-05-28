@@ -60,7 +60,7 @@ export interface Bien {
   meuble?: boolean
   eau_incluse?: boolean
   elec_incluse?: boolean
-  photos?: string[]
+  photos?: { id: number; url_publique: string; est_principal: boolean }[]
   date_creation?: string
 }
 export interface Contrat {

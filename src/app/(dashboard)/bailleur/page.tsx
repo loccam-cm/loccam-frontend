@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { Bien, Paiement, Notification, PaginatedResponse } from "@/types";
+import UploadFichier from "@/components/UploadFichier";
 import {
   IconLayoutDashboard,
   IconBuilding,
@@ -33,6 +34,7 @@ import {
   IconChartBar,
   IconClock,
   IconShieldCheck,
+  IconUser,
 } from "@tabler/icons-react";
 
 interface Stats {
@@ -160,20 +162,36 @@ export default function BailleurDashboard() {
       label: "Principal",
       items: [
         { icon: <IconLayoutDashboard size={16} />, label: "Dashboard" },
-        { icon: <IconBuilding size={16} />, label: 'Structures', href: '/bailleur/structures' },
+        {
+          icon: <IconBuilding size={16} />,
+          label: "Structures",
+          href: "/bailleur/structures",
+        },
         {
           icon: <IconHome2 size={15} />,
           label: "Mes biens",
           href: "/bailleur/biens",
         },
-        { icon: <IconUsers size={16} />, label: 'Locataires', href: '/bailleur/locataires' },
+        {
+          icon: <IconUsers size={16} />,
+          label: "Locataires",
+          href: "/bailleur/locataires",
+        },
       ],
     },
     {
       label: "Finances",
       items: [
-        { icon: <IconCreditCard size={16} />, label: 'Paiements', href: '/bailleur/paiements' },
-        { icon: <IconFileText size={16} />, label: 'Contrats', href: '/bailleur/contrats' },
+        {
+          icon: <IconCreditCard size={16} />,
+          label: "Paiements",
+          href: "/bailleur/paiements",
+        },
+        {
+          icon: <IconFileText size={16} />,
+          label: "Contrats",
+          href: "/bailleur/contrats",
+        },
         { icon: <IconDroplet size={16} />, label: "Eau / Électricité" },
       ],
     },
@@ -195,9 +213,12 @@ export default function BailleurDashboard() {
       ],
     },
     {
-      label: "Compte",
-      items: [{ icon: <IconSettings size={16} />, label: "Paramètres" }],
-    },
+  label: "Compte",
+  items: [
+    { icon: <IconSettings size={16} />, label: "Paramètres" },
+    { icon: <IconUser size={16} />,     label: 'Mon compte', href: '/bailleur/compte' },
+  ],
+},
   ];
 
   const kpis = [
@@ -1339,6 +1360,57 @@ export default function BailleurDashboard() {
                     })
                   )}
                 </div>
+
+                {/* Upload CNI */}
+                {user.cni_statut !== "valide" && (
+                  <div
+                    className="p-4 mt-2"
+                    style={{ borderTop: "1px solid #F1F5F9" }}
+                  >
+                    <div
+                      className="text-xs font-bold uppercase tracking-widest mb-3"
+                      style={{ color: "#94A3B8" }}
+                    >
+                      Vérification CNI
+                    </div>
+
+                    {user.cni_statut === "en_attente" ? (
+                      <div
+                        className="flex items-center gap-2.5 p-3 rounded-xl"
+                        style={{
+                          background: "#FFFBEB",
+                          border: "1px solid #FDE68A",
+                        }}
+                      >
+                        <IconAlertCircle
+                          size={16}
+                          style={{ color: "#D97706", flexShrink: 0 }}
+                        />
+                        <div>
+                          <div
+                            className="text-xs font-bold"
+                            style={{ color: "#92400E" }}
+                          >
+                            CNI en cours de vérification
+                          </div>
+                          <div className="text-xs" style={{ color: "#B45309" }}>
+                            L&apos;admin validera votre CNI sous 24h
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <UploadFichier
+                        typeDocument="cni"
+                        label="Photo CNI"
+                        description="JPG, PNG ou PDF · Max 5 MB"
+                        onSuccess={() => {
+                          // Mettre à jour le statut CNI
+                          chargerDonnees();
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

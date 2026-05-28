@@ -38,7 +38,7 @@ function Avatar({ nom, prenom, size = 44 }: { nom: string; prenom: string; size?
   const colors = ['#3B82F6','#059669','#D97706','#7C3AED','#EF4444','#06B6D4']
   const col = colors[(prenom?.charCodeAt(0) ?? 0) % colors.length]
   return (
-    <div style={{ width: size, height: size, borderRadius: '15px', background: `${col}18`, border: `1.5px solid ${col}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: size * 0.35, color: col, flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: '14px', background: `${col}18`, border: `1.5px solid ${col}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: size * 0.35, color: col, flexShrink: 0 }}>
       {prenom?.[0]}{nom?.[0]}
     </div>
   )

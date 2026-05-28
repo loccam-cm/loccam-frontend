@@ -329,7 +329,10 @@ export default function LocataireDashboard() {
     },
     {
       label: "Compte",
-      items: [{ icon: <IconUser size={15} />, label: "Mon compte" }],
+      items: [
+        { icon: <IconUser size={16} />, label: 'Mon compte', href: '/locataire/compte' },
+      ],
+      
     },
   ];
 
