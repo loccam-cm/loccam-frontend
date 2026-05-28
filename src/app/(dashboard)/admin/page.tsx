@@ -68,17 +68,14 @@ interface CNICandidat {
 
 // ── Animations ───────────────────────────────────────────────
 const fadeUp = {
-  hidden: { opacity: 0, y: 14 },
-  visible: (i = 0) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      delay: i * 0.06,
-      duration: 0.4,
-      ease: [0.25, 0.46, 0.45, 0.94],
-    },
+  hidden:  { opacity: 0, y: 12 },
+  visible: (i: number = 0) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.06, duration: 0.4, ease: 'easeOut' as const }
   }),
-};
+}
+
+
 
 const scaleIn = {
   hidden: { opacity: 0, scale: 0.96 },
