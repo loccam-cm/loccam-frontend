@@ -114,14 +114,15 @@ export interface Notification {
 
 export interface Message {
   id: number
-  expediteur: Utilisateur
-  destinataire: Utilisateur
-  bien: Bien
+  expediteur?: Utilisateur
+  destinataire?: Utilisateur
   contenu: string
-  piece_jointe_url: string
   est_lu: boolean
   date_envoi: string
-  date_lecture: string | null
+  piece_jointe_url?: string
+  date_lecture?: string | null
+  bien?: Bien           
+  contrat?: Contrat     
 }
 
 export interface AuthResponse {
