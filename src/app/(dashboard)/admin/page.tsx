@@ -572,7 +572,7 @@ export default function AdminDashboard() {
                         {item.icon}
                       </span>
                       <span className="flex-1">{item.label}</span>
-                      {"badge" in item && item.badge > 0 && (
+                      {"badge" in item && typeof item.badge === 'number' && item.badge > 0 && (
                         <span
                           className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
                           style={{
