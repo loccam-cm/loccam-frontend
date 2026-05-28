@@ -21,6 +21,7 @@ export interface Utilisateur {
   langue: 'fr' | 'en'
   email_verifie: boolean
   est_actif: boolean
+  avatar_url?: string  
   cni_photo_url: string | null
   cni_statut: StatutCNI
   date_creation: string
