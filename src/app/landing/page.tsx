@@ -79,17 +79,23 @@ function useParallax(offset = 80) {
   return useTransform(scrollY, [0, 600], [0, -offset])
 }
 
-function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+function Reveal({ children, delay = 0, className = '', style }: { 
+  children: React.ReactNode
+  delay?: number
+  className?: string
+  style?: React.CSSProperties
+}) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
   return (
-    <motion.div ref={ref} className={className}
+    <motion.div ref={ref} className={className} style={style}
       initial={{ opacity: 0, y: 24 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}>
       {children}
     </motion.div>
   )
+
 }
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -508,7 +514,7 @@ export default function LandingPage() {
         {/* ── FEATURES ───────────────────────────────────────────── */}
         <section id="fonctionnalités" style={{ padding:'96px 24px' }}>
           <div style={{ maxWidth:'1100px', margin:'0 auto' }}>
-            <Reveal className="text-center" style={{ textAlign:'center', marginBottom:'64px' }}>
+            <Reveal className="text-center">
               <div style={{ width:'40px', height:'3px', borderRadius:'2px', background:'linear-gradient(90deg,#2563EB,#10B981)', margin:'0 auto 16px' }} />
               <p style={{ fontSize:'12px', fontWeight:700, letterSpacing:'.12em', color:'#60A5FA', textTransform:'uppercase', marginBottom:'12px' }}>Pourquoi LocCam</p>
               <h2 style={{ fontFamily:'Cabinet Grotesk,sans-serif', fontSize:'clamp(1.9rem,3.5vw,2.9rem)', fontWeight:800, lineHeight:1.1, letterSpacing:'-.3px', marginBottom:'16px' }}>
