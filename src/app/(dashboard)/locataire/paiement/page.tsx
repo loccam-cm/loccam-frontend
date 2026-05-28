@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api'
 import { Contrat, Paiement, PaginatedResponse } from '@/types'
+import { useRouter } from 'next/navigation'
 import {
   IconCreditCard, IconArrowLeft, IconRefresh,
   IconHome2, IconCheck, IconAlertCircle,
@@ -103,38 +104,37 @@ export default function PaiementPage() {
     setEtape('confirmation')
   }
 
-  const handleConfirmer = async () => {
-    if (!contrat) return
-    setEtape('traitement'); setProc(true)
-    try {
-      // Créer le paiement en base
-      const res = await api.post<Paiement>('/paiements/', {
-        contrat: contrat.id,
-        mois: moisNum,
-        annee: anneeNum,
-        montant_loyer: loyer,
-        montant_eau: montantEau,
-        montant_elec: montantElec,
-        montant_total: total,
-        moyen_paiement: moyen,
-        telephone_paiement: moyen !== 'cash' ? telephone.replace(/\s/g, '') : null,
-      })
-      setPaiId(res.data.id)
+const router = useRouter()
 
-      if (moyen === 'cash') {
-        // Paiement cash → confirmé directement
-        await api.post(`/paiements/${res.data.id}/confirmer/`, {})
-        setEtape('succes')
-      } else {
-        // Mobile Money → simulation CinetPay (en attendant intégration réelle)
-        // En production : redirection vers URL CinetPay
-        await new Promise(r => setTimeout(r, 3000))
-        setEtape('succes')
-      }
-    } catch {
-      setEtape('erreur')
-    } finally { setProc(false) }
-  }
+  const handleConfirmer = async () => {
+  if (!contrat) return
+  setEtape('traitement'); setProc(true)
+  try {
+    // Initier le paiement via Django → PayDunya
+    const res = await api.post('/paiements/initier/', {
+      contrat_id:   contrat.id,
+      moyen:        moyen,
+      montant_eau:  montantEau,
+      montant_elec: montantElec,
+    })
+
+    const { paiement_id, paydunya_url } = res.data
+    setPaiId(paiement_id)
+
+    if (moyen === 'cash') {
+      setEtape('succes')
+    } else {
+      // Mobile Money → rediriger vers PayDunya
+      router.push(paydunya_url)
+    }
+  } catch (err: unknown) {
+  const e = err as { response?: { data?: unknown; status?: number }; message?: string }
+  console.error('Status:', e.response?.status)
+  console.error('Data:', JSON.stringify(e.response?.data))
+  console.error('Message:', e.message)
+  setEtape('erreur')
+} finally { setProc(false) }
+}
 
   if (!user) return null
 
