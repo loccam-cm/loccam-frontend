@@ -70,7 +70,7 @@ const fadeUp = {
     transition: {
       delay: i * 0.07,
       duration: 0.4,
-      ease: 'easeOut' as const,
+      ease: "easeOut" as const,
     },
   }),
 };
@@ -315,7 +315,13 @@ export default function LocataireDashboard() {
     {
       label: "Communication",
       items: [
-        { icon: <IconMessage size={15} />, label: 'Messagerie', href: '/locataire/messagerie', badge: data?.messages.length ?? 0, badgeColor: '#059669' },
+        {
+          icon: <IconMessage size={15} />,
+          label: "Messagerie",
+          href: "/locataire/messagerie",
+          badge: data?.messages.length ?? 0,
+          badgeColor: "#059669",
+        },
         {
           icon: <IconTool size={15} />,
           label: "Signalements",
@@ -330,9 +336,12 @@ export default function LocataireDashboard() {
     {
       label: "Compte",
       items: [
-        { icon: <IconUser size={16} />, label: 'Mon compte', href: '/locataire/compte' },
+        {
+          icon: <IconUser size={16} />,
+          label: "Mon compte",
+          href: "/locataire/compte",
+        },
       ],
-      
     },
   ];
 
@@ -503,19 +512,21 @@ export default function LocataireDashboard() {
                         {item.icon}
                       </span>
                       <span className="flex-1">{item.label}</span>
-                      {"badge" in item && typeof item.badge === 'number' && item.badge > 0 && (
-                        <span
-                          className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
-                          style={{
-                            background: item.badgeColor,
-                            fontSize: "10px",
-                            minWidth: "16px",
-                            textAlign: "center",
-                          }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
+                      {"badge" in item &&
+                        typeof item.badge === "number" &&
+                        item.badge > 0 && (
+                          <span
+                            className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
+                            style={{
+                              background: item.badgeColor,
+                              fontSize: "10px",
+                              minWidth: "16px",
+                              textAlign: "center",
+                            }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
                     </>
                   );
 
@@ -866,7 +877,7 @@ export default function LocataireDashboard() {
                               },
                               {
                                 lbl: "Caution versée",
-                                val: contrat
+                                val: contrat?.caution
                                   ? `${contrat.caution.toLocaleString("fr-FR")} XAF`
                                   : "—",
                               },
