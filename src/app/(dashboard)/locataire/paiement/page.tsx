@@ -111,6 +111,8 @@ const router = useRouter()
   setEtape('traitement'); setProc(true)
   try {
     // Initier le paiement via Django → PayDunya
+    console.log('Contrat objet:', contrat)
+    console.log('Contrat ID:', contrat?.id)
     const res = await api.post('/paiements/initier/', {
       contrat_id:   contrat.id,
       moyen:        moyen,
