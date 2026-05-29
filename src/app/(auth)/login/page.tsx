@@ -29,10 +29,13 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL)
+    console.log('Sending:', { email, password })
     try {
       const res = await api.post<AuthResponse>('/auth/connexion/', {
         email, password,
       })
+      console.log('Response:', res.data)
       localStorage.setItem('access_token',  res.data.access_token)
       localStorage.setItem('refresh_token', res.data.refresh_token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
@@ -48,6 +51,7 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
 
   const tabs = [
     { val: 'bailleur'  as const, label: 'Bailleur',   icon: <IconHome2 size={16} /> },
