@@ -192,10 +192,10 @@ export default function NotificationBell({
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '12px', fontWeight: n.est_lue ? 500 : 700, color: '#0F172A', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {n.titre_fr}
+                          {n.titre}
                         </div>
                         <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {n.message_fr}
+                          {n.message}
                         </div>
                         <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '3px' }}>
                           {tempsEcoule(n.date_creation)}
