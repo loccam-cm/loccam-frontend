@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { Bien, Paiement, Notification, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
+import NotificationBell from '@/components/NotificationBell'
 import {
   IconLayoutDashboard,
   IconBuilding,
@@ -564,94 +565,7 @@ export default function BailleurDashboard() {
               </button>
 
               {/* Notifs */}
-              <div className="relative">
-                <button
-                  onClick={() => setNotifOpen(!notifOpen)}
-                  className="w-9 h-9 rounded-lg flex items-center justify-center relative"
-                  style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }}
-                >
-                  <IconBell size={15} style={{ color: "#64748B" }} />
-                  {notifications.filter((n) => !n.est_lue).length > 0 && (
-                    <span
-                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white flex items-center justify-center font-bold notif-dot"
-                      style={{ background: "#EF4444", fontSize: "9px" }}
-                    >
-                      {notifications.filter((n) => !n.est_lue).length}
-                    </span>
-                  )}
-                </button>
-                {notifOpen && (
-                  <div
-                    className="absolute right-0 top-11 w-80 rounded-2xl shadow-2xl z-50 overflow-hidden"
-                    style={{ background: "#fff", border: "1px solid #E2E8F0" }}
-                  >
-                    <div
-                      className="flex items-center justify-between px-4 py-3"
-                      style={{ borderBottom: "1px solid #F1F5F9" }}
-                    >
-                      <span
-                        className="text-sm font-bold"
-                        style={{ color: "#0F172A" }}
-                      >
-                        Notifications
-                      </span>
-                      <button onClick={() => setNotifOpen(false)}>
-                        <IconX size={14} style={{ color: "#94A3B8" }} />
-                      </button>
-                    </div>
-                    <div className="max-h-72 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div
-                          className="px-4 py-6 text-center text-sm"
-                          style={{ color: "#94A3B8" }}
-                        >
-                          Aucune notification
-                        </div>
-                      ) : (
-                        notifications.map((n) => (
-                          <div
-                            key={n.id}
-                            className="flex gap-3 px-4 py-3 row-hover cursor-pointer"
-                            style={{ borderBottom: "1px solid #F8FAFC" }}
-                          >
-                            <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                              style={{ background: "#EFF6FF" }}
-                            >
-                              <IconBell
-                                size={14}
-                                style={{ color: "#2563EB" }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div
-                                className="text-xs font-semibold truncate"
-                                style={{ color: "#0F172A" }}
-                              >
-                                {n.titre}
-                              </div>
-                              <div
-                                className="text-xs"
-                                style={{ color: "#94A3B8" }}
-                              >
-                                {new Date(n.date_creation).toLocaleDateString(
-                                  "fr-FR",
-                                )}
-                              </div>
-                            </div>
-                            {!n.est_lue && (
-                              <div
-                                className="w-2 h-2 rounded-full mt-1 flex-shrink-0"
-                                style={{ background: "#3B82F6" }}
-                              />
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <NotificationBell color="#64748B" bgColor="#F1F5F9" borderColor="#E2E8F0" />
 
               {/* Export */}
               <button

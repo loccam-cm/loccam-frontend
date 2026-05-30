@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import NotificationBell from '@/components/NotificationBell';
 import {
   Contrat,
   Paiement,
@@ -651,112 +652,7 @@ export default function LocataireDashboard() {
               </button>
 
               {/* Notifications */}
-              <div className="relative">
-                <button
-                  onClick={() => setNotifOpen(!notifOpen)}
-                  className="w-9 h-9 rounded-lg flex items-center justify-center relative"
-                  style={{
-                    background: notifOpen ? "#ECFDF5" : "#F0FDF4",
-                    border: "1px solid #D1FAE5",
-                  }}
-                >
-                  <IconBell size={15} style={{ color: "#059669" }} />
-                  {nonLues > 0 && (
-                    <span
-                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white flex items-center justify-center font-bold pulse"
-                      style={{ background: "#EF4444", fontSize: "9px" }}
-                    >
-                      {nonLues}
-                    </span>
-                  )}
-                </button>
-                <AnimatePresence>
-                  {notifOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                      transition={{ duration: 0.18 }}
-                      className="absolute right-0 top-11 w-80 rounded-2xl shadow-2xl z-50 overflow-hidden"
-                      style={{
-                        background: "#fff",
-                        border: "1px solid #D1FAE5",
-                      }}
-                    >
-                      <div
-                        className="flex items-center justify-between px-4 py-3"
-                        style={{ borderBottom: "1px solid #F0FDF4" }}
-                      >
-                        <span
-                          className="text-sm font-bold"
-                          style={{ color: "#0F172A" }}
-                        >
-                          Notifications
-                        </span>
-                        <button onClick={() => setNotifOpen(false)}>
-                          <IconX size={13} style={{ color: "#94A3B8" }} />
-                        </button>
-                      </div>
-                      <div className="max-h-72 overflow-y-auto">
-                        {(data?.notifications ?? []).length === 0 ? (
-                          <div
-                            className="py-6 text-center text-xs"
-                            style={{ color: "#94A3B8" }}
-                          >
-                            Aucune notification
-                          </div>
-                        ) : (
-                          (data?.notifications ?? []).map((n) => {
-                            const st = notifStyles[n.type] ?? {
-                              bg: "#ECFDF5",
-                              col: "#059669",
-                              ico: <IconBell size={12} />,
-                            };
-                            return (
-                              <div
-                                key={n.id}
-                                className="flex gap-3 px-4 py-3 row-hover cursor-pointer"
-                                style={{ borderBottom: "1px solid #F8FAFC" }}
-                              >
-                                <div
-                                  className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
-                                  style={{ background: st.bg }}
-                                >
-                                  <span style={{ color: st.col }}>
-                                    {st.ico}
-                                  </span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div
-                                    className="text-xs font-semibold truncate"
-                                    style={{ color: "#0F172A" }}
-                                  >
-                                    {n.titre}
-                                  </div>
-                                  <div
-                                    className="text-xs"
-                                    style={{ color: "#94A3B8" }}
-                                  >
-                                    {new Date(
-                                      n.date_creation,
-                                    ).toLocaleDateString("fr-FR")}
-                                  </div>
-                                </div>
-                                {!n.est_lue && (
-                                  <div
-                                    className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
-                                    style={{ background: "#059669" }}
-                                  />
-                                )}
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <NotificationBell color="#059669" bgColor="#F0FDF4" borderColor="#D1FAE5" />
 
               {/* CTA payer */}
               <motion.button
