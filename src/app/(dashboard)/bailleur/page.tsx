@@ -194,6 +194,7 @@ export default function BailleurDashboard() {
           href: "/bailleur/contrats",
         },
         { icon: <IconDroplet size={16} />, label: "Eau / Électricité" },
+        { label: 'Relevés eau & élec', href: '/bailleur/releves', icon: <IconDroplet size={16}/> },
       ],
     },
     {
