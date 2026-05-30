@@ -44,6 +44,7 @@ function LeftPanel() {
 
       <div className="lp-left-inner">
         {/* Logo */}
+        <Link href="/landing" className="rg-logo">
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="lp-logo">
@@ -51,10 +52,13 @@ function LeftPanel() {
             <IconBuilding size={18} color="white" />
           </div>
           <div>
-            <div className="lp-logo-name">LocCam</div>
-            <div className="lp-logo-sub">Gestion locative camerounaise</div>
+            
+                <div className="lp-logo-name">LocCam</div>
+                <div className="lp-logo-sub">Gestion locative camerounaise</div>
+          
           </div>
         </motion.div>
+        </Link>
 
         {/* Hero text */}
         <div className="lp-hero">
@@ -208,6 +212,14 @@ export default function LoginPage() {
 
             {/* Header */}
             <div className="lp-form-header">
+              <Link href="/landing" className="rg-logo">
+              <div className="rg-logo-icon"><IconBuilding size={15} color="white" /></div>
+              <div>
+                <div className="rg-logo-name">LocCam</div>
+                <div className="rg-logo-sub">Gestion locative camerounaise</div>
+              </div>
+            </Link>
+            <div className="mb-10"></div>
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="lp-form-secure">
@@ -512,6 +524,16 @@ export default function LoginPage() {
         }
 
         /* ══ PANNEAU DROIT ══ */
+
+        .rg-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+        .rg-logo-icon {
+          width: 30px; height: 30px; border-radius: 8px;
+          background: linear-gradient(135deg,#1A3C5E,#2563EB);
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 3px 10px rgba(37,99,235,0.35);
+        }
+        .rg-logo-name { font-weight: 800; font-size: 14px; color: #0F172A; line-height: 1.1; }
+        .rg-logo-sub { font-size: 10px; color: #94A3B8; }
         .lp-right {
           width: 420px; flex-shrink: 0;
           background: white; display: flex; flex-direction: column;
