@@ -219,8 +219,8 @@ export default function RelevesPage() {
                     { k: 'consommation_elec', ico: <IconBolt size={13}/>,    label: 'Conso élec (kWh)', col: '#F59E0B', unit: 'kWh' },
                   ].map(f => (
                     <div key={f.k}>
-                      <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span style={{ color: f.col }}>{f.ico}</span> {f.label}
+                     <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '6px' }}>
+                         <span style={{ color: f.col }}>{f.ico}</span> {f.label}
                       </label>
                       <input type="number" step="0.001" min="0"
                         value={form[f.k as keyof typeof form]}
