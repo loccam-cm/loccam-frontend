@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api'
+import { toast } from 'sonner'
 import { Contrat, Paiement, PaginatedResponse } from '@/types'
 import { useRouter } from 'next/navigation'
 import {
@@ -13,7 +14,7 @@ import {
   IconLoader2, IconShieldCheck, IconCircleCheck,
   IconClock, IconX, IconChevronRight,
   IconLock, IconPhone, IconReceipt,
-  IconBuildingBank, IconAlertTriangle,
+  IconBuildingBank, IconAlertTriangle, IconDownload,
 } from '@tabler/icons-react'
 
 // ── Types locaux ──────────────────────────────────────────────
@@ -54,15 +55,16 @@ function StepDot({ n, active, done }: { n: number; active: boolean; done: boolea
 // ────────────────────────────────────────────────────────────
 export default function PaiementPage() {
   const { user } = useAuth()
-  const [contrat, setContrat]   = useState<Contrat | null>(null)
-  const [loading, setLoading]   = useState(true)
-  const [etape, setEtape]       = useState<Etape>('choix')
-  const [moyen, setMoyen]       = useState<Moyen | null>(null)
-  const [telephone, setTel]     = useState('')
-  const [telError, setTelError] = useState('')
-  const [processing, setProc]   = useState(false)
-  const [paiementId, setPaiId]  = useState<number | null>(null)
-  const [charges, setCharges]   = useState<ChargesIndex>({
+  const [contrat, setContrat]       = useState<Contrat | null>(null)
+  const [loading, setLoading]       = useState(true)
+  const [etape, setEtape]           = useState<Etape>('choix')
+  const [moyen, setMoyen]           = useState<Moyen | null>(null)
+  const [telephone, setTel]         = useState('')
+  const [telError, setTelError]     = useState('')
+  const [processing, setProc]       = useState(false)
+  const [paiementId, setPaiId]      = useState<number | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [charges, setCharges]       = useState<ChargesIndex>({
     eau_m3: '', eau_prix_m3: '250', elec_kwh: '', elec_prix_kwh: '100',
   })
   const [inclureCharges, setInclureCharges] = useState(false)
@@ -79,7 +81,7 @@ export default function PaiementPage() {
   }
 
   // Calculs montants
-  const loyer     = contrat?.loyer_mensuel ?? 0
+  const loyer       = contrat?.loyer_mensuel ?? 0
   const montantEau  = inclureCharges && charges.eau_m3 && charges.eau_prix_m3
     ? Math.round(parseFloat(charges.eau_m3) * parseFloat(charges.eau_prix_m3))
     : 0
@@ -104,37 +106,57 @@ export default function PaiementPage() {
     setEtape('confirmation')
   }
 
-const router = useRouter()
+  const router = useRouter()
 
   const handleConfirmer = async () => {
-  if (!contrat) return
-  setEtape('traitement'); setProc(true)
-  try {
-    // Initier le paiement via Django → PayDunya
-    const res = await api.post('/paiements/initier/', {
-      contrat_id:   contrat.id,
-      moyen:        moyen,
-      montant_eau:  montantEau,
-      montant_elec: montantElec,
-    })
+    if (!contrat) return
+    setEtape('traitement'); setProc(true)
+    try {
+      const res = await api.post('/paiements/initier/', {
+        contrat_id:   contrat.id,
+        moyen:        moyen,
+        montant_eau:  montantEau,
+        montant_elec: montantElec,
+      })
+      const { paiement_id, paydunya_url } = res.data
+      setPaiId(paiement_id)
+      if (moyen === 'cash') {
+        setEtape('succes')
+      } else {
+        router.push(paydunya_url)
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: unknown; status?: number }; message?: string }
+      console.error('Status:', e.response?.status)
+      console.error('Data:', JSON.stringify(e.response?.data))
+      console.error('Message:', e.message)
+      setEtape('erreur')
+    } finally { setProc(false) }
+  }
 
-    const { paiement_id, paydunya_url } = res.data
-    setPaiId(paiement_id)
-
-    if (moyen === 'cash') {
-      setEtape('succes')
-    } else {
-      // Mobile Money → rediriger vers PayDunya
-      router.push(paydunya_url)
+  // ── Télécharger la quittance ──────────────────────────────
+  const telechargerQuittance = async () => {
+    if (!paiementId) return
+    setDownloading(true)
+    try {
+      const res = await api.get(`/paiements/${paiementId}/quittance/`, {
+        responseType: 'blob',
+      })
+      const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href  = url
+      link.setAttribute('download', `Quittance_${paiementId}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Quittance téléchargée !')
+    } catch {
+      toast.error('Erreur lors du téléchargement.')
+    } finally {
+      setDownloading(false)
     }
-  } catch (err: unknown) {
-  const e = err as { response?: { data?: unknown; status?: number }; message?: string }
-  console.error('Status:', e.response?.status)
-  console.error('Data:', JSON.stringify(e.response?.data))
-  console.error('Message:', e.message)
-  setEtape('erreur')
-} finally { setProc(false) }
-}
+  }
 
   if (!user) return null
 
@@ -249,7 +271,6 @@ const router = useRouter()
                   initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
                   exit={{ opacity:0, y:-16 }} transition={{ duration:.3 }}>
 
-                  {/* Récap logement */}
                   <div className="rounded-2xl p-4 mb-5 flex items-center gap-3"
                        style={{ background:'linear-gradient(135deg,#064E3B,#059669)' }}>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -258,9 +279,7 @@ const router = useRouter()
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-white font-bold text-sm truncate">{contrat.bien?.titre ?? 'Logement'}</div>
-                      <div className="text-xs" style={{ color:'rgba(255,255,255,.6)' }}>
-                        Loyer {moisCourant}
-                      </div>
+                      <div className="text-xs" style={{ color:'rgba(255,255,255,.6)' }}>Loyer {moisCourant}</div>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="text-white font-bold text-lg">{loyer.toLocaleString('fr-FR')}</div>
@@ -268,9 +287,7 @@ const router = useRouter()
                     </div>
                   </div>
 
-                  {/* Charges optionnelles */}
-                  <div className="bg-white rounded-2xl p-4 mb-5"
-                       style={{ border:'1px solid #D1FAE5' }}>
+                  <div className="bg-white rounded-2xl p-4 mb-5" style={{ border:'1px solid #D1FAE5' }}>
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <div className="text-sm font-bold" style={{ color:'#0F172A' }}>Inclure les charges</div>
@@ -286,13 +303,12 @@ const router = useRouter()
                       {inclureCharges && (
                         <motion.div initial={{ height:0, opacity:0 }} animate={{ height:'auto', opacity:1 }}
                                     exit={{ height:0, opacity:0 }} transition={{ duration:.2 }}>
-                          <div className="grid grid-cols-2 gap-3 pt-3"
-                               style={{ borderTop:'1px solid #F0FDF4' }}>
+                          <div className="grid grid-cols-2 gap-3 pt-3" style={{ borderTop:'1px solid #F0FDF4' }}>
                             {[
-                              { key:'eau_m3', lbl:'Eau (m³)', ph:'12.5', unit:'m³' },
-                              { key:'eau_prix_m3', lbl:'Prix/m³ (XAF)', ph:'250', unit:'XAF' },
-                              { key:'elec_kwh', lbl:'Électricité (kWh)', ph:'48', unit:'kWh' },
-                              { key:'elec_prix_kwh', lbl:'Prix/kWh (XAF)', ph:'100', unit:'XAF' },
+                              { key:'eau_m3', lbl:'Eau (m³)', ph:'12.5' },
+                              { key:'eau_prix_m3', lbl:'Prix/m³ (XAF)', ph:'250' },
+                              { key:'elec_kwh', lbl:'Électricité (kWh)', ph:'48' },
+                              { key:'elec_prix_kwh', lbl:'Prix/kWh (XAF)', ph:'100' },
                             ].map(f => (
                               <div key={f.key}>
                                 <label className="block text-xs font-semibold mb-1" style={{ color:'#374151' }}>{f.lbl}</label>
@@ -324,16 +340,12 @@ const router = useRouter()
                     </AnimatePresence>
                   </div>
 
-                  {/* Total */}
                   <div className="flex justify-between items-center px-5 py-4 rounded-2xl mb-5"
                        style={{ background:'#ECFDF5', border:'1px solid #A7F3D0' }}>
                     <span className="text-sm font-bold" style={{ color:'#059669' }}>Total à payer</span>
-                    <span className="text-2xl font-bold" style={{ color:'#059669' }}>
-                      {total.toLocaleString('fr-FR')} XAF
-                    </span>
+                    <span className="text-2xl font-bold" style={{ color:'#059669' }}>{total.toLocaleString('fr-FR')} XAF</span>
                   </div>
 
-                  {/* Choix moyen */}
                   <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color:'#94A3B8' }}>
                     Choisir le moyen de paiement
                   </div>
@@ -343,7 +355,6 @@ const router = useRouter()
                         className="moyen-card flex items-center gap-4 p-4 rounded-2xl"
                         style={{ background: moyen === m.id ? m.bg : '#fff', border:`2px solid ${moyen === m.id ? m.color : '#E2E8F0'}`, transition:'all .15s' }}
                         onClick={() => setMoyen(m.id)}>
-                        {/* Logo */}
                         <div className="w-14 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                              style={{ background: m.bg, border:`1px solid ${m.border}` }}>
                           {m.img
@@ -362,19 +373,17 @@ const router = useRouter()
                     ))}
                   </div>
 
-                  {/* CTA */}
                   <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:.98 }}
                     onClick={() => moyen && setEtape('saisie')}
                     disabled={!moyen}
                     className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-sm font-bold text-white mt-5"
                     style={{ background: moyen ? 'linear-gradient(135deg,#059669,#047857)' : '#E2E8F0', boxShadow: moyen ? '0 4px 14px rgba(5,150,105,.35)' : 'none', color: moyen ? '#fff' : '#94A3B8', transition:'all .2s' }}>
-                    Continuer
-                    <IconChevronRight size={17} />
+                    Continuer <IconChevronRight size={17} />
                   </motion.button>
 
                   <div className="flex items-center justify-center gap-2 mt-4">
                     <IconLock size={12} style={{ color:'#94A3B8' }} />
-                    <span className="text-xs" style={{ color:'#94A3B8' }}>Paiement sécurisé via CinetPay</span>
+                    <span className="text-xs" style={{ color:'#94A3B8' }}>Paiement sécurisé via PayDunya</span>
                   </div>
                 </motion.div>
               )}
@@ -387,7 +396,6 @@ const router = useRouter()
                   initial={{ opacity:0, x:30 }} animate={{ opacity:1, x:0 }}
                   exit={{ opacity:0, x:-30 }} transition={{ duration:.28 }}>
 
-                  {/* Steps */}
                   <div className="flex items-center justify-center gap-2 mb-6">
                     {[1,2,3].map(n => (
                       <div key={n} className="flex items-center gap-2">
@@ -397,25 +405,15 @@ const router = useRouter()
                     ))}
                   </div>
 
-                  {/* Récap montant */}
                   <div className="text-center mb-6">
-                    <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color:'#94A3B8' }}>
-                      Montant à payer
-                    </div>
-                    <div className="text-4xl font-bold" style={{ color:'#059669' }}>
-                      {total.toLocaleString('fr-FR')} XAF
-                    </div>
-                    <div className="text-sm mt-1" style={{ color:'#64748B' }}>
-                      Loyer {moisCourant}
-                    </div>
+                    <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color:'#94A3B8' }}>Montant à payer</div>
+                    <div className="text-4xl font-bold" style={{ color:'#059669' }}>{total.toLocaleString('fr-FR')} XAF</div>
+                    <div className="text-sm mt-1" style={{ color:'#64748B' }}>Loyer {moisCourant}</div>
                   </div>
 
                   {moyen === 'cash' ? (
-                    /* Cash — pas de numéro */
-                    <div className="bg-white rounded-2xl p-5 mb-5 text-center"
-                         style={{ border:'1px solid #D1FAE5' }}>
-                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
-                           style={{ background:'#ECFDF5' }}>
+                    <div className="bg-white rounded-2xl p-5 mb-5 text-center" style={{ border:'1px solid #D1FAE5' }}>
+                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background:'#ECFDF5' }}>
                         <IconBuildingBank size={28} style={{ color:'#059669' }} />
                       </div>
                       <h3 className="text-sm font-bold mb-2" style={{ color:'#0F172A' }}>Paiement en espèces</h3>
@@ -424,9 +422,7 @@ const router = useRouter()
                       </p>
                     </div>
                   ) : (
-                    /* Mobile Money — saisie numéro */
-                    <div className="bg-white rounded-2xl p-5 mb-5"
-                         style={{ border:'1px solid #D1FAE5' }}>
+                    <div className="bg-white rounded-2xl p-5 mb-5" style={{ border:'1px solid #D1FAE5' }}>
                       <div className="flex items-center gap-3 mb-5 p-3 rounded-xl"
                            style={{ background: moyen === 'orange_money' ? 'rgba(255,102,0,.07)' : 'rgba(217,119,6,.07)' }}>
                         <img src={moyen === 'orange_money' ? '/orange-money.jpg' : '/mtn-money.jpg'}
@@ -438,7 +434,6 @@ const router = useRouter()
                           <div className="text-xs" style={{ color:'#94A3B8' }}>Entrez votre numéro pour recevoir la demande</div>
                         </div>
                       </div>
-
                       <label className="block text-xs font-bold mb-2" style={{ color:'#374151' }}>
                         Numéro {moyen === 'orange_money' ? 'Orange' : 'MTN'} <span style={{ color:'#EF4444' }}>*</span>
                       </label>
@@ -447,14 +442,11 @@ const router = useRouter()
                           <IconPhone size={16} style={{ color:'#94A3B8' }} />
                           <span className="text-sm font-bold" style={{ color:'#64748B' }}>+237</span>
                         </div>
-                        <input
-                          type="tel"
-                          value={telephone}
-                          onChange={e => { setTel(e.target.value); setTelError('') }}
-                          placeholder="6XX XXX XXX"
-                          className={`input-tel ${telError ? 'err' : ''}`}
-                          style={{ paddingLeft:'80px' }}
-                        />
+                        <input type="tel" value={telephone}
+                               onChange={e => { setTel(e.target.value); setTelError('') }}
+                               placeholder="6XX XXX XXX"
+                               className={`input-tel ${telError ? 'err' : ''}`}
+                               style={{ paddingLeft:'80px' }} />
                       </div>
                       {telError && (
                         <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color:'#EF4444' }}>
@@ -471,8 +463,7 @@ const router = useRouter()
                     onClick={handlePayer}
                     className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-sm font-bold text-white"
                     style={{ background:'linear-gradient(135deg,#059669,#047857)', boxShadow:'0 4px 14px rgba(5,150,105,.35)' }}>
-                    Vérifier et continuer
-                    <IconChevronRight size={17} />
+                    Vérifier et continuer <IconChevronRight size={17} />
                   </motion.button>
 
                   <button onClick={() => setEtape('choix')}
@@ -491,7 +482,6 @@ const router = useRouter()
                   initial={{ opacity:0, x:30 }} animate={{ opacity:1, x:0 }}
                   exit={{ opacity:0, x:-30 }} transition={{ duration:.28 }}>
 
-                  {/* Steps */}
                   <div className="flex items-center justify-center gap-2 mb-6">
                     {[1,2,3].map(n => (
                       <div key={n} className="flex items-center gap-2">
@@ -501,34 +491,25 @@ const router = useRouter()
                     ))}
                   </div>
 
-                  <h2 className="text-lg font-bold text-center mb-1" style={{ color:'#0F172A' }}>
-                    Confirmer le paiement
-                  </h2>
-                  <p className="text-xs text-center mb-5" style={{ color:'#94A3B8' }}>
-                    Vérifiez les informations avant de valider
-                  </p>
+                  <h2 className="text-lg font-bold text-center mb-1" style={{ color:'#0F172A' }}>Confirmer le paiement</h2>
+                  <p className="text-xs text-center mb-5" style={{ color:'#94A3B8' }}>Vérifiez les informations avant de valider</p>
 
-                  <div className="bg-white rounded-2xl overflow-hidden mb-4"
-                       style={{ border:'1px solid #D1FAE5' }}>
-                    {/* Entête vert */}
+                  <div className="bg-white rounded-2xl overflow-hidden mb-4" style={{ border:'1px solid #D1FAE5' }}>
                     <div className="px-5 py-4" style={{ background:'linear-gradient(135deg,#064E3B,#059669)' }}>
-                      <div className="text-xs font-bold uppercase tracking-wider mb-1"
-                           style={{ color:'rgba(255,255,255,.5)' }}>Récapitulatif</div>
+                      <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color:'rgba(255,255,255,.5)' }}>Récapitulatif</div>
                       <div className="text-2xl font-bold text-white">{total.toLocaleString('fr-FR')} XAF</div>
                       <div className="text-xs mt-0.5" style={{ color:'rgba(255,255,255,.6)' }}>Loyer {moisCourant}</div>
                     </div>
-
                     <div className="px-5 py-4 space-y-0">
                       {[
-                        { lbl:'Logement',        val: contrat.bien?.titre ?? '—' },
-                        { lbl:'Loyer de base',   val: `${loyer.toLocaleString('fr-FR')} XAF` },
-                        ...(montantEau > 0 ? [{ lbl:'Charges eau', val:`${montantEau.toLocaleString('fr-FR')} XAF` }] : []),
+                        { lbl:'Logement',      val: contrat.bien?.titre ?? '—' },
+                        { lbl:'Loyer de base', val: `${loyer.toLocaleString('fr-FR')} XAF` },
+                        ...(montantEau  > 0 ? [{ lbl:'Charges eau',   val:`${montantEau.toLocaleString('fr-FR')} XAF` }] : []),
                         ...(montantElec > 0 ? [{ lbl:'Charges élec.', val:`${montantElec.toLocaleString('fr-FR')} XAF` }] : []),
                         { lbl:'Moyen', val: MOYENS.find(m => m.id === moyen)?.lbl ?? moyen ?? '—' },
                         ...(moyen !== 'cash' && telephone ? [{ lbl:'Numéro', val:`+237 ${telephone}` }] : []),
                       ].map(r => (
-                        <div key={r.lbl} className="flex justify-between py-3"
-                             style={{ borderBottom:'1px solid #F0FDF4' }}>
+                        <div key={r.lbl} className="flex justify-between py-3" style={{ borderBottom:'1px solid #F0FDF4' }}>
                           <span className="text-xs" style={{ color:'#94A3B8' }}>{r.lbl}</span>
                           <span className="text-sm font-semibold" style={{ color:'#0F172A' }}>{r.val}</span>
                         </div>
@@ -536,10 +517,8 @@ const router = useRouter()
                     </div>
                   </div>
 
-                  {/* Avertissement Mobile Money */}
                   {moyen !== 'cash' && (
-                    <div className="flex gap-2.5 p-3.5 rounded-xl mb-4"
-                         style={{ background:'#FFFBEB', border:'1px solid #FDE68A' }}>
+                    <div className="flex gap-2.5 p-3.5 rounded-xl mb-4" style={{ background:'#FFFBEB', border:'1px solid #FDE68A' }}>
                       <IconAlertTriangle size={15} style={{ color:'#D97706', flexShrink:0, marginTop:'1px' }} />
                       <p className="text-xs leading-relaxed" style={{ color:'#92400E' }}>
                         Vous recevrez une notification sur le <strong>+237 {telephone}</strong>. Validez le paiement sur votre téléphone dans les 5 minutes.
@@ -551,8 +530,7 @@ const router = useRouter()
                     onClick={handleConfirmer}
                     className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-sm font-bold text-white mb-3"
                     style={{ background:'linear-gradient(135deg,#059669,#047857)', boxShadow:'0 4px 14px rgba(5,150,105,.4)' }}>
-                    <IconShieldCheck size={17} />
-                    Confirmer le paiement
+                    <IconShieldCheck size={17} /> Confirmer le paiement
                   </motion.button>
 
                   <button onClick={() => setEtape('saisie')}
@@ -578,21 +556,14 @@ const router = useRouter()
                       <IconLoader2 size={28} style={{ color:'#059669', animation:'spin 1s linear infinite' }} />
                     </div>
                   </div>
-                  <h3 className="text-base font-bold mb-2" style={{ color:'#0F172A' }}>
-                    Traitement en cours...
-                  </h3>
+                  <h3 className="text-base font-bold mb-2" style={{ color:'#0F172A' }}>Traitement en cours...</h3>
                   <p className="text-sm" style={{ color:'#64748B' }}>
-                    {moyen === 'cash'
-                      ? 'Enregistrement du paiement...'
-                      : 'En attente de confirmation Mobile Money...'}
+                    {moyen === 'cash' ? 'Enregistrement du paiement...' : 'En attente de confirmation Mobile Money...'}
                   </p>
                   {moyen !== 'cash' && (
-                    <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl"
-                         style={{ background:'#FFFBEB', border:'1px solid #FDE68A' }}>
+                    <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background:'#FFFBEB', border:'1px solid #FDE68A' }}>
                       <div className="pulse-dot w-2 h-2 rounded-full" style={{ background:'#D97706' }} />
-                      <span className="text-xs font-medium" style={{ color:'#92400E' }}>
-                        Validez sur votre téléphone
-                      </span>
+                      <span className="text-xs font-medium" style={{ color:'#92400E' }}>Validez sur votre téléphone</span>
                     </div>
                   )}
                 </motion.div>
@@ -606,42 +577,29 @@ const router = useRouter()
                   initial={{ opacity:0 }} animate={{ opacity:1 }}
                   className="flex flex-col items-center py-8 text-center">
 
-                  {/* Cercle animé */}
                   <motion.div
                     initial={{ scale:0 }} animate={{ scale:1 }}
                     transition={{ type:'spring', duration:.6, delay:.1 }}
                     className="w-24 h-24 rounded-full flex items-center justify-center mb-5"
                     style={{ background:'linear-gradient(135deg,#059669,#10B981)', boxShadow:'0 8px 30px rgba(5,150,105,.4)' }}>
-                    <motion.div initial={{ scale:0 }} animate={{ scale:1 }}
-                                transition={{ delay:.4, type:'spring' }}>
+                    <motion.div initial={{ scale:0 }} animate={{ scale:1 }} transition={{ delay:.4, type:'spring' }}>
                       <IconCircleCheck size={44} color="white" />
                     </motion.div>
                   </motion.div>
 
-                  <h2 className="text-2xl font-bold mb-2" style={{ color:'#0F172A' }}>
-                    Paiement confirmé !
-                  </h2>
-                  <p className="text-sm mb-1" style={{ color:'#64748B' }}>
-                    {total.toLocaleString('fr-FR')} XAF — Loyer {moisCourant}
-                  </p>
-                  <p className="text-xs mb-6" style={{ color:'#94A3B8' }}>
-                    Votre quittance a été générée automatiquement.
-                  </p>
+                  <h2 className="text-2xl font-bold mb-2" style={{ color:'#0F172A' }}>Paiement confirmé !</h2>
+                  <p className="text-sm mb-1" style={{ color:'#64748B' }}>{total.toLocaleString('fr-FR')} XAF — Loyer {moisCourant}</p>
+                  <p className="text-xs mb-6" style={{ color:'#94A3B8' }}>Votre quittance a été générée automatiquement.</p>
 
-                  {/* Récap succès */}
-                  <div className="w-full bg-white rounded-2xl p-5 mb-6 text-left"
-                       style={{ border:'1px solid #D1FAE5' }}>
-                    <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color:'#94A3B8' }}>
-                      Détail du paiement
-                    </div>
+                  <div className="w-full bg-white rounded-2xl p-5 mb-6 text-left" style={{ border:'1px solid #D1FAE5' }}>
+                    <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color:'#94A3B8' }}>Détail du paiement</div>
                     {[
                       { lbl:'Logement',  val: contrat.bien?.titre ?? '—' },
                       { lbl:'Montant',   val: `${total.toLocaleString('fr-FR')} XAF`, col:'#059669' },
                       { lbl:'Méthode',   val: MOYENS.find(m => m.id === moyen)?.lbl ?? '—' },
                       { lbl:'Référence', val: paiementId ? `PAI-${paiementId.toString().padStart(6,'0')}` : '—' },
                     ].map(r => (
-                      <div key={r.lbl} className="flex justify-between py-2.5"
-                           style={{ borderBottom:'1px solid #F0FDF4' }}>
+                      <div key={r.lbl} className="flex justify-between py-2.5" style={{ borderBottom:'1px solid #F0FDF4' }}>
                         <span className="text-xs" style={{ color:'#94A3B8' }}>{r.lbl}</span>
                         <span className="text-sm font-semibold" style={{ color: r.col ?? '#0F172A' }}>{r.val}</span>
                       </div>
@@ -649,10 +607,18 @@ const router = useRouter()
                   </div>
 
                   <div className="w-full grid grid-cols-1 gap-3">
-                    <button className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white"
-                            style={{ background:'linear-gradient(135deg,#059669,#047857)', boxShadow:'0 4px 14px rgba(5,150,105,.3)' }}>
-                      <IconReceipt size={17} />Télécharger la quittance
-                    </button>
+                    {/* ── Bouton téléchargement quittance ── */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                      onClick={telechargerQuittance}
+                      disabled={downloading || !paiementId}
+                      className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white w-full"
+                      style={{ background:'linear-gradient(135deg,#059669,#047857)', boxShadow:'0 4px 14px rgba(5,150,105,.3)', opacity: downloading ? 0.7 : 1 }}>
+                      {downloading
+                        ? <><IconLoader2 size={17} style={{ animation:'spin 1s linear infinite' }} />Téléchargement...</>
+                        : <><IconDownload size={17} />Télécharger la quittance</>
+                      }
+                    </motion.button>
                     <Link href="/locataire"
                           className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold"
                           style={{ background:'#F0FDF4', border:'1.5px solid #A7F3D0', color:'#059669', textDecoration:'none' }}>
@@ -669,8 +635,7 @@ const router = useRouter()
                 <motion.div key="erreur"
                   initial={{ opacity:0 }} animate={{ opacity:1 }}
                   className="flex flex-col items-center py-12 text-center">
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
-                       style={{ background:'#FEF2F2' }}>
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5" style={{ background:'#FEF2F2' }}>
                     <IconX size={36} style={{ color:'#EF4444' }} />
                   </div>
                   <h2 className="text-xl font-bold mb-2" style={{ color:'#0F172A' }}>Paiement échoué</h2>
