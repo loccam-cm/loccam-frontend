@@ -1,61 +1,81 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
-import { IconBuilding, IconX, IconMenu2 } from '@tabler/icons-react'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { IconBuilding, IconX, IconMenu2 } from "@tabler/icons-react";
 
 const LINKS = [
-  { label: 'L\'outil',          href: '#fonctionnalites' },
-  { label: 'Logique',     href: '#comment' },
-  { label: 'Législation', href: '#bail' },
-  { label: 'Tarifs',         href: '#tarifs' },
-  { label: 'Contact',        href: '#contact' },
-  
-]
+  { label: "L'outil", href: "#fonctionnalites" },
+  { label: "Logique", href: "#comment" },
+  { label: "Législation", href: "#bail" },
+  { label: "Tarifs", href: "#tarifs" },
+  { label: "Contact", href: "#contact" },
+];
 
 export default function LandingNav() {
-  const [scrolled, setScrolled] = useState(false)
-  const [menu, setMenu]         = useState(false)
+  const [scrolled, setScrolled] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40)
-    window.addEventListener('scroll', fn, { passive: true })
-    return () => window.removeEventListener('scroll', fn)
-  }, [])
+    const fn = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
 
   return (
     <>
-      <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        height: '60px',
-        background: scrolled ? 'rgba(8,14,28,0.95)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(20px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.07)' : '1px solid transparent',
-        transition: 'all 0.3s ease',
-      }}>
+      <nav
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          height: "60px",
+          background: scrolled ? "rgba(8,14,28,0.95)" : "transparent",
+          backdropFilter: scrolled ? "blur(20px)" : "none",
+          borderBottom: scrolled
+            ? "1px solid rgba(255,255,255,0.07)"
+            : "1px solid transparent",
+          transition: "all 0.3s ease",
+        }}
+      >
         <div className="nav-inner">
           {/* Logo */}
           <Link href="/landing" className="nav-logo">
             <div className="nav-logo-icon">
               <IconBuilding size={17} color="white" />
             </div>
-            <span className="nav-logo-text">LocCam</span>
+            <div>
+              <div className="nav-logo-text">LocCam</div>
+              <div className="nav-logo-sub">Gestion locative camerounaise</div>
+            </div>
           </Link>
 
           {/* Links */}
           <div className="nav-links">
-            {LINKS.map(l => (
-              <a key={l.label} href={l.href} className="nav-link">{l.label}</a>
+            {LINKS.map((l) => (
+              <a key={l.label} href={l.href} className="nav-link">
+                {l.label}
+              </a>
             ))}
           </div>
 
           {/* CTA */}
           <div className="nav-actions">
-            <Link href="/login" className="nav-btn-ghost">Se connecter</Link>
-            <Link href="/register" className="nav-btn-primary">Démarrer</Link>
+            <Link href="/login" className="nav-btn-ghost">
+              Se connecter
+            </Link>
+            <Link href="/register" className="nav-btn-primary">
+              Démarrer
+            </Link>
             <button className="nav-burger" onClick={() => setMenu(!menu)}>
-              {menu ? <IconX size={18} color="#F8FAFC" /> : <IconMenu2 size={18} color="#F8FAFC" />}
+              {menu ? (
+                <IconX size={18} color="#F8FAFC" />
+              ) : (
+                <IconMenu2 size={18} color="#F8FAFC" />
+              )}
             </button>
           </div>
         </div>
@@ -63,23 +83,78 @@ export default function LandingNav() {
         {/* Mobile */}
         <AnimatePresence>
           {menu && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
-              style={{ overflow: 'hidden', background: 'rgba(8,14,28,0.98)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {LINKS.map(l => (
-                  <a key={l.label} href={l.href} onClick={() => setMenu(false)}
-                    style={{ fontSize: '15px', fontWeight: 500, color: 'rgba(248,250,252,0.7)', textDecoration: 'none', padding: '10px 8px' }}>
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                overflow: "hidden",
+                background: "rgba(8,14,28,0.98)",
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  padding: "16px 20px 20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                }}
+              >
+                {LINKS.map((l) => (
+                  <a
+                    key={l.label}
+                    href={l.href}
+                    onClick={() => setMenu(false)}
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 500,
+                      color: "rgba(248,250,252,0.7)",
+                      textDecoration: "none",
+                      padding: "10px 8px",
+                    }}
+                  >
                     {l.label}
                   </a>
                 ))}
-                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
-                <Link href="/login" onClick={() => setMenu(false)}
-                  style={{ fontSize: '14px', fontWeight: 600, color: '#60A5FA', textDecoration: 'none', padding: '10px 8px' }}>
+                <div
+                  style={{
+                    height: "1px",
+                    background: "rgba(255,255,255,0.06)",
+                    margin: "8px 0",
+                  }}
+                />
+                <Link
+                  href="/login"
+                  onClick={() => setMenu(false)}
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#60A5FA",
+                    textDecoration: "none",
+                    padding: "10px 8px",
+                  }}
+                >
                   Se connecter
                 </Link>
-                <Link href="/register" onClick={() => setMenu(false)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '4px', padding: '13px', borderRadius: '12px', background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', color: 'white', fontWeight: 700, fontSize: '15px', textDecoration: 'none' }}>
+                <Link
+                  href="/register"
+                  onClick={() => setMenu(false)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginTop: "4px",
+                    padding: "13px",
+                    borderRadius: "12px",
+                    background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
+                    color: "white",
+                    fontWeight: 700,
+                    fontSize: "15px",
+                    textDecoration: "none",
+                  }}
+                >
                   Démarrer gratuitement
                 </Link>
               </div>
@@ -89,6 +164,12 @@ export default function LandingNav() {
       </nav>
 
       <style>{`
+        .nav-logo-sub {
+            font-size: 10px;
+            color: rgba(248,250,252,0.38);
+            font-weight: 400;
+            line-height: 1.2;
+          }
         .nav-inner {
           max-width: 1200px; margin: 0 auto; padding: 0 24px;
           height: 60px; display: flex; align-items: center; gap: 40px;
@@ -158,5 +239,5 @@ export default function LandingNav() {
         }
       `}</style>
     </>
-  )
+  );
 }
