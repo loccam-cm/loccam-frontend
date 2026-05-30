@@ -37,94 +37,29 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://loccam-backend.onrender.com/api/v1
 
-  # ── Job 2 : Deploy Production (main seulement) ────────────
+  # ── Job 2 : Deploy Production via API Vercel (main) ───────
   deploy:
     name: Deploy sur Vercel
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Installer Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Créer .vercel/project.json
+      - name: Déclencher le deploy Vercel
         run: |
-          rm -rf .vercel
-          mkdir -p .vercel
-          printf '{"orgId":"%s","projectId":"%s"}' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
-          echo "project.json créé :"
-          cat .vercel/project.json
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          curl -X POST \
+            "https://api.vercel.com/v1/integrations/deploy/${{ secrets.VERCEL_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json"
 
-      - name: Build pour Vercel
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          NEXT_PUBLIC_API_URL: https://loccam-backend.onrender.com/api/v1
-
-      - name: Deploy sur Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  # ── Job 3 : Deploy Preview (develop seulement) ────────────
+  # ── Job 3 : Deploy Preview (develop) ──────────────────────
   preview:
     name: Deploy Preview
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Installer Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Créer .vercel/project.json
+      - name: Déclencher le deploy Preview Vercel
         run: |
-          rm -rf .vercel
-          mkdir -p .vercel
-          printf '{"orgId":"%s","projectId":"%s"}' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
-          echo "project.json créé :"
-          cat .vercel/project.json
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build Preview
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          NEXT_PUBLIC_API_URL: https://loccam-backend.onrender.com/api/v1
-
-      - name: Deploy Preview
-        id: deploy
-        run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "preview_url=$URL" >> $GITHUB_OUTPUT
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Afficher l'URL de preview
-        run: echo "Preview disponible sur ${{ steps.deploy.outputs.preview_url }}"
+          curl -X POST \
+            "https://api.vercel.com/v1/integrations/deploy/${{ secrets.VERCEL_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"develop"}'
