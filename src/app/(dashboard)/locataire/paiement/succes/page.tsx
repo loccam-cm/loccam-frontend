@@ -5,10 +5,12 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 import api from '@/lib/api'
 import {
   IconCircleCheck, IconLoader2,
   IconReceipt, IconHome2, IconAlertCircle,
+  IconDownload,
 } from '@tabler/icons-react'
 
 interface PaiementData {
@@ -21,8 +23,9 @@ interface PaiementData {
 function PaiementSuccesContent() {
   const searchParams = useSearchParams()
   const paiementId   = searchParams.get('paiement_id')
-  const [statut, setStatut]     = useState<'loading' | 'succes' | 'attente' | 'erreur'>('loading')
-  const [paiement, setPaiement] = useState<PaiementData | null>(null)
+  const [statut, setStatut]           = useState<'loading' | 'succes' | 'attente' | 'erreur'>('loading')
+  const [paiement, setPaiement]       = useState<PaiementData | null>(null)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     if (paiementId) verifier()
@@ -40,6 +43,29 @@ function PaiementSuccesContent() {
       }
     } catch {
       setStatut('erreur')
+    }
+  }
+
+  const telechargerQuittance = async () => {
+    if (!paiementId) return
+    setDownloading(true)
+    try {
+      const res = await api.get(`/paiements/${paiementId}/quittance/`, {
+        responseType: 'blob',
+      })
+      const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href  = url
+      link.setAttribute('download', `Quittance_${paiementId}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Quittance téléchargée !')
+    } catch {
+      toast.error('Erreur lors du téléchargement.')
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -75,9 +101,15 @@ function PaiementSuccesContent() {
               Votre quittance a été générée. Un email de confirmation vous a été envoyé.
             </p>
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold text-white"
-                      style={{ background:'linear-gradient(135deg,#059669,#047857)' }}>
-                <IconReceipt size={17}/>Télécharger la quittance
+              <button
+                onClick={telechargerQuittance}
+                disabled={downloading}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold text-white transition-opacity"
+                style={{ background:'linear-gradient(135deg,#059669,#047857)', opacity: downloading ? 0.7 : 1 }}>
+                {downloading
+                  ? <><IconLoader2 size={17} style={{ animation:'spin 1s linear infinite' }}/>Téléchargement...</>
+                  : <><IconDownload size={17} />Télécharger la quittance</>
+                }
               </button>
               <Link href="/locataire"
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold"
