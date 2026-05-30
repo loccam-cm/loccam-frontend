@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api'
+import { toast } from 'sonner'
 import { Paiement, PaginatedResponse } from '@/types'
 import {
   IconCreditCard, IconSearch, IconArrowLeft, IconRefresh,
@@ -12,7 +13,7 @@ import {
   IconCheck, IconAlertTriangle, IconClock,
   IconTrendingUp, IconCalendar, IconHome2,
   IconCircleCheck, IconAlertCircle, IconEye,
-  IconBuildingBank,
+  IconBuildingBank, IconLoader2,
 } from '@tabler/icons-react'
 
 // ── Types ────────────────────────────────────────────────────
@@ -65,13 +66,14 @@ function MoyenBadge({ moyen }: { moyen: string }) {
 // ────────────────────────────────────────────────────────────
 export default function PaiementsPage() {
   const { user } = useAuth()
-  const [paiements, setPaiements] = useState<Paiement[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [search, setSearch]       = useState('')
-  const [filterStatut, setFilter] = useState('tous')
-  const [filterMois, setFilterMois] = useState('tous')
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [selected, setSelected]   = useState<Paiement | null>(null)
+  const [paiements, setPaiements]     = useState<Paiement[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [search, setSearch]           = useState('')
+  const [filterStatut, setFilter]     = useState('tous')
+  const [filterMois, setFilterMois]   = useState('tous')
+  const [filterOpen, setFilterOpen]   = useState(false)
+  const [selected, setSelected]       = useState<Paiement | null>(null)
+  const [downloading, setDownloading] = useState<number | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -81,6 +83,30 @@ export default function PaiementsPage() {
       const res = await api.get<PaginatedResponse<Paiement>>('/paiements/')
       setPaiements(res.data.results)
     } catch { } finally { setLoading(false) }
+  }
+
+  // ── Télécharger une quittance ──────────────────────────
+  const telechargerQuittance = async (e: React.MouseEvent, paiementId: number) => {
+    e.stopPropagation()
+    setDownloading(paiementId)
+    try {
+      const res = await api.get(`/paiements/${paiementId}/quittance/`, {
+        responseType: 'blob',
+      })
+      const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href  = url
+      link.setAttribute('download', `Quittance_${paiementId}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Quittance téléchargée !')
+    } catch {
+      toast.error('Erreur lors du téléchargement.')
+    } finally {
+      setDownloading(null)
+    }
   }
 
   // Calculs stats
@@ -93,7 +119,6 @@ export default function PaiementsPage() {
     taux:           paiements.length > 0 ? Math.round((paiements.filter(p => p.statut === 'confirme').length / paiements.length) * 100) : 0,
   }
 
-  // Données graphique mensuel
   const chartData = MOIS.map((m, i) => {
     const montant = paiements
       .filter(p => p.statut === 'confirme' && p.mois === i + 1 && p.annee === annee)
@@ -102,20 +127,15 @@ export default function PaiementsPage() {
   })
   const maxMontant = Math.max(...chartData.map(d => d.montant), 1)
 
-  // Filtrés
   const filtered = paiements.filter(p => {
-    const locNom = p.contrat?.locataire?.nom_complet ?? ''
+    const locNom    = p.contrat?.locataire?.nom_complet ?? ''
     const bienTitre = p.contrat?.bien?.titre ?? ''
-    const matchSearch = !search ||
-      locNom.toLowerCase().includes(search.toLowerCase()) ||
-      bienTitre.toLowerCase().includes(search.toLowerCase()) ||
-      (p.transaction_id ?? '').toLowerCase().includes(search.toLowerCase())
-    const matchStatut = filterStatut === 'tous' || p.statut === filterStatut
-    const matchMois = filterMois === 'tous' || p.mois === Number(filterMois)
+    const matchSearch  = !search || locNom.toLowerCase().includes(search.toLowerCase()) || bienTitre.toLowerCase().includes(search.toLowerCase()) || (p.transaction_id ?? '').toLowerCase().includes(search.toLowerCase())
+    const matchStatut  = filterStatut === 'tous' || p.statut === filterStatut
+    const matchMois    = filterMois   === 'tous' || p.mois === Number(filterMois)
     return matchSearch && matchStatut && matchMois
   })
 
-  // Regroupement par mois pour l'affichage
   const grouped = filtered.reduce<Record<string, Paiement[]>>((acc, p) => {
     const key = `${MOIS[(p.mois ?? 1) - 1]} ${p.annee}`
     if (!acc[key]) acc[key] = []
@@ -173,14 +193,10 @@ export default function PaiementsPage() {
           {/* ── KPIs ──────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { lbl:'Revenus confirmés', val: loading ? '—' : `${stats.total_confirme.toLocaleString('fr-FR')} XAF`,
-                col:'#059669', bg:'#ECFDF5', ico:<IconTrendingUp size={16}/>, big:true },
-              { lbl:'Paiements reçus',  val: loading ? '—' : stats.nb_confirmes.toString(),
-                col:'#2563EB', bg:'#EFF6FF', ico:<IconCircleCheck size={16}/> },
-              { lbl:'En attente',       val: loading ? '—' : stats.nb_attente.toString(),
-                col:'#D97706', bg:'#FFFBEB', ico:<IconClock size={16}/> },
-              { lbl:'Taux confirmation',val: loading ? '—' : `${stats.taux}%`,
-                col:'#7C3AED', bg:'#F5F3FF', ico:<IconCheck size={16}/> },
+              { lbl:'Revenus confirmés', val: loading ? '—' : `${stats.total_confirme.toLocaleString('fr-FR')} XAF`, col:'#059669', bg:'#ECFDF5', ico:<IconTrendingUp size={16}/>, big:true },
+              { lbl:'Paiements reçus',   val: loading ? '—' : stats.nb_confirmes.toString(), col:'#2563EB', bg:'#EFF6FF', ico:<IconCircleCheck size={16}/> },
+              { lbl:'En attente',        val: loading ? '—' : stats.nb_attente.toString(),   col:'#D97706', bg:'#FFFBEB', ico:<IconClock size={16}/> },
+              { lbl:'Taux confirmation', val: loading ? '—' : `${stats.taux}%`,              col:'#7C3AED', bg:'#F5F3FF', ico:<IconCheck size={16}/> },
             ].map((s, i) => (
               <motion.div key={s.lbl}
                 initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
@@ -192,9 +208,7 @@ export default function PaiementsPage() {
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center"
                        style={{ background:s.bg, color:s.col }}>{s.ico}</div>
                 </div>
-                <div className="font-bold" style={{ color:s.col, fontSize: s.big ? '16px' : '22px' }}>
-                  {s.val}
-                </div>
+                <div className="font-bold" style={{ color:s.col, fontSize: s.big ? '16px' : '22px' }}>{s.val}</div>
               </motion.div>
             ))}
           </div>
@@ -206,21 +220,13 @@ export default function PaiementsPage() {
             style={{ border:'1px solid #E2E8F0' }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{ color:'#94A3B8' }}>
-                  Revenus mensuels {annee}
-                </div>
-                <div className="text-lg font-bold" style={{ color:'#0F172A' }}>
-                  {stats.total_confirme.toLocaleString('fr-FR')} XAF
-                </div>
+                <div className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{ color:'#94A3B8' }}>Revenus mensuels {annee}</div>
+                <div className="text-lg font-bold" style={{ color:'#0F172A' }}>{stats.total_confirme.toLocaleString('fr-FR')} XAF</div>
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold"
-                   style={{ color:'#059669' }}>
-                <IconTrendingUp size={14} />
-                Confirmés
+              <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color:'#059669' }}>
+                <IconTrendingUp size={14} />Confirmés
               </div>
             </div>
-
-            {/* Barres */}
             <div className="flex items-end gap-1 sm:gap-2" style={{ height:'72px' }}>
               {chartData.map((d, i) => (
                 <div key={d.mois} className="flex-1 flex flex-col items-center gap-1">
@@ -229,10 +235,7 @@ export default function PaiementsPage() {
                     initial={{ height:0 }}
                     animate={{ height: d.montant > 0 ? `${Math.max((d.montant / maxMontant) * 100, 6)}%` : '6%' }}
                     transition={{ duration:.7, delay: i * 0.04, ease:'easeOut' }}
-                    style={{
-                      background: d.actif ? '#059669' : d.montant > 0 ? '#A7F3D0' : '#E2E8F0',
-                      minHeight:'4px',
-                    }}
+                    style={{ background: d.actif ? '#059669' : d.montant > 0 ? '#A7F3D0' : '#E2E8F0', minHeight:'4px' }}
                     title={`${d.mois}: ${d.montant.toLocaleString('fr-FR')} XAF`}
                   />
                   <span className="text-center" style={{ fontSize:'9px', color: d.actif ? '#059669' : '#94A3B8', fontWeight: d.actif ? 700 : 400 }}>
@@ -259,19 +262,15 @@ export default function PaiementsPage() {
                 </button>
               )}
             </div>
-
-            {/* Filtre mois */}
             <select value={filterMois} onChange={e => setFilterMois(e.target.value)}
               style={{ height:'42px', padding:'0 12px', borderRadius:'10px', border:'1.5px solid #E2E8F0', fontSize:'13px', color:'#475569', outline:'none', background:'#fff', cursor:'pointer', fontFamily:'inherit' }}>
               <option value="tous">Tous les mois</option>
               {MOIS.map((m, i) => <option key={m} value={i+1}>{m}</option>)}
             </select>
-
             <button onClick={() => setFilterOpen(!filterOpen)}
               className="flex items-center gap-2 px-3 h-11 rounded-xl text-sm font-semibold flex-shrink-0"
               style={{ background: filterStatut !== 'tous' ? '#ECFDF5' : '#fff', border:'1.5px solid', borderColor: filterStatut !== 'tous' ? '#059669' : '#E2E8F0', color: filterStatut !== 'tous' ? '#059669' : '#64748B' }}>
-              <IconFilter size={15} />
-              <span className="hidden sm:inline">Statut</span>
+              <IconFilter size={15} /><span className="hidden sm:inline">Statut</span>
             </button>
           </div>
 
@@ -310,15 +309,12 @@ export default function PaiementsPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
-                   style={{ background:'#ECFDF5' }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background:'#ECFDF5' }}>
                 <IconCreditCard size={24} style={{ color:'#6EE7B7' }} />
               </div>
               <h3 className="text-sm font-bold mb-1" style={{ color:'#0F172A' }}>Aucun paiement trouvé</h3>
               <p className="text-xs" style={{ color:'#94A3B8' }}>
-                {search || filterStatut !== 'tous' || filterMois !== 'tous'
-                  ? 'Modifiez vos critères de recherche'
-                  : 'Les paiements apparaîtront ici'}
+                {search || filterStatut !== 'tous' || filterMois !== 'tous' ? 'Modifiez vos critères de recherche' : 'Les paiements apparaîtront ici'}
               </p>
             </div>
           ) : (
@@ -327,36 +323,28 @@ export default function PaiementsPage() {
               <div className="sm:hidden flex flex-col gap-2">
                 {Object.entries(grouped).map(([periode, items]) => (
                   <div key={periode}>
-                    <div className="text-xs font-bold uppercase tracking-wider py-2 px-1"
-                         style={{ color:'#94A3B8' }}>{periode}</div>
+                    <div className="text-xs font-bold uppercase tracking-wider py-2 px-1" style={{ color:'#94A3B8' }}>{periode}</div>
                     {items.map((p, i) => (
                       <motion.div key={p.id}
-                        initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-                        transition={{ delay: i * 0.03 }}
+                        initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.03 }}
                         className="card-p bg-white rounded-2xl p-4 mb-2 cursor-pointer"
                         style={{ border:'1px solid #E2E8F0' }}
                         onClick={() => setSelected(p)}>
                         <div className="flex items-center gap-3 mb-2.5">
                           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                                style={{ background: p.statut === 'confirme' ? '#ECFDF5' : p.statut === 'echoue' ? '#FEF2F2' : '#FFFBEB' }}>
-                            {p.statut === 'confirme'
-                              ? <IconCircleCheck size={20} style={{ color:'#059669' }} />
-                              : p.statut === 'echoue'
-                                ? <IconAlertTriangle size={20} style={{ color:'#DC2626' }} />
-                                : <IconClock size={20} style={{ color:'#D97706' }} />}
+                            {p.statut === 'confirme' ? <IconCircleCheck size={20} style={{ color:'#059669' }} />
+                              : p.statut === 'echoue' ? <IconAlertTriangle size={20} style={{ color:'#DC2626' }} />
+                              : <IconClock size={20} style={{ color:'#D97706' }} />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                              <span className="text-sm font-bold" style={{ color:'#0F172A' }}>
-                                {p.contrat?.locataire?.nom_complet ?? '—'}
-                              </span>
+                              <span className="text-sm font-bold" style={{ color:'#0F172A' }}>{p.contrat?.locataire?.nom_complet ?? '—'}</span>
                               <StatutBadge statut={p.statut} />
                             </div>
                             <div className="flex items-center gap-1.5">
                               <IconHome2 size={11} style={{ color:'#94A3B8' }} />
-                              <span className="text-xs truncate" style={{ color:'#64748B' }}>
-                                {p.contrat?.bien?.titre ?? '—'}
-                              </span>
+                              <span className="text-xs truncate" style={{ color:'#64748B' }}>{p.contrat?.bien?.titre ?? '—'}</span>
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
@@ -366,6 +354,19 @@ export default function PaiementsPage() {
                             <MoyenBadge moyen={p.moyen_paiement} />
                           </div>
                         </div>
+                        {/* Bouton quittance mobile */}
+                        {p.statut === 'confirme' && (
+                          <button
+                            onClick={e => telechargerQuittance(e, p.id)}
+                            disabled={downloading === p.id}
+                            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold mt-2"
+                            style={{ background:'#ECFDF5', color:'#059669', border:'1px solid #A7F3D0', opacity: downloading === p.id ? 0.7 : 1 }}>
+                            {downloading === p.id
+                              ? <><IconLoader2 size={12} style={{ animation:'spin 1s linear infinite' }}/>Téléchargement...</>
+                              : <><IconDownload size={12}/>Quittance PDF</>
+                            }
+                          </button>
+                        )}
                       </motion.div>
                     ))}
                   </div>
@@ -373,8 +374,7 @@ export default function PaiementsPage() {
               </div>
 
               {/* Tableau desktop */}
-              <div className="hidden sm:block bg-white rounded-2xl overflow-hidden"
-                   style={{ border:'1px solid #E2E8F0' }}>
+              <div className="hidden sm:block bg-white rounded-2xl overflow-hidden" style={{ border:'1px solid #E2E8F0' }}>
                 <div className="grid px-5 py-3"
                      style={{ gridTemplateColumns:'2fr 1.5fr 1fr 1fr 1fr auto', gap:'12px', background:'#F8FAFC', borderBottom:'1px solid #F1F5F9' }}>
                   {['Locataire','Logement','Montant','Moyen','Statut',''].map(h => (
@@ -384,15 +384,11 @@ export default function PaiementsPage() {
 
                 {Object.entries(grouped).map(([periode, items]) => (
                   <div key={periode}>
-                    {/* Séparateur période */}
                     <div className="flex items-center gap-3 px-5 py-2.5"
                          style={{ background:'#F8FAFC', borderBottom:'1px solid #F1F5F9', borderTop:'1px solid #F1F5F9' }}>
                       <IconCalendar size={13} style={{ color:'#94A3B8' }} />
-                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color:'#94A3B8' }}>
-                        {periode}
-                      </span>
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background:'#E2E8F0', color:'#64748B' }}>
+                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color:'#94A3B8' }}>{periode}</span>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background:'#E2E8F0', color:'#64748B' }}>
                         {items.length} paiement{items.length > 1 ? 's' : ''}
                       </span>
                       <div className="flex-1 h-px" style={{ background:'#E2E8F0' }} />
@@ -415,21 +411,15 @@ export default function PaiementsPage() {
                             {p.contrat?.locataire?.prenom?.[0]}{p.contrat?.locataire?.nom?.[0]}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold truncate" style={{ color:'#0F172A' }}>
-                              {p.contrat?.locataire?.nom_complet ?? '—'}
-                            </div>
-                            <div className="text-xs" style={{ color:'#94A3B8' }}>
-                              {String(p.mois).padStart(2,'0')}/{p.annee}
-                            </div>
+                            <div className="text-sm font-semibold truncate" style={{ color:'#0F172A' }}>{p.contrat?.locataire?.nom_complet ?? '—'}</div>
+                            <div className="text-xs" style={{ color:'#94A3B8' }}>{String(p.mois).padStart(2,'0')}/{p.annee}</div>
                           </div>
                         </div>
 
                         {/* Logement */}
                         <div className="flex items-center gap-1.5 min-w-0">
                           <IconHome2 size={13} style={{ color:'#94A3B8', flexShrink:0 }} />
-                          <span className="text-sm truncate" style={{ color:'#475569' }}>
-                            {p.contrat?.bien?.titre ?? '—'}
-                          </span>
+                          <span className="text-sm truncate" style={{ color:'#475569' }}>{p.contrat?.bien?.titre ?? '—'}</span>
                         </div>
 
                         {/* Montant */}
@@ -451,10 +441,16 @@ export default function PaiementsPage() {
                             <IconEye size={13} />
                           </button>
                           {p.statut === 'confirme' && (
-                            <button onClick={e => e.stopPropagation()}
+                            <button
+                              onClick={e => telechargerQuittance(e, p.id)}
+                              disabled={downloading === p.id}
                               className="w-8 h-8 rounded-lg flex items-center justify-center"
-                              style={{ background:'#ECFDF5', color:'#059669' }}>
-                              <IconDownload size={13} />
+                              style={{ background:'#ECFDF5', color:'#059669', opacity: downloading === p.id ? 0.6 : 1 }}
+                              title="Télécharger la quittance">
+                              {downloading === p.id
+                                ? <IconLoader2 size={13} style={{ animation:'spin 1s linear infinite' }} />
+                                : <IconDownload size={13} />
+                              }
                             </button>
                           )}
                         </div>
@@ -496,16 +492,11 @@ export default function PaiementsPage() {
                   {/* Montant hero */}
                   <div className="rounded-2xl p-5 text-center"
                        style={{ background: selected.statut === 'confirme' ? 'linear-gradient(135deg,#064E3B,#059669)' : selected.statut === 'echoue' ? 'linear-gradient(135deg,#450A0A,#DC2626)' : 'linear-gradient(135deg,#451A03,#D97706)' }}>
-                    <div className="text-xs font-bold uppercase tracking-wider mb-2"
-                         style={{ color:'rgba(255,255,255,.5)' }}>
+                    <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color:'rgba(255,255,255,.5)' }}>
                       {selected.statut === 'confirme' ? 'Paiement confirmé' : selected.statut === 'echoue' ? 'Paiement échoué' : 'En attente'}
                     </div>
-                    <div className="text-3xl font-bold text-white mb-1">
-                      {selected.montant_total.toLocaleString('fr-FR')} XAF
-                    </div>
-                    <div className="text-sm" style={{ color:'rgba(255,255,255,.6)' }}>
-                      {MOIS[(selected.mois ?? 1) - 1]} {selected.annee}
-                    </div>
+                    <div className="text-3xl font-bold text-white mb-1">{selected.montant_total.toLocaleString('fr-FR')} XAF</div>
+                    <div className="text-sm" style={{ color:'rgba(255,255,255,.6)' }}>{MOIS[(selected.mois ?? 1) - 1]} {selected.annee}</div>
                   </div>
 
                   {/* Détail montants */}
@@ -513,24 +504,18 @@ export default function PaiementsPage() {
                     <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color:'#94A3B8' }}>Détail</div>
                     <div className="space-y-2">
                       {[
-                        { lbl:'Loyer de base',   val: selected.montant_loyer },
-                        { lbl:'Charges eau',      val: selected.montant_eau ?? 0 },
-                        { lbl:'Électricité',      val: selected.montant_elec ?? 0 },
+                        { lbl:'Loyer de base', val: selected.montant_loyer },
+                        { lbl:'Charges eau',   val: selected.montant_eau ?? 0 },
+                        { lbl:'Électricité',   val: selected.montant_elec ?? 0 },
                       ].filter(r => r.val > 0).map(r => (
-                        <div key={r.lbl} className="flex justify-between py-2.5 px-3 rounded-xl"
-                             style={{ background:'#F8FAFC' }}>
+                        <div key={r.lbl} className="flex justify-between py-2.5 px-3 rounded-xl" style={{ background:'#F8FAFC' }}>
                           <span className="text-xs" style={{ color:'#64748B' }}>{r.lbl}</span>
-                          <span className="text-sm font-semibold" style={{ color:'#0F172A' }}>
-                            {r.val.toLocaleString('fr-FR')} XAF
-                          </span>
+                          <span className="text-sm font-semibold" style={{ color:'#0F172A' }}>{r.val.toLocaleString('fr-FR')} XAF</span>
                         </div>
                       ))}
-                      <div className="flex justify-between py-2.5 px-3 rounded-xl"
-                           style={{ background:'#ECFDF5', border:'1px solid #A7F3D0' }}>
+                      <div className="flex justify-between py-2.5 px-3 rounded-xl" style={{ background:'#ECFDF5', border:'1px solid #A7F3D0' }}>
                         <span className="text-xs font-bold" style={{ color:'#059669' }}>Total</span>
-                        <span className="text-sm font-bold" style={{ color:'#059669' }}>
-                          {selected.montant_total.toLocaleString('fr-FR')} XAF
-                        </span>
+                        <span className="text-sm font-bold" style={{ color:'#059669' }}>{selected.montant_total.toLocaleString('fr-FR')} XAF</span>
                       </div>
                     </div>
                   </div>
@@ -545,12 +530,9 @@ export default function PaiementsPage() {
                         { lbl:'Date de paiement',   val: selected.date_paiement ? new Date(selected.date_paiement).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }) : '—' },
                         { lbl:'Référence',           val: selected.transaction_id ? <span className="text-xs font-mono" style={{ color:'#475569' }}>{selected.transaction_id}</span> : '—' },
                       ].map(r => (
-                        <div key={r.lbl} className="flex items-center justify-between py-2.5 px-3 rounded-xl"
-                             style={{ background:'#F8FAFC' }}>
+                        <div key={r.lbl} className="flex items-center justify-between py-2.5 px-3 rounded-xl" style={{ background:'#F8FAFC' }}>
                           <span className="text-xs" style={{ color:'#64748B' }}>{r.lbl}</span>
-                          <span className="text-sm font-semibold" style={{ color:'#0F172A' }}>
-                            {typeof r.val === 'string' ? r.val : r.val}
-                          </span>
+                          <span className="text-sm font-semibold" style={{ color:'#0F172A' }}>{typeof r.val === 'string' ? r.val : r.val}</span>
                         </div>
                       ))}
                     </div>
@@ -562,32 +544,24 @@ export default function PaiementsPage() {
                       <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color:'#94A3B8' }}>Concernant</div>
                       <div className="space-y-2">
                         {selected.contrat.bien && (
-                          <div className="flex items-center gap-3 p-3 rounded-xl"
-                               style={{ background:'#F8FAFC' }}>
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                 style={{ background:'#EFF6FF' }}>
+                          <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background:'#F8FAFC' }}>
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background:'#EFF6FF' }}>
                               <IconHome2 size={15} style={{ color:'#2563EB' }} />
                             </div>
                             <div>
                               <div className="text-xs" style={{ color:'#94A3B8' }}>Logement</div>
-                              <div className="text-sm font-semibold" style={{ color:'#0F172A' }}>
-                                {selected.contrat.bien.titre}
-                              </div>
+                              <div className="text-sm font-semibold" style={{ color:'#0F172A' }}>{selected.contrat.bien.titre}</div>
                             </div>
                           </div>
                         )}
                         {selected.contrat.locataire && (
-                          <div className="flex items-center gap-3 p-3 rounded-xl"
-                               style={{ background:'#F8FAFC' }}>
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                 style={{ background:'#ECFDF5' }}>
+                          <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background:'#F8FAFC' }}>
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background:'#ECFDF5' }}>
                               <IconBuildingBank size={15} style={{ color:'#059669' }} />
                             </div>
                             <div>
                               <div className="text-xs" style={{ color:'#94A3B8' }}>Locataire</div>
-                              <div className="text-sm font-semibold" style={{ color:'#0F172A' }}>
-                                {selected.contrat.locataire.nom_complet}
-                              </div>
+                              <div className="text-sm font-semibold" style={{ color:'#0F172A' }}>{selected.contrat.locataire.nom_complet}</div>
                             </div>
                           </div>
                         )}
@@ -595,11 +569,17 @@ export default function PaiementsPage() {
                     </div>
                   )}
 
-                  {/* Actions */}
+                  {/* Bouton quittance dans le drawer */}
                   {selected.statut === 'confirme' && (
-                    <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
-                            style={{ background:'#ECFDF5', color:'#059669', border:'1px solid #A7F3D0' }}>
-                      <IconDownload size={15} />Télécharger la quittance PDF
+                    <button
+                      onClick={e => telechargerQuittance(e, selected.id)}
+                      disabled={downloading === selected.id}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
+                      style={{ background:'#ECFDF5', color:'#059669', border:'1px solid #A7F3D0', opacity: downloading === selected.id ? 0.7 : 1 }}>
+                      {downloading === selected.id
+                        ? <><IconLoader2 size={15} style={{ animation:'spin 1s linear infinite' }}/>Téléchargement...</>
+                        : <><IconDownload size={15}/>Télécharger la quittance PDF</>
+                      }
                     </button>
                   )}
                 </div>
