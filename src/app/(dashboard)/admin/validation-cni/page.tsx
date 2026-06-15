@@ -98,7 +98,7 @@ export default function ValidationCNIPage() {
   const handleAction = async (u: Utilisateur, action: 'valider' | 'rejeter') => {
     setActions(prev => new Map(prev).set(u.id, { userId: u.id, action, loading: true }))
     try {
-      await api.patch(`/users/${u.id}/`, {
+      await api.put(`/users/${u.id}/valider-cni/`, {
         cni_statut: action === 'valider' ? 'valide' : 'rejete',
       })
       showToast(

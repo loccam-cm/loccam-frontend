@@ -84,7 +84,7 @@ if (cniFile) {
     toast.success('Bienvenue sur LocCam ! CNI uploadée avec succès.')
   } catch {
     toast.success('Bienvenue sur LocCam !')
-    toast.error('CNI non uploadée — vous pourrez la compléter depuis votre profil.')
+    toast.error('CNI non uploadée — complétez depuis votre profil.')
   }
 } else {
   toast.success('Bienvenue sur LocCam !')
