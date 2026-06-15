@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '@/lib/api'
 import {
-  IconUpload, IconX, IconCheck, IconPhoto,
+  IconUpload, IconLock, IconCheck, IconPhoto,
   IconFileText, IconLoader2, IconAlertCircle,
   IconEye, IconTrash,
 } from '@tabler/icons-react'
@@ -251,8 +251,9 @@ export default function UploadFichier({
                     {description ?? `Glissez-déposez ou cliquez pour choisir`}
                   </p>
                   {isPrivate && (
-                    <p className="text-xs mt-1.5 font-medium" style={{ color: '#7C3AED' }}>
-                      🔒 Fichier privé — accès restreint
+                    <p className="text-xs mt-1.5 font-medium flex items-center gap-1" style={{ color: '#7C3AED' }}>
+                      <IconLock size={11} />
+                      Fichier privé — accès restreint
                     </p>
                   )}
                 </div>
