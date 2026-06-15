@@ -89,8 +89,6 @@ const VILLES = [
   "Autre",
 ];
 
-
-
 // ── Skeleton ─────────────────────────────────────────────────
 function Skeleton({ className = "" }: { className?: string }) {
   return (
@@ -1302,12 +1300,16 @@ export default function BiensPage() {
       </div>
 
       <AnimatePresence>
-        {galerieBien && (
-          <BienGallerie
-            bien={galerieBien}
-            onClose={() => setGalerieBien(null)}
-          />
-        )}
+        // Remplace BienGallerie par :
+{galerieBien && (
+  <BienGallerieManager
+    bienId={galerieBien.id}
+    bienTitre={galerieBien.titre}
+    photos={galerieBien.photos ?? []}
+    onClose={() => setGalerieBien(null)}
+    onUpdate={() => loadPhotos()}
+  />
+)}
       </AnimatePresence>
     </>
   );
