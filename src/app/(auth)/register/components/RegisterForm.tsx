@@ -82,12 +82,14 @@ if (cniFile) {
       },
     })
     toast.success('Bienvenue sur LocCam ! CNI uploadée avec succès.')
-  } catch {
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { error?: string }; status?: number } }
+    const msg = e.response?.data?.error ?? 'Erreur inconnue'
+    const status = e.response?.status ?? 0
+    console.error('Upload CNI error:', status, msg)
     toast.success('Bienvenue sur LocCam !')
-    toast.error('CNI non uploadée — complétez depuis votre profil.')
+    toast.error(`CNI non uploadée (${status}) : ${msg}`)
   }
-} else {
-  toast.success('Bienvenue sur LocCam !')
 }
 
       router.push('/bailleur')
