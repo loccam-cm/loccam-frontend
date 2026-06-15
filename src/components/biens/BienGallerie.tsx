@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   IconX, IconChevronLeft, IconChevronRight,
-  IconPhoto, IconDownload, IconStar, IconBuilding,
+  IconPhoto,  IconStar, IconBuilding,
 } from '@tabler/icons-react'
 
 interface Photo {
