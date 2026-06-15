@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { Bien, PaginatedResponse } from "@/types";
-import UploadFichier from '@/components/UploadFichier'
+import UploadFichier from "@/components/UploadFichier";
 import {
   IconHome2,
   IconPlus,
@@ -1215,9 +1215,9 @@ export default function BiensPage() {
                       estPrincipal={true}
                       label="Photo principale"
                       description="JPG, PNG ou WEBP · Max 5 MB"
-                      onSuccess={(doc) => {
-                        // Mettre à jour la liste des photos
-                        console.log("Photo uploadée:", doc);
+                      onSuccess={() => {
+                        // Recharger les biens pour afficher la nouvelle photo
+                        load();
                       }}
                     />
                     <p className="text-xs mt-2" style={{ color: "#94A3B8" }}>
