@@ -68,23 +68,27 @@ export default function RegisterForm() {
       localStorage.setItem('refresh_token', res.data.refresh_token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
 
-      // 2. Uploader la CNI si sélectionnée (token disponible maintenant)
-      if (cniFile) {
-        try {
-          const formData = new FormData()
-          formData.append('fichier', cniFile)
-          formData.append('type_document', 'cni')
-          await api.post('/upload/', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          })
-          toast.success('Bienvenue sur LocCam ! CNI uploadée avec succès.')
-        } catch {
-          toast.success('Bienvenue sur LocCam !')
-          toast.error('CNI non uploadée — vous pourrez la compléter depuis votre profil.')
-        }
-      } else {
-        toast.success('Bienvenue sur LocCam !')
-      }
+      
+      // 2. Uploader la CNI si sélectionnée (on passe le token directement)
+if (cniFile) {
+  try {
+    const formData = new FormData()
+    formData.append('fichier', cniFile)
+    formData.append('type_document', 'cni')
+    await api.post('/upload/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${res.data.access_token}`,
+      },
+    })
+    toast.success('Bienvenue sur LocCam ! CNI uploadée avec succès.')
+  } catch {
+    toast.success('Bienvenue sur LocCam !')
+    toast.error('CNI non uploadée — vous pourrez la compléter depuis votre profil.')
+  }
+} else {
+  toast.success('Bienvenue sur LocCam !')
+}
 
       router.push('/bailleur')
     } catch (err: unknown) {
