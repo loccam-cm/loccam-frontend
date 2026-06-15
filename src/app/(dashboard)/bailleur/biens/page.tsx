@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { Bien, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
+import BienGallerie from "@/components/biens/BienGallerie";
 import {
   IconHome2,
   IconPlus,
@@ -88,6 +89,8 @@ const VILLES = [
   "Autre",
 ];
 
+
+
 // ── Skeleton ─────────────────────────────────────────────────
 function Skeleton({ className = "" }: { className?: string }) {
   return (
@@ -142,6 +145,7 @@ export default function BiensPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
   const [editBien, setEditBien] = useState<Bien | null>(null);
+  const [galerieBien, setGalerieBien] = useState<Bien | null>(null);
 
   const [form, setForm] = useState<FormData>({
     titre: "",
@@ -714,6 +718,7 @@ export default function BiensPage() {
                           Modifier
                         </button>
                         <button
+                          onClick={() => setGalerieBien(b)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold"
                           style={{ background: "#F8FAFC", color: "#64748B" }}
                         >
@@ -1295,6 +1300,15 @@ export default function BiensPage() {
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {galerieBien && (
+          <BienGallerie
+            bien={galerieBien}
+            onClose={() => setGalerieBien(null)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

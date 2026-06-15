@@ -61,7 +61,15 @@ export interface Bien {
   meuble?: boolean
   eau_incluse?: boolean
   elec_incluse?: boolean
-  photos?: { id: number; url_publique: string; est_principal: boolean }[]
+  photos?: {
+    id: number
+    url_publique: string
+    est_principal: boolean
+    nom_original: string
+    taille: number
+    date_upload: string
+    object_id: number
+  }[]
   date_creation?: string
 }
 export interface Contrat {
