@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { Bien, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
-import BienGallerie from "@/components/biens/BienGallerie";
+import BienGallerieManager from '@/components/biens/BienGallerieManager';
 import {
   IconHome2,
   IconPlus,
