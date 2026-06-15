@@ -162,10 +162,6 @@ export default function BiensPage() {
     elec_incluse: false,
   });
 
-  useEffect(() => {
-    load();
-  }, []);
-
   const load = async () => {
     setLoading(true);
     try {
@@ -173,8 +169,6 @@ export default function BiensPage() {
         api.get<PaginatedResponse<Bien>>("/biens/"),
         api.get<PaginatedResponse<Structure>>("/structures/"),
       ]);
-      setBiens(biensRes.data.results);
-      // Charger les photos
       const photosRes = await api.get(
         "/documents/mes-documents/?type=photo_bien",
       );
@@ -193,6 +187,31 @@ export default function BiensPage() {
       setLoading(false);
     }
   };
+
+  const loadPhotos = async () => {
+    try {
+      const [biensRes, photosRes] = await Promise.all([
+        api.get<PaginatedResponse<Bien>>("/biens/"),
+        api.get("/documents/mes-documents/?type=photo_bien"),
+      ]);
+      const photosData = photosRes.data ?? [];
+      setBiens(
+        biensRes.data.results.map((b: Bien) => ({
+          ...b,
+          photos: photosData.filter(
+            (d: { object_id: number }) => d.object_id === b.id,
+          ),
+        })),
+      );
+    } catch {}
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      await load();
+    };
+    init();
+  }, []);
 
   const openAdd = () => {
     setEditBien(null);
@@ -1215,10 +1234,7 @@ export default function BiensPage() {
                       estPrincipal={true}
                       label="Photo principale"
                       description="JPG, PNG ou WEBP · Max 5 MB"
-                      onSuccess={() => {
-                        // Recharger les biens pour afficher la nouvelle photo
-                        load();
-                      }}
+                      onSuccess={() => loadPhotos()}
                     />
                     <p className="text-xs mt-2" style={{ color: "#94A3B8" }}>
                       La photo principale sera affichée sur la fiche du bien
