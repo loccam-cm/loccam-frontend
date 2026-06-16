@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import api from "@/lib/api";
+// import api from "@/lib/api";
+import axios from 'axios'
+const publicApi = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL })
+
 import {
   IconBuilding,
   IconUser,
   IconLock,
   IconPhone,
   IconCheck,
-  IconLoader2,
   IconAlertCircle,
   IconHome2,
   IconMapPin,
@@ -68,7 +70,8 @@ export default function InvitationPage() {
   useEffect(() => {
     const charger = async () => {
       try {
-        const res = await api.get(`/invitations/accepter/${token}/`);
+        // const res = await api.get(`/invitations/accepter/${token}/`);
+        const res = await publicApi.get(`/invitations/accepter/${token}/`)
         setInfo(res.data);
         setForm((f) => ({
           ...f,
@@ -107,7 +110,8 @@ export default function InvitationPage() {
     setErreur("");
     setSaving(true);
     try {
-      const res = await api.post(`/invitations/accepter/${token}/`, {
+      // const res = await api.post(`/invitations/accepter/${token}/`, {
+      const res = await publicApi.post(`/invitations/accepter/${token}/`, {
         prenom: form.prenom,
         nom: form.nom,
         telephone: form.telephone,
