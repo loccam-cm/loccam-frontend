@@ -486,39 +486,42 @@ export default function LocatairesPage() {
     init();
   }, []);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [usersRes, contratsRes, invRes, biensRes] = await Promise.all([
-        api.get<PaginatedResponse<Utilisateur>>("/users/?role=locataire"),
-        api.get<PaginatedResponse<Contrat>>("/contrats/"),
-        api.get<Invitation[]>("/invitations/"),
-        api.get<PaginatedResponse<Bien>>("/biens/"),
-      ]);
-      const contrats = contratsRes.data.results;
-      const enriched: LocataireAvecContrat[] = usersRes.data.results
-        .filter((u) => u.role === "locataire")
-        .map((u) => {
-          const contrat = contrats.find(
-            (c) => c.locataire?.id === u.id && c.statut === "actif",
-          );
-          return {
-            ...u,
-            contrat,
-            bien_titre: contrat?.bien?.titre,
-            loyer: contrat?.loyer_mensuel,
-            statut_paiement: contrat ? "ok" : undefined,
-          };
-        });
-      setLocataires(enriched);
-      setInvitations(invRes.data);
-      setBiens(biensRes.data.results);
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  };
+const load = async () => {
+  setLoading(true)
+  try {
+    // Invitations + biens — accessibles au bailleur
+    const [invRes, biensRes, contratsRes] = await Promise.all([
+      api.get<Invitation[]>('/invitations/'),
+      api.get<PaginatedResponse<Bien>>('/biens/'),
+      api.get<PaginatedResponse<Contrat>>('/contrats/'),
+    ])
+    setInvitations(invRes.data)
+    setBiens(biensRes.data.results)
 
+    // Locataires extraits depuis les contrats actifs (pas besoin de /users/)
+    const contrats = contratsRes.data.results
+    const enriched: LocataireAvecContrat[] = contrats
+      .filter(c => c.locataire && c.statut === 'actif')
+      .map(c => ({
+        ...c.locataire!,
+        contrat: c,
+        bien_titre: c.bien?.titre,
+        loyer: c.loyer_mensuel,
+        statut_paiement: 'ok' as const,
+      }))
+
+    // Dédupliquer si un locataire a plusieurs contrats
+    const unique = enriched.filter(
+      (l, i, arr) => arr.findIndex(x => x.id === l.id) === i
+    )
+    setLocataires(unique)
+
+  } catch {
+    toast.error('Erreur lors du chargement')
+  } finally {
+    setLoading(false)
+  }
+}
   const handleAnnuler = async (id: number) => {
     try {
       await api.delete(`/invitations/${id}/`);
