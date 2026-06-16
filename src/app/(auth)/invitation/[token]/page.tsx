@@ -124,7 +124,7 @@ export default function InvitationPage() {
       };
       const data = e.response?.data;
       if (data && "error" in data) {
-        setErreur(data.error ?? "Erreur lors de la création du compte.");
+        setErreur(String(data.error ?? "Erreur lors de la création du compte."));
       } else if (data) {
         setErreur(Object.values(data).flat()[0] as string);
       } else {
