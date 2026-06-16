@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { Bien, Paiement, Notification, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
-import NotificationBell from '@/components/NotificationBell'
+import NotificationBell from "@/components/NotificationBell";
 import {
   IconLayoutDashboard,
   IconBuilding,
@@ -193,8 +193,16 @@ export default function BailleurDashboard() {
           label: "Contrats",
           href: "/bailleur/contrats",
         },
-        // { icon: <IconDroplet size={16} />, label: "Eau / Électricité" },
-        { label: 'Relevés eau & élec', href: '/bailleur/releves', icon: <IconDroplet size={16}/> },
+        {
+          icon: <IconAlertCircle size={16} />,
+          label: "Impayés",
+          href: "/bailleur/impayes",
+        },
+        {
+          label: "Relevés eau & élec",
+          href: "/bailleur/releves",
+          icon: <IconDroplet size={16} />,
+        },
       ],
     },
     {
@@ -215,12 +223,16 @@ export default function BailleurDashboard() {
       ],
     },
     {
-  label: "Compte",
-  items: [
-    { icon: <IconSettings size={16} />, label: "Paramètres" },
-    { icon: <IconUser size={16} />,     label: 'Mon compte', href: '/bailleur/compte' },
-  ],
-},
+      label: "Compte",
+      items: [
+        { icon: <IconSettings size={16} />, label: "Paramètres" },
+        {
+          icon: <IconUser size={16} />,
+          label: "Mon compte",
+          href: "/bailleur/compte",
+        },
+      ],
+    },
   ];
 
   const kpis = [
@@ -422,19 +434,21 @@ export default function BailleurDashboard() {
                         {item.icon}
                       </span>
                       <span className="flex-1">{item.label}</span>
-                      {"badge" in item && typeof item.badge === 'number' && item.badge > 0 && (
-                        <span
-                          className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
-                          style={{
-                            background: item.badgeColor,
-                            fontSize: "10px",
-                            minWidth: "18px",
-                            textAlign: "center",
-                          }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
+                      {"badge" in item &&
+                        typeof item.badge === "number" &&
+                        item.badge > 0 && (
+                          <span
+                            className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
+                            style={{
+                              background: item.badgeColor,
+                              fontSize: "10px",
+                              minWidth: "18px",
+                              textAlign: "center",
+                            }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
                     </>
                   );
 
@@ -566,7 +580,11 @@ export default function BailleurDashboard() {
               </button>
 
               {/* Notifs */}
-              <NotificationBell color="#64748B" bgColor="#F1F5F9" borderColor="#E2E8F0" />
+              <NotificationBell
+                color="#64748B"
+                bgColor="#F1F5F9"
+                borderColor="#E2E8F0"
+              />
 
               {/* Export */}
               <button
@@ -734,7 +752,6 @@ export default function BailleurDashboard() {
                     </div>
                   </div>
                 </div>
-
                 {/* KPIs */}
                 <div
                   className="text-xs font-bold uppercase tracking-widest mb-3 fade-up-1"
@@ -743,85 +760,100 @@ export default function BailleurDashboard() {
                   Indicateurs clés
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-                  {kpis.map((k, i) => (
-                    <div
-                      key={k.label}
-                      className={`kpi-card bg-white rounded-2xl p-4 fade-up-${i + 2}`}
-                      style={{
-                        border: `1px solid ${k.border}`,
-                        boxShadow: `0 1px 3px rgba(0,0,0,.04)`,
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div
-                          className="text-xs font-semibold uppercase tracking-wider"
-                          style={{ color: "#94A3B8" }}
-                        >
-                          {k.label}
-                        </div>
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ background: k.bg }}
-                        >
-                          <span style={{ color: k.color }}>{k.icon}</span>
-                        </div>
-                      </div>
+                  {kpis.map((k, i) => {
+                    const card = (
                       <div
-                        className="text-2xl font-bold mb-1"
+                        className={`kpi-card bg-white rounded-2xl p-4 fade-up-${i + 2}`}
                         style={{
-                          color:
-                            k.alert && (stats?.impayes ?? 0) > 0
-                              ? k.color
-                              : "#0F172A",
+                          border: `1px solid ${k.border}`,
+                          boxShadow: "0 1px 3px rgba(0,0,0,.04)",
                         }}
                       >
-                        {loading ? (
-                          <Skeleton className="h-8 w-16" />
-                        ) : (
-                          <>
-                            {k.suffix === " XAF" ? (
-                              <>
-                                {(stats?.revenus_mois ?? 0).toLocaleString(
-                                  "fr-FR",
-                                )}
-                                <span
-                                  className="text-sm font-medium ml-1"
-                                  style={{ color: "#94A3B8" }}
-                                >
-                                  XAF
-                                </span>
-                              </>
-                            ) : k.suffix === "%" ? (
-                              <>
+                        <div className="flex items-start justify-between mb-3">
+                          <div
+                            className="text-xs font-semibold uppercase tracking-wider"
+                            style={{ color: "#94A3B8" }}
+                          >
+                            {k.label}
+                          </div>
+                          <div
+                            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: k.bg }}
+                          >
+                            <span style={{ color: k.color }}>{k.icon}</span>
+                          </div>
+                        </div>
+                        <div
+                          className="text-2xl font-bold mb-1"
+                          style={{
+                            color:
+                              k.alert && (stats?.impayes ?? 0) > 0
+                                ? k.color
+                                : "#0F172A",
+                          }}
+                        >
+                          {loading ? (
+                            <Skeleton className="h-8 w-16" />
+                          ) : (
+                            <>
+                              {k.suffix === " XAF" ? (
+                                <>
+                                  {(stats?.revenus_mois ?? 0).toLocaleString(
+                                    "fr-FR",
+                                  )}
+                                  <span
+                                    className="text-sm font-medium ml-1"
+                                    style={{ color: "#94A3B8" }}
+                                  >
+                                    XAF
+                                  </span>
+                                </>
+                              ) : k.suffix === "%" ? (
+                                <>
+                                  <AnimatedNumber value={k.value} />
+                                  <span className="text-lg">%</span>
+                                </>
+                              ) : (
                                 <AnimatedNumber value={k.value} />
-                                <span className="text-lg">%</span>
-                              </>
-                            ) : (
-                              <AnimatedNumber value={k.value} />
-                            )}
-                          </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <div className="text-xs" style={{ color: k.color }}>
+                          <IconTrendingUp size={11} className="inline mr-1" />
+                          {k.sub}
+                        </div>
+                        {k.progress !== null && k.progress !== undefined && (
+                          <div
+                            className="mt-3 h-1.5 rounded-full overflow-hidden"
+                            style={{ background: "#E2E8F0" }}
+                          >
+                            <div
+                              className="h-full rounded-full transition-all duration-1000"
+                              style={{
+                                width: `${k.progress}%`,
+                                background: k.color,
+                              }}
+                            />
+                          </div>
                         )}
                       </div>
-                      <div className="text-xs" style={{ color: k.color }}>
-                        <IconTrendingUp size={11} className="inline mr-1" />
-                        {k.sub}
-                      </div>
-                      {k.progress !== null && k.progress !== undefined && (
-                        <div
-                          className="mt-3 h-1.5 rounded-full overflow-hidden"
-                          style={{ background: "#E2E8F0" }}
+                    );
+
+                    // ✅ Carte Impayés → lien vers /bailleur/impayes
+                    if (k.alert) {
+                      return (
+                        <Link
+                          key={k.label}
+                          href="/bailleur/impayes"
+                          style={{ textDecoration: "none", display: "block" }}
                         >
-                          <div
-                            className="h-full rounded-full transition-all duration-1000"
-                            style={{
-                              width: `${k.progress}%`,
-                              background: k.color,
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                          {card}
+                        </Link>
+                      );
+                    }
+                    return <div key={k.label}>{card}</div>;
+                  })}
                 </div>
 
                 {/* Suivi du parc */}
