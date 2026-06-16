@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { PaginatedResponse } from "@/types";
+import ModalNouvelleConversation from "@/components/messages/ModalNouvelleConversation";
 import {
   IconArrowLeft,
   IconRefresh,
@@ -18,6 +19,7 @@ import {
   IconChecks,
   IconLoader2,
   IconChevronLeft,
+  IconPlus,
 } from "@tabler/icons-react";
 
 // ── Types ──────────────────────────────────────────────────
@@ -157,6 +159,8 @@ export default function MessagesPage() {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [contenu, setContenu] = useState("");
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const [showModal, setShowModal] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -354,6 +358,19 @@ export default function MessagesPage() {
                 }}
               />
             </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 px-3 sm:px-4 h-9 rounded-xl text-sm font-bold text-white"
+              style={{
+                background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
+                boxShadow: "0 2px 8px rgba(37,99,235,.35)",
+              }}
+            >
+              <IconPlus size={15} />
+              <span className="hidden sm:inline">Nouveau message</span>
+            </motion.button>
           </header>
 
           {/* Layout 2 colonnes */}
@@ -748,6 +765,12 @@ export default function MessagesPage() {
             </div>
           </div>
         </div>
+
+        <ModalNouvelleConversation
+          open={showModal}
+          onClose={() => setShowModal(false)}
+          onSuccess={load}
+        />
       </div>
     </>
   );
