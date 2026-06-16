@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { PaginatedResponse } from "@/types";
 import {
   IconArrowLeft,
   IconRefresh,
@@ -13,10 +14,8 @@ import {
   IconMessage,
   IconSearch,
   IconHome2,
-  IconX,
   IconCheck,
   IconChecks,
-  IconPlus,
   IconLoader2,
   IconChevronLeft,
 } from "@tabler/icons-react";
@@ -49,7 +48,6 @@ interface Message {
   date_lecture: string | null;
 }
 
-// Clé de conversation = interlocuteur_id + bien_id
 interface Conversation {
   key: string;
   interlocutor: UtilisateurLite;
@@ -62,8 +60,7 @@ interface Conversation {
 // ── Helpers ────────────────────────────────────────────────
 function timeLabel(date: string): string {
   const d = new Date(date);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
+  const diff = Date.now() - d.getTime();
   if (diff < 60000) return "À l'instant";
   if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
   if (diff < 86400000)
@@ -119,7 +116,38 @@ function Avatar({
   );
 }
 
-// ── Page ───────────────────────────────────────────────────
+function buildConversations(
+  messages: Message[],
+  userId: number,
+): Conversation[] {
+  const map = new Map<string, Conversation>();
+  messages.forEach((m) => {
+    const interlocutor =
+      m.expediteur.id === userId ? m.destinataire : m.expediteur;
+    const key = `${interlocutor.id}_${m.bien.id}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        interlocutor,
+        bien: m.bien,
+        messages: [],
+        lastMessage: m,
+        unread: 0,
+      });
+    }
+    const conv = map.get(key)!;
+    conv.messages.push(m);
+    conv.lastMessage = m;
+    if (!m.est_lu && m.destinataire.id === userId) conv.unread++;
+  });
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      new Date(b.lastMessage.date_envoi).getTime() -
+      new Date(a.lastMessage.date_envoi).getTime(),
+  );
+}
+
+// ── Page principale ────────────────────────────────────────
 export default function MessagesPage() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -131,85 +159,45 @@ export default function MessagesPage() {
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = async () => {
+    try {
+      const res = await api.get<PaginatedResponse<Message>>("/messages/");
+      setMessages(res.data.results);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const init = async () => {
-      await load();
-    };
-    init();
-    // Polling toutes les 10s
+    load();
     pollRef.current = setInterval(load, 10000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, activeKey]);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await api.get<Message[]>("/messages/");
-      setMessages(res.data);
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Marquer messages comme lus quand on ouvre une conversation
+  // Marquer comme lu à l'ouverture
   useEffect(() => {
     if (!activeKey || !user) return;
-    const conv = conversations.find((c) => c.key === activeKey);
+    const conv = buildConversations(messages, user.id).find(
+      (c) => c.key === activeKey,
+    );
     if (!conv) return;
     conv.messages.forEach((m) => {
       if (!m.est_lu && m.destinataire.id === user.id) {
         api.post(`/messages/${m.id}/lire/`).catch(() => {});
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey]);
-
-  // ── Grouper en conversations ──────────────────────────────
-  const conversations: Conversation[] = [];
-  if (user) {
-    const map = new Map<string, Conversation>();
-    messages.forEach((m) => {
-      const interlocutor =
-        m.expediteur.id === user.id ? m.destinataire : m.expediteur;
-      const key = `${interlocutor.id}_${m.bien.id}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          interlocutor,
-          bien: m.bien,
-          messages: [],
-          lastMessage: m,
-          unread: 0,
-        });
-      }
-      const conv = map.get(key)!;
-      conv.messages.push(m);
-      conv.lastMessage = m;
-      if (!m.est_lu && m.destinataire.id === user.id) conv.unread++;
-    });
-    map.forEach((c) => conversations.push(c));
-    conversations.sort(
-      (a, b) =>
-        new Date(b.lastMessage.date_envoi).getTime() -
-        new Date(a.lastMessage.date_envoi).getTime(),
-    );
-  }
-
-  const filtered = conversations.filter(
-    (c) =>
-      !search ||
-      c.interlocutor.nom_complet.toLowerCase().includes(search.toLowerCase()) ||
-      c.bien.titre.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  const activeConv = conversations.find((c) => c.key === activeKey) ?? null;
 
   const handleSend = async () => {
     if (!contenu.trim() || !activeConv || sending) return;
@@ -221,6 +209,7 @@ export default function MessagesPage() {
         contenu: contenu.trim(),
       });
       setContenu("");
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
       await load();
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch {
@@ -230,12 +219,20 @@ export default function MessagesPage() {
     }
   };
 
+  const conversations = user ? buildConversations(messages, user.id) : [];
+  const filtered = conversations.filter(
+    (c) =>
+      !search ||
+      c.interlocutor.nom_complet.toLowerCase().includes(search.toLowerCase()) ||
+      c.bien.titre.toLowerCase().includes(search.toLowerCase()),
+  );
+  const activeConv = conversations.find((c) => c.key === activeKey) ?? null;
+  const totalUnread = conversations.reduce((a, c) => a + c.unread, 0);
+
   const openConv = (key: string) => {
     setActiveKey(key);
     setMobileView("chat");
   };
-
-  const totalUnread = conversations.reduce((a, c) => a + c.unread, 0);
 
   if (!user) return null;
 
@@ -244,11 +241,12 @@ export default function MessagesPage() {
       <style>{`
         @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
         @keyframes spin{to{transform:rotate(360deg)}}
-        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#E2E8F0;border-radius:4px}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#E2E8F0;border-radius:4px}
         .conv-item{transition:background .12s;cursor:pointer}
         .conv-item:hover{background:#F8FAFC}
-        .conv-item.active{background:#EFF6FF}
-        textarea{resize:none;outline:none;font-family:inherit}
+        .conv-active{background:#EFF6FF}
+        textarea{resize:none;font-family:inherit}
         textarea:focus{outline:none}
       `}</style>
 
@@ -268,38 +266,44 @@ export default function MessagesPage() {
               boxShadow: "0 1px 3px rgba(0,0,0,.04)",
             }}
           >
-            {mobileView === "chat" && activeConv ? (
-              <>
-                <button
-                  onClick={() => setMobileView("list")}
-                  className="sm:hidden flex items-center gap-1 text-sm font-medium"
-                  style={{ color: "#64748B" }}
-                >
-                  <IconChevronLeft size={16} />
-                </button>
-                <div className="flex items-center gap-2 flex-1 min-w-0 sm:hidden">
-                  <Avatar
-                    nom={activeConv.interlocutor.nom}
-                    prenom={activeConv.interlocutor.prenom}
-                    size={32}
-                  />
-                  <div className="min-w-0">
-                    <div
-                      className="text-sm font-bold truncate"
-                      style={{ color: "#0F172A" }}
-                    >
-                      {activeConv.interlocutor.nom_complet}
-                    </div>
-                    <div
-                      className="text-xs truncate"
-                      style={{ color: "#94A3B8" }}
-                    >
-                      {activeConv.bien.titre}
-                    </div>
+            {/* Mobile — vue chat */}
+            {mobileView === "chat" && activeConv && (
+              <button
+                onClick={() => setMobileView("list")}
+                className="sm:hidden flex items-center gap-1 text-sm font-medium flex-shrink-0"
+                style={{ color: "#64748B" }}
+              >
+                <IconChevronLeft size={16} />
+              </button>
+            )}
+
+            {/* Mobile chat header */}
+            {mobileView === "chat" && activeConv && (
+              <div className="flex items-center gap-2 flex-1 min-w-0 sm:hidden">
+                <Avatar
+                  nom={activeConv.interlocutor.nom}
+                  prenom={activeConv.interlocutor.prenom}
+                  size={32}
+                />
+                <div className="min-w-0">
+                  <div
+                    className="text-sm font-bold truncate"
+                    style={{ color: "#0F172A" }}
+                  >
+                    {activeConv.interlocutor.nom_complet}
+                  </div>
+                  <div
+                    className="text-xs truncate"
+                    style={{ color: "#94A3B8" }}
+                  >
+                    {activeConv.bien.titre}
                   </div>
                 </div>
-              </>
-            ) : (
+              </div>
+            )}
+
+            {/* Desktop header */}
+            {(mobileView === "list" || !activeConv) && (
               <>
                 <Link
                   href="/bailleur"
@@ -315,6 +319,7 @@ export default function MessagesPage() {
                 />
               </>
             )}
+
             <div className="hidden sm:flex items-center gap-2 flex-1 min-w-0">
               <IconMessage
                 size={17}
@@ -335,6 +340,7 @@ export default function MessagesPage() {
                 </span>
               )}
             </div>
+
             <button
               onClick={load}
               className="w-9 h-9 rounded-lg flex items-center justify-center ml-auto sm:ml-0"
@@ -350,19 +356,14 @@ export default function MessagesPage() {
             </button>
           </header>
 
-          {/* Corps — layout 2 colonnes */}
+          {/* Layout 2 colonnes */}
           <div className="flex-1 flex overflow-hidden">
             {/* ── Liste conversations ── */}
             <div
-              className={`${mobileView === "chat" ? "hidden" : "flex"} sm:flex flex-col bg-white flex-shrink-0`}
+              className={`${mobileView === "chat" ? "hidden sm:flex" : "flex"} flex-col bg-white flex-shrink-0`}
               style={{
-                width: "100%",
-                maxWidth: "100%",
+                width: "clamp(260px, 30%, 340px)",
                 borderRight: "1px solid #E2E8F0",
-              }}
-              // Sur desktop : largeur fixe
-              ref={(el) => {
-                if (el) el.style.cssText += "; width: clamp(280px, 30%, 360px)";
               }}
             >
               {/* Recherche */}
@@ -445,7 +446,7 @@ export default function MessagesPage() {
                   filtered.map((conv) => (
                     <div
                       key={conv.key}
-                      className={`conv-item flex items-center gap-3 px-4 py-3 ${activeKey === conv.key ? "active" : ""}`}
+                      className={`conv-item flex items-center gap-3 px-4 py-3 ${activeKey === conv.key ? "conv-active" : ""}`}
                       style={{ borderBottom: "1px solid #F8FAFC" }}
                       onClick={() => openConv(conv.key)}
                     >
@@ -485,14 +486,14 @@ export default function MessagesPage() {
                           </span>
                         </div>
                         <div
-                          className="flex items-center gap-1 text-xs"
+                          className="flex items-center gap-1 text-xs mb-0.5"
                           style={{ color: "#94A3B8" }}
                         >
                           <IconHome2 size={10} style={{ flexShrink: 0 }} />
                           <span className="truncate">{conv.bien.titre}</span>
                         </div>
                         <div
-                          className="text-xs truncate mt-0.5"
+                          className="text-xs truncate"
                           style={{
                             color: conv.unread > 0 ? "#0F172A" : "#94A3B8",
                             fontWeight: conv.unread > 0 ? 600 : 400,
@@ -512,7 +513,7 @@ export default function MessagesPage() {
 
             {/* ── Zone de chat ── */}
             <div
-              className={`${mobileView === "list" ? "hidden" : "flex"} sm:flex flex-1 flex-col min-w-0`}
+              className={`${mobileView === "list" && !activeConv ? "hidden sm:flex" : "flex"} flex-1 flex-col min-w-0`}
               style={{ background: "#F8FAFC" }}
             >
               {!activeConv ? (
@@ -530,14 +531,14 @@ export default function MessagesPage() {
                     Sélectionnez une conversation
                   </h3>
                   <p className="text-sm" style={{ color: "#64748B" }}>
-                    Choisissez une conversation dans la liste à gauche
+                    Choisissez une conversation dans la liste
                   </p>
                 </div>
               ) : (
                 <>
-                  {/* Header conversation */}
+                  {/* Header conversation desktop */}
                   <div
-                    className="flex items-center gap-3 px-4 py-3 bg-white flex-shrink-0"
+                    className="hidden sm:flex items-center gap-3 px-4 py-3 bg-white flex-shrink-0"
                     style={{
                       borderBottom: "1px solid #E2E8F0",
                       boxShadow: "0 1px 3px rgba(0,0,0,.04)",
@@ -620,7 +621,7 @@ export default function MessagesPage() {
                           >
                             <div style={{ maxWidth: "70%" }}>
                               <div
-                                className="px-3.5 py-2.5 rounded-2xl text-sm"
+                                className="px-3.5 py-2.5 text-sm"
                                 style={{
                                   background: isMine
                                     ? "linear-gradient(135deg,#2563EB,#1D4ED8)"
@@ -632,7 +633,7 @@ export default function MessagesPage() {
                                   boxShadow: isMine
                                     ? "0 2px 8px rgba(37,99,235,.3)"
                                     : "0 1px 3px rgba(0,0,0,.08)",
-                                  lineHeight: 1.5,
+                                  lineHeight: 1.6,
                                 }}
                               >
                                 {m.contenu}
@@ -683,6 +684,11 @@ export default function MessagesPage() {
                             handleSend();
                           }
                         }}
+                        onInput={(e) => {
+                          const t = e.currentTarget;
+                          t.style.height = "auto";
+                          t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
+                        }}
                         placeholder="Écrivez votre message... (Entrée pour envoyer)"
                         rows={1}
                         style={{
@@ -695,12 +701,6 @@ export default function MessagesPage() {
                           background: "#F8FAFC",
                           maxHeight: "120px",
                           lineHeight: 1.5,
-                          fontFamily: "inherit",
-                        }}
-                        onInput={(e) => {
-                          const t = e.currentTarget;
-                          t.style.height = "auto";
-                          t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
                         }}
                       />
                       <motion.button
