@@ -208,12 +208,7 @@ export default function BailleurDashboard() {
     {
       label: "Communication",
       items: [
-        {
-          icon: <IconMessage size={16} />,
-          label: "Messagerie",
-          badge: 3,
-          badgeColor: "#3B82F6",
-        },
+        { icon: <IconMessage size={16}/>, label: 'Messagerie', href: '/bailleur/messages' },
         {
           icon: <IconTool size={16} />,
           label: "Signalements",
