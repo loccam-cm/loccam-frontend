@@ -524,6 +524,17 @@ const load = async () => {
 
   setLoading(false)
 }
+const handleAnnuler = async (id: number) => {
+  try {
+    await api.delete(`/invitations/${id}/`)
+    toast.success('Invitation annulée')
+    setAnnulerId(null)
+    load()
+  } catch {
+    toast.error("Erreur lors de l'annulation")
+  }
+}
+
   const filteredLoc = locataires.filter((l) => {
     const matchSearch =
       !search ||
