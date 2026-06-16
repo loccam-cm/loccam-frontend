@@ -17,6 +17,7 @@ type TypeDocument =
 interface DocumentUploade {
   id: number
   url: string
+  url_publique: string
   type_document: string
   nom_original: string
   format: string
