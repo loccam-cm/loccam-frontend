@@ -8,6 +8,7 @@ import api from "@/lib/api";
 import { Bien, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
 import BienGallerieManager from '@/components/biens/BienGallerieManager';
+import { useSearchParams } from 'next/navigation';
 import {
   IconHome2,
   IconPlus,
@@ -164,32 +165,34 @@ export default function BiensPage() {
     elec_incluse: false,
   });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [biensRes, structRes] = await Promise.all([
-        api.get<PaginatedResponse<Bien>>("/biens/"),
-        api.get<PaginatedResponse<Structure>>("/structures/"),
-      ]);
-      const photosRes = await api.get(
-        "/documents/mes-documents/?type=photo_bien",
-      );
-      const photosData = photosRes.data ?? [];
-      setBiens(
-        biensRes.data.results.map((b: Bien) => ({
-          ...b,
-          photos: photosData.filter(
-            (d: { object_id: number }) => d.object_id === b.id,
-          ),
-        })),
-      );
-      setStructures(structRes.data.results);
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  };
 
+const searchParams = useSearchParams()
+const structureId = searchParams.get('structure')
+
+const load = async () => {
+  setLoading(true)
+  try {
+    const biensUrl = structureId ? `/biens/?structure=${structureId}` : '/biens/'
+    const [biensRes, structRes] = await Promise.all([
+      api.get<PaginatedResponse<Bien>>(biensUrl),
+      api.get<PaginatedResponse<Structure>>('/structures/'),
+    ])
+    const photosRes = await api.get('/documents/mes-documents/?type=photo_bien')
+    const photosData = photosRes.data ?? []
+    setBiens(
+      biensRes.data.results.map((b: Bien) => ({
+        ...b,
+        photos: photosData.filter(
+          (d: { object_id: number }) => d.object_id === b.id,
+        ),
+      })),
+    )
+    setStructures(structRes.data.results)
+  } catch {
+  } finally {
+    setLoading(false)
+  }
+}
   const loadPhotos = async () => {
     try {
       const [biensRes, photosRes] = await Promise.all([
@@ -361,67 +364,81 @@ export default function BiensPage() {
         }}
       >
         {/* ── CONTENU ─────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
-          <header
-            className="flex items-center gap-4 px-6 h-16 flex-shrink-0 bg-white"
-            style={{
-              borderBottom: "1px solid #E2E8F0",
-              boxShadow: "0 1px 3px rgba(0,0,0,.04)",
-            }}
-          >
-            <Link
-              href="/bailleur"
-              className="flex items-center gap-2 text-sm font-medium"
-              style={{ color: "#64748B", textDecoration: "none" }}
+                  <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Header */}
+            <header
+              className="flex items-center gap-4 px-6 h-16 flex-shrink-0 bg-white"
+              style={{
+                borderBottom: "1px solid #E2E8F0",
+                boxShadow: "0 1px 3px rgba(0,0,0,.04)",
+              }}
             >
-              <IconArrowLeft size={16} />
-              <span className="hidden sm:inline">Tableau de bord</span>
-            </Link>
-            <div className="h-5 w-px" style={{ background: "#E2E8F0" }} />
-            <div className="flex items-center gap-2 flex-1">
-              <IconHome2 size={18} style={{ color: "#2563EB" }} />
-              <h1 className="text-sm font-bold" style={{ color: "#0F172A" }}>
-                Mes biens
-              </h1>
-              {!loading && (
-                <span
-                  className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: "#EFF6FF", color: "#2563EB" }}
+              <Link
+                href="/bailleur"
+                className="flex items-center gap-2 text-sm font-medium"
+                style={{ color: "#64748B", textDecoration: "none" }}
+              >
+                <IconArrowLeft size={16} />
+                <span className="hidden sm:inline">Tableau de bord</span>
+              </Link>
+              <div className="h-5 w-px" style={{ background: "#E2E8F0" }} />
+              <div className="flex items-center gap-2 flex-1">
+                <IconHome2 size={18} style={{ color: "#2563EB" }} />
+                <h1 className="text-sm font-bold" style={{ color: "#0F172A" }}>
+                  Mes biens
+                </h1>
+                {!loading && (
+                  <span
+                    className="text-xs font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: "#EFF6FF", color: "#2563EB" }}
+                  >
+                    {biens.length} biens
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={load}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center"
+                  style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }}
                 >
-                  {biens.length} biens
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={load}
-                className="w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }}
-              >
-                <IconRefresh
-                  size={15}
+                  <IconRefresh
+                    size={15}
+                    style={{
+                      color: "#64748B",
+                      animation: loading ? "spin 1s linear infinite" : "none",
+                    }}
+                  />
+                </button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={openAdd}
+                  className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-bold text-white"
                   style={{
-                    color: "#64748B",
-                    animation: loading ? "spin 1s linear infinite" : "none",
+                    background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
+                    boxShadow: "0 2px 8px rgba(37,99,235,.35)",
                   }}
-                />
-              </button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={openAdd}
-                className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-bold text-white"
-                style={{
-                  background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
-                  boxShadow: "0 2px 8px rgba(37,99,235,.35)",
-                }}
+                >
+                  <IconPlus size={15} />
+                  <span className="hidden sm:inline">Ajouter un bien</span>
+                </motion.button>
+              </div>
+            </header>
+
+            {/* Bandeau filtre structure */}
+            {structureId && (
+              <div
+                className="flex items-center gap-2 px-6 py-2 text-xs font-semibold flex-shrink-0"
+                style={{ background: "#EFF6FF", color: "#2563EB", borderBottom: "1px solid #DBEAFE" }}
               >
-                <IconPlus size={15} />
-                <span className="hidden sm:inline">Ajouter un bien</span>
-              </motion.button>
-            </div>
-          </header>
+                <IconFilter size={13} />
+                Filtrés par structure ·{" "}
+                <Link href="/bailleur/biens" style={{ color: "#1D4ED8", textDecoration: "underline" }}>
+                  Voir tous les biens
+                </Link>
+              </div>
+            )}
 
           {/* Toolbar */}
           <div
