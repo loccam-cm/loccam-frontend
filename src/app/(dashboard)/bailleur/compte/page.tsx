@@ -170,9 +170,9 @@ export default function ComptePage() {
                     compact={true}
                     previewActuel={avatarUrl}
                     onSuccess={(doc) => {
-                      setAvatarUrl(doc.url)
+                      setAvatarUrl(doc.url_publique)  // ← url_publique pas url
                       const stored = JSON.parse(localStorage.getItem('user') ?? '{}')
-                      localStorage.setItem('user', JSON.stringify({ ...stored, avatar_url: doc.url }))
+                      localStorage.setItem('user', JSON.stringify({ ...stored, avatar_url: doc.url_publique }))
                     }}
                     className="absolute -bottom-1 -right-1"
                   />
