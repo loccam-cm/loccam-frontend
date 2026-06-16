@@ -488,17 +488,22 @@ export default function LocatairesPage() {
 
 const load = async () => {
   setLoading(true)
+
+  // ── Invitations + biens (critiques, toujours chargés) ──
   try {
-    // Invitations + biens — accessibles au bailleur
-    const [invRes, biensRes, contratsRes] = await Promise.all([
+    const [invRes, biensRes] = await Promise.all([
       api.get<Invitation[]>('/invitations/'),
       api.get<PaginatedResponse<Bien>>('/biens/'),
-      api.get<PaginatedResponse<Contrat>>('/contrats/'),
     ])
     setInvitations(invRes.data)
     setBiens(biensRes.data.results)
+  } catch {
+    toast.error('Erreur lors du chargement des invitations')
+  }
 
-    // Locataires extraits depuis les contrats actifs (pas besoin de /users/)
+  // ── Locataires via contrats (indépendant) ──
+  try {
+    const contratsRes = await api.get<PaginatedResponse<Contrat>>('/contrats/')
     const contrats = contratsRes.data.results
     const enriched: LocataireAvecContrat[] = contrats
       .filter(c => c.locataire && c.statut === 'actif')
@@ -509,30 +514,16 @@ const load = async () => {
         loyer: c.loyer_mensuel,
         statut_paiement: 'ok' as const,
       }))
-
-    // Dédupliquer si un locataire a plusieurs contrats
     const unique = enriched.filter(
       (l, i, arr) => arr.findIndex(x => x.id === l.id) === i
     )
     setLocataires(unique)
-
   } catch {
-    toast.error('Erreur lors du chargement')
-  } finally {
-    setLoading(false)
+    setLocataires([])
   }
-}
-  const handleAnnuler = async (id: number) => {
-    try {
-      await api.delete(`/invitations/${id}/`);
-      toast.success("Invitation annulée");
-      setAnnulerId(null);
-      load();
-    } catch {
-      toast.error("Erreur lors de l'annulation");
-    }
-  };
 
+  setLoading(false)
+}
   const filteredLoc = locataires.filter((l) => {
     const matchSearch =
       !search ||
@@ -651,10 +642,11 @@ const load = async () => {
           <div className="flex items-center gap-1 px-4 sm:px-6 pt-4 pb-0 flex-shrink-0">
             {[
               { key: "locataires", lbl: "Locataires", count: statsLoc.total },
+
               {
                 key: "invitations",
                 lbl: "Invitations",
-                count: statsInv.attente,
+                count: statsInv.total,
                 dot: statsInv.attente > 0,
               },
             ].map((o) => (
