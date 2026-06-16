@@ -123,7 +123,7 @@ function DrawerDetail({
 }: {
   imp: Impaye;
   onClose: () => void;
-  onRelance: (id: number, jours: number) => void;
+  onRelance: (id: number, jours: number) => Promise<void>;
 }) {
   const [relancing, setRelancing] = useState(false);
 
@@ -155,7 +155,6 @@ function DrawerDetail({
           boxShadow: "-8px 0 40px rgba(0,0,0,.15)",
         }}
       >
-        {/* Header */}
         <div
           className="flex items-center justify-between px-5 py-4 sticky top-0 bg-white z-10"
           style={{ borderBottom: "1px solid #F1F5F9" }}
@@ -251,7 +250,7 @@ function DrawerDetail({
             </div>
           </div>
 
-          {/* Coordonnées */}
+          {/* Contacts */}
           <div>
             <div
               className="text-xs font-bold uppercase tracking-wider mb-2"
@@ -336,6 +335,7 @@ function DrawerDetail({
                 background: "#F1F5F9",
                 color: "#475569",
                 textDecoration: "none",
+                display: "flex",
               }}
             >
               <IconPhone size={14} /> Appeler le locataire
@@ -358,9 +358,9 @@ export default function ImpayesPage() {
     "tous",
   );
 
-  const now = new Date();
-  const [mois, setMois] = useState(now.getMonth() + 1);
-  const [annee, setAnnee] = useState(now.getFullYear());
+  // ✅ Initialisation côté client uniquement
+  const [mois, setMois] = useState<number>(() => new Date().getMonth() + 1);
+  const [annee, setAnnee] = useState<number>(() => new Date().getFullYear());
 
   useEffect(() => {
     const init = async () => {
@@ -413,6 +413,13 @@ export default function ImpayesPage() {
     non_initie: impayes.filter((i) => i.statut === "non_initie").length,
     montant: impayes.reduce((a, i) => a + i.loyer_mensuel, 0),
   };
+
+  // ✅ Boutons toujours relatifs à aujourd'hui
+  const boutonsMois = [-2, -1, 0].map((offset) => {
+    const today = new Date();
+    const d = new Date(today.getFullYear(), today.getMonth() + offset);
+    return { m: d.getMonth() + 1, a: d.getFullYear() };
+  });
 
   if (!user) return null;
 
@@ -490,7 +497,7 @@ export default function ImpayesPage() {
 
           <div className="flex-1 overflow-y-auto">
             <div className="px-4 sm:px-6 pt-4 pb-6 space-y-4">
-              {/* Sélecteur mois */}
+              {/* Sélecteur mois — toujours relatif à aujourd'hui */}
               <div
                 className="flex items-center gap-2 overflow-x-auto pb-1"
                 style={{ scrollbarWidth: "none" }}
@@ -500,14 +507,11 @@ export default function ImpayesPage() {
                   style={{ color: "#94A3B8", flexShrink: 0 }}
                 />
                 <div className="flex gap-1.5">
-                  {[-2, -1, 0].map((offset) => {
-                    const d = new Date(annee, mois - 1 + offset);
-                    const m = d.getMonth() + 1;
-                    const a = d.getFullYear();
+                  {boutonsMois.map(({ m, a }) => {
                     const actif = m === mois && a === annee;
                     return (
                       <button
-                        key={offset}
+                        key={`${m}-${a}`}
                         onClick={() => {
                           setMois(m);
                           setAnnee(a);
@@ -659,9 +663,8 @@ export default function ImpayesPage() {
                     .map((_, i) => (
                       <div
                         key={i}
-                        className="h-20 rounded-2xl bg-white"
+                        className="h-20 rounded-2xl"
                         style={{
-                          border: "1px solid #E2E8F0",
                           background:
                             "linear-gradient(90deg,#E2E8F0 25%,#F1F5F9 50%,#E2E8F0 75%)",
                           backgroundSize: "200% 100%",
