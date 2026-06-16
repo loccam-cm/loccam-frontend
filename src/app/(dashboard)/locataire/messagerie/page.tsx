@@ -155,9 +155,11 @@ export default function MessageriePage() {
 
     try {
       await api.post('/messages/', {
-        destinataire: active.interlocuteur.id,
-        contenu: txt,
+      destinataire: active.interlocuteur.id,
+      bien:         active.messages[0]?.bien?.id,  // bien de la conversation
+      contenu:      txt,
       })
+      
       load()
     } catch { } finally { setSending(false) }
   }
