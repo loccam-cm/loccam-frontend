@@ -75,9 +75,8 @@ export default function PaiementPage() {
   setLoading(true)
   try {
     const res = await api.get<PaginatedResponse<Contrat>>('/contrats/')
-    const actif = res.data.results.find(
-      c => c.statut === 'actif' && c.locataire?.id === user?.id
-    ) ?? null
+    // Le backend filtre déjà par locataire connecté — on cherche juste le premier actif
+    const actif = res.data.results.find(c => c.statut === 'actif') ?? null
     setContrat(actif)
   } catch { } finally { setLoading(false) }
 }
