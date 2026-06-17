@@ -331,6 +331,7 @@ export default function LocataireDashboard() {
               (s) => s.statut === "ouvert" || s.statut === "en_cours",
             ).length ?? 0,
           badgeColor: "#DC2626",
+          href: '/locataire/signalements'
         },
       ],
     },

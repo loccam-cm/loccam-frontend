@@ -209,12 +209,7 @@ export default function BailleurDashboard() {
       label: "Communication",
       items: [
         { icon: <IconMessage size={16}/>, label: 'Messagerie', href: '/bailleur/messages' },
-        {
-          icon: <IconTool size={16} />,
-          label: "Signalements",
-          badge: 2,
-          badgeColor: "#EF4444",
-        },
+        { icon: <IconTool size={16}/>,    label: 'Signalements', href: '/bailleur/signalements' },
       ],
     },
     {
