@@ -206,12 +206,24 @@ export default function BailleurDashboard() {
       ],
     },
     {
-      label: "Communication",
-      items: [
-        { icon: <IconMessage size={16}/>, label: 'Messagerie', href: '/bailleur/messages' },
-        { icon: <IconTool size={16}/>,    label: 'Signalements', href: '/bailleur/signalements' },
-      ],
+  label: "Communication",
+  items: [
+    {
+      icon: <IconMessage size={16}/>,
+      label: 'Messagerie',
+      href: '/bailleur/messages',
+      badge: 0,
+      badgeColor: '#3B82F6',
     },
+    {
+      icon: <IconTool size={16}/>,
+      label: 'Signalements',
+      href: '/bailleur/signalements',
+      badge: 0,
+      badgeColor: '#EF4444',
+    },
+  ],
+},
     {
       label: "Compte",
       items: [
