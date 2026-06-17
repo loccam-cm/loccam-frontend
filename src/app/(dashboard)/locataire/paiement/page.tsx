@@ -72,13 +72,15 @@ export default function PaiementPage() {
   useEffect(() => { if (user) load() }, [user])
 
   const load = async () => {
-    setLoading(true)
-    try {
-      const res = await api.get<PaginatedResponse<Contrat>>('/contrats/')
-      const actif = res.data.results.find(c => c.statut === 'actif') ?? null
-      setContrat(actif)
-    } catch { } finally { setLoading(false) }
-  }
+  setLoading(true)
+  try {
+    const res = await api.get<PaginatedResponse<Contrat>>('/contrats/')
+    const actif = res.data.results.find(
+      c => c.statut === 'actif' && c.locataire?.id === user?.id
+    ) ?? null
+    setContrat(actif)
+  } catch { } finally { setLoading(false) }
+}
 
   // Calculs montants
   const loyer       = contrat?.loyer_mensuel ?? 0
