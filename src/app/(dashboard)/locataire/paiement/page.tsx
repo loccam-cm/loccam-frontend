@@ -75,7 +75,7 @@ export default function PaiementPage() {
     setLoading(true)
     try {
       const res = await api.get<PaginatedResponse<Contrat>>('/contrats/')
-      const actif = res.data.results.find(c => c.statut === 'actif') ?? res.data.results[0] ?? null
+      const actif = res.data.results.find(c => c.statut === 'actif') ?? null
       setContrat(actif)
     } catch { } finally { setLoading(false) }
   }
