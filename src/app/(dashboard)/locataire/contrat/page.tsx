@@ -177,6 +177,7 @@ export default function LocataireContratPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (user) load();
@@ -253,6 +254,34 @@ export default function LocataireContratPage() {
         ),
       )
     : null;
+
+  const telechargerPdf = async () => {
+    if (!contrat) return;
+    setDownloading(true);
+    try {
+      const res = await api.get(`/contrats/${contrat.id}/pdf/`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], { type: "application/pdf" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Contrat_LocCam_${contrat.id.toString().padStart(6, "0")}.pdf`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Contrat téléchargé !");
+    } catch {
+      toast.error("Erreur lors du téléchargement");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   // Locataire n'a pas encore signé
   const doitSigner =
@@ -1016,16 +1045,36 @@ export default function LocataireContratPage() {
 
                 {/* Télécharger PDF — seulement si actif */}
                 {contrat.statut === "actif" && (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={telechargerPdf}
+                    disabled={downloading}
                     className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white"
                     style={{
-                      background: "linear-gradient(135deg,#059669,#047857)",
-                      boxShadow: "0 4px 14px rgba(5,150,105,.3)",
+                      background: downloading
+                        ? "#94A3B8"
+                        : "linear-gradient(135deg,#059669,#047857)",
+                      boxShadow: downloading
+                        ? "none"
+                        : "0 4px 14px rgba(5,150,105,.3)",
                     }}
                   >
-                    <IconDownload size={17} />
-                    Télécharger le contrat PDF
-                  </button>
+                    {downloading ? (
+                      <>
+                        <IconLoader2
+                          size={17}
+                          style={{ animation: "spin 1s linear infinite" }}
+                        />
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <IconDownload size={17} />
+                        Télécharger le contrat PDF
+                      </>
+                    )}
+                  </motion.button>
                 )}
 
                 {/* Payer loyer — seulement si actif */}

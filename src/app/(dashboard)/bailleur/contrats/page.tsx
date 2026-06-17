@@ -174,6 +174,7 @@ export default function ContratsPage() {
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [signing, setSigning] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const emptyForm: FormData = {
     bien: "",
@@ -308,7 +309,6 @@ export default function ContratsPage() {
     }
   };
 
-  // ✅ Signer le contrat (bailleur)
   const handleSigner = async (contratId: number) => {
     setSigning(true);
     try {
@@ -320,6 +320,34 @@ export default function ContratsPage() {
       toast.error("Erreur lors de la signature");
     } finally {
       setSigning(false);
+    }
+  };
+
+  // ✅ Télécharger le PDF du contrat
+  const telechargerPdf = async (contratId: number) => {
+    setDownloading(true);
+    try {
+      const res = await api.get(`/contrats/${contratId}/pdf/`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], { type: "application/pdf" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Contrat_LocCam_${contratId.toString().padStart(6, "0")}.pdf`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Contrat téléchargé !");
+    } catch {
+      toast.error("Erreur lors du téléchargement");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -932,50 +960,45 @@ export default function ContratsPage() {
                     >
                       Logement
                     </div>
-                    <div>
-                      <label
-                        className="block text-xs font-semibold mb-1.5"
-                        style={{ color: "#374151" }}
-                      >
-                        Bien à louer <span style={{ color: "#EF4444" }}>*</span>
-                      </label>
-                      <select
-                        value={form.bien}
-                        onChange={(e) => set("bien", e.target.value)}
-                        className={`sfield ${errors.bien ? "err" : ""}`}
-                      >
-                        <option value="">-- Choisir un bien --</option>
-                        {biens
-                          .filter(
-                            (b) =>
-                              b.statut === "libre" ||
-                              (editItem && b.id === editItem.bien?.id),
-                          )
-                          .map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.titre} — {b.adresse}
-                            </option>
-                          ))}
-                      </select>
-                      {errors.bien && (
+                    <label
+                      className="block text-xs font-semibold mb-1.5"
+                      style={{ color: "#374151" }}
+                    >
+                      Bien à louer <span style={{ color: "#EF4444" }}>*</span>
+                    </label>
+                    <select
+                      value={form.bien}
+                      onChange={(e) => set("bien", e.target.value)}
+                      className={`sfield ${errors.bien ? "err" : ""}`}
+                    >
+                      <option value="">-- Choisir un bien --</option>
+                      {biens
+                        .filter(
+                          (b) =>
+                            b.statut === "libre" ||
+                            (editItem && b.id === editItem.bien?.id),
+                        )
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.titre} — {b.adresse}
+                          </option>
+                        ))}
+                    </select>
+                    {errors.bien && (
+                      <p className="text-xs mt-1" style={{ color: "#EF4444" }}>
+                        {errors.bien}
+                      </p>
+                    )}
+                    {biens.filter((b) => b.statut === "libre").length === 0 &&
+                      !editItem && (
                         <p
-                          className="text-xs mt-1"
-                          style={{ color: "#EF4444" }}
+                          className="text-xs mt-1.5 flex items-center gap-1"
+                          style={{ color: "#D97706" }}
                         >
-                          {errors.bien}
+                          <IconAlertCircle size={12} />
+                          Aucun bien libre disponible
                         </p>
                       )}
-                      {biens.filter((b) => b.statut === "libre").length === 0 &&
-                        !editItem && (
-                          <p
-                            className="text-xs mt-1.5 flex items-center gap-1"
-                            style={{ color: "#D97706" }}
-                          >
-                            <IconAlertCircle size={12} />
-                            Aucun bien libre disponible
-                          </p>
-                        )}
-                    </div>
                   </div>
 
                   {/* Locataire */}
@@ -986,43 +1009,38 @@ export default function ContratsPage() {
                     >
                       Locataire
                     </div>
-                    <div>
-                      <label
-                        className="block text-xs font-semibold mb-1.5"
-                        style={{ color: "#374151" }}
+                    <label
+                      className="block text-xs font-semibold mb-1.5"
+                      style={{ color: "#374151" }}
+                    >
+                      Locataire <span style={{ color: "#EF4444" }}>*</span>
+                    </label>
+                    <select
+                      value={form.locataire}
+                      onChange={(e) => set("locataire", e.target.value)}
+                      className={`sfield ${errors.locataire ? "err" : ""}`}
+                    >
+                      <option value="">-- Choisir un locataire --</option>
+                      {locataires.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.nom_complet} ({l.email})
+                        </option>
+                      ))}
+                    </select>
+                    {errors.locataire && (
+                      <p className="text-xs mt-1" style={{ color: "#EF4444" }}>
+                        {errors.locataire}
+                      </p>
+                    )}
+                    {locataires.length === 0 && (
+                      <p
+                        className="text-xs mt-1.5 flex items-center gap-1"
+                        style={{ color: "#D97706" }}
                       >
-                        Locataire <span style={{ color: "#EF4444" }}>*</span>
-                      </label>
-                      <select
-                        value={form.locataire}
-                        onChange={(e) => set("locataire", e.target.value)}
-                        className={`sfield ${errors.locataire ? "err" : ""}`}
-                      >
-                        <option value="">-- Choisir un locataire --</option>
-                        {locataires.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.nom_complet} ({l.email})
-                          </option>
-                        ))}
-                      </select>
-                      {errors.locataire && (
-                        <p
-                          className="text-xs mt-1"
-                          style={{ color: "#EF4444" }}
-                        >
-                          {errors.locataire}
-                        </p>
-                      )}
-                      {locataires.length === 0 && (
-                        <p
-                          className="text-xs mt-1.5 flex items-center gap-1"
-                          style={{ color: "#D97706" }}
-                        >
-                          <IconAlertCircle size={12} />
-                          Aucun locataire — invitez d&apos;abord un locataire
-                        </p>
-                      )}
-                    </div>
+                        <IconAlertCircle size={12} />
+                        Aucun locataire — invitez d&apos;abord un locataire
+                      </p>
+                    )}
                   </div>
 
                   {/* Dates */}
@@ -1320,7 +1338,7 @@ export default function ContratsPage() {
                 </div>
 
                 <div className="px-5 py-5 space-y-5">
-                  {/* Statut + état signatures */}
+                  {/* Statut + signatures */}
                   <div
                     className="p-4 rounded-2xl"
                     style={{
@@ -1358,7 +1376,6 @@ export default function ContratsPage() {
                         </div>
                       </div>
                     </div>
-                    {/* Signatures */}
                     <div
                       className="grid grid-cols-2 gap-2 pt-3"
                       style={{ borderTop: "1px solid rgba(0,0,0,.06)" }}
@@ -1400,7 +1417,7 @@ export default function ContratsPage() {
                     </div>
                   </div>
 
-                  {/* ✅ Bouton signer — visible si bailleur n'a pas encore signé */}
+                  {/* Bouton signer */}
                   {!selected.signe_bailleur && (
                     <motion.button
                       whileHover={{ scale: 1.01 }}
@@ -1581,7 +1598,7 @@ export default function ContratsPage() {
                     </div>
                   </div>
 
-                  {/* Actions rapides */}
+                  {/* ✅ Actions — PDF branché */}
                   <div>
                     <div
                       className="text-xs font-bold uppercase tracking-wider mb-3"
@@ -1590,27 +1607,49 @@ export default function ContratsPage() {
                       Actions
                     </div>
                     <div className="grid grid-cols-2 gap-2">
+                      {/* ✅ Télécharger PDF — branché sur telechargerPdf */}
+                      <button
+                        onClick={() => telechargerPdf(selected.id)}
+                        disabled={downloading}
+                        className="flex items-center gap-2 p-3 rounded-xl text-xs font-semibold"
+                        style={{
+                          background: "#F5F3FF",
+                          color: "#7C3AED",
+                          opacity: downloading ? 0.6 : 1,
+                        }}
+                      >
+                        {downloading ? (
+                          <>
+                            <IconLoader2
+                              size={13}
+                              style={{ animation: "spin 1s linear infinite" }}
+                            />
+                            Génération...
+                          </>
+                        ) : (
+                          <>
+                            <IconDownload size={13} />
+                            Télécharger PDF
+                          </>
+                        )}
+                      </button>
+
+                      {/* Autres actions */}
                       {[
                         {
-                          ico: <IconDownload size={15} />,
-                          lbl: "Télécharger PDF",
-                          col: "#7C3AED",
-                          bg: "#F5F3FF",
-                        },
-                        {
-                          ico: <IconCreditCard size={15} />,
+                          ico: <IconCreditCard size={13} />,
                           lbl: "Voir paiements",
                           col: "#059669",
                           bg: "#ECFDF5",
                         },
                         {
-                          ico: <IconUsers size={15} />,
+                          ico: <IconUsers size={13} />,
                           lbl: "Contacter locataire",
                           col: "#2563EB",
                           bg: "#EFF6FF",
                         },
                         {
-                          ico: <IconBan size={15} />,
+                          ico: <IconBan size={13} />,
                           lbl: "Résilier contrat",
                           col: "#DC2626",
                           bg: "#FEF2F2",
