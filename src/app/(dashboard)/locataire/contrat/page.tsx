@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { Contrat, PaginatedResponse } from "@/types";
@@ -19,13 +20,14 @@ import {
   IconCheck,
   IconAlertCircle,
   IconUser,
-  IconBuilding,
   IconClockHour4,
   IconCircleCheck,
   IconBan,
   IconChevronDown,
   IconChevronUp,
   IconBuildingSkyscraper,
+  IconLoader2,
+  IconSignature,
 } from "@tabler/icons-react";
 
 // ── Badge statut ──────────────────────────────────────────────
@@ -58,6 +60,12 @@ function StatutBadge({ statut }: { statut: string }) {
       lbl: "En attente",
       ico: <IconClockHour4 size={12} />,
     },
+    brouillon: {
+      bg: "#FFF7ED",
+      col: "#EA580C",
+      lbl: "À signer",
+      ico: <IconSignature size={12} />,
+    },
   };
   const s = map[statut] ?? {
     bg: "#F1F5F9",
@@ -76,7 +84,7 @@ function StatutBadge({ statut }: { statut: string }) {
   );
 }
 
-// ── Section accordéon ─────────────────────────────────────────
+// ── Section accordéon ──────────────────────────────────────────
 function Section({
   title,
   icon,
@@ -131,7 +139,7 @@ function Section({
   );
 }
 
-// ── Ligne info ────────────────────────────────────────────────
+// ── Ligne info ──────────────────────────────────────────────
 function InfoRow({
   label,
   value,
@@ -162,12 +170,13 @@ function InfoRow({
   );
 }
 
-// ────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────
 export default function LocataireContratPage() {
   const { user } = useAuth();
   const [contrat, setContrat] = useState<Contrat | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [signing, setSigning] = useState(false);
 
   useEffect(() => {
     if (user) load();
@@ -178,8 +187,10 @@ export default function LocataireContratPage() {
     setError(false);
     try {
       const res = await api.get<PaginatedResponse<Contrat>>("/contrats/");
+      // Priorité : actif → brouillon en attente de signature → premier disponible
       const actif =
         res.data.results.find((c) => c.statut === "actif") ??
+        res.data.results.find((c) => c.statut === "brouillon") ??
         res.data.results[0] ??
         null;
       setContrat(actif);
@@ -187,6 +198,21 @@ export default function LocataireContratPage() {
       setError(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ Signer le contrat (locataire)
+  const handleSigner = async () => {
+    if (!contrat) return;
+    setSigning(true);
+    try {
+      await api.post(`/contrats/${contrat.id}/signer/`);
+      toast.success("Contrat signé ! Il est maintenant actif.");
+      load();
+    } catch {
+      toast.error("Erreur lors de la signature");
+    } finally {
+      setSigning(false);
     }
   };
 
@@ -198,7 +224,6 @@ export default function LocataireContratPage() {
   const dateFin = contrat?.date_fin ? new Date(contrat.date_fin) : null;
   const maintenant = new Date();
 
-  // Progression du bail (jours écoulés / durée totale)
   const bailPct =
     dateDebut && dateFin
       ? Math.min(
@@ -229,10 +254,15 @@ export default function LocataireContratPage() {
       )
     : null;
 
+  // Locataire n'a pas encore signé
+  const doitSigner =
+    contrat && !contrat.signe_locataire && contrat.signe_bailleur;
+
   return (
     <>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
         .fade-up{animation:fadeUp .4s ease both}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}
@@ -277,6 +307,15 @@ export default function LocataireContratPage() {
             >
               Mon contrat
             </h1>
+            {/* Alerte signature en attente */}
+            {doitSigner && (
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 animate-pulse"
+                style={{ background: "#FFF7ED", color: "#EA580C" }}
+              >
+                À signer
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -292,7 +331,7 @@ export default function LocataireContratPage() {
                 }}
               />
             </button>
-            {contrat && (
+            {contrat && contrat.statut === "actif" && (
               <button
                 className="hidden sm:flex items-center gap-2 px-3 h-9 rounded-xl text-xs font-bold"
                 style={{
@@ -309,7 +348,7 @@ export default function LocataireContratPage() {
         </header>
 
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-5 sm:py-6 space-y-4">
-          {/* ── LOADING ─────────────────────────────────────── */}
+          {/* Loading */}
           {loading && (
             <div className="space-y-4">
               {[120, 200, 180, 160].map((h, i) => (
@@ -328,7 +367,7 @@ export default function LocataireContratPage() {
             </div>
           )}
 
-          {/* ── ERREUR ──────────────────────────────────────── */}
+          {/* Erreur */}
           {!loading && error && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div
@@ -357,7 +396,7 @@ export default function LocataireContratPage() {
             </div>
           )}
 
-          {/* ── AUCUN CONTRAT ───────────────────────────────── */}
+          {/* Aucun contrat */}
           {!loading && !error && !contrat && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div
@@ -370,7 +409,7 @@ export default function LocataireContratPage() {
                 className="text-base font-bold mb-2"
                 style={{ color: "#0F172A" }}
               >
-                Aucun contrat actif
+                Aucun contrat
               </h3>
               <p
                 className="text-sm"
@@ -382,9 +421,95 @@ export default function LocataireContratPage() {
             </div>
           )}
 
-          {/* ── CONTRAT ─────────────────────────────────────── */}
           {!loading && contrat && (
             <>
+              {/* ✅ Bannière "À signer" si bailleur a signé mais pas le locataire */}
+              {doitSigner && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 p-4 rounded-2xl"
+                  style={{
+                    background: "linear-gradient(135deg,#FFF7ED,#FFEDD5)",
+                    border: "1.5px solid #FED7AA",
+                  }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "#EA580C" }}
+                  >
+                    <IconSignature size={18} color="white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="text-sm font-bold"
+                      style={{ color: "#9A3412" }}
+                    >
+                      Votre signature est requise
+                    </div>
+                    <div className="text-xs" style={{ color: "#C2410C" }}>
+                      Votre bailleur a signé le contrat. Signez-le pour
+                      l&apos;activer.
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleSigner}
+                    disabled={signing}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white flex-shrink-0"
+                    style={{
+                      background: "#EA580C",
+                      boxShadow: "0 2px 8px rgba(234,88,12,.4)",
+                    }}
+                  >
+                    {signing ? (
+                      <>
+                        <IconLoader2
+                          size={13}
+                          style={{ animation: "spin 1s linear infinite" }}
+                        />
+                        ...
+                      </>
+                    ) : (
+                      <>
+                        <IconSignature size={13} />
+                        Signer
+                      </>
+                    )}
+                  </motion.button>
+                </motion.div>
+              )}
+
+              {/* Bannière "En attente du bailleur" si locataire a signé mais pas le bailleur */}
+              {contrat.signe_locataire && !contrat.signe_bailleur && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 p-4 rounded-2xl"
+                  style={{
+                    background: "#FFFBEB",
+                    border: "1.5px solid #FDE68A",
+                  }}
+                >
+                  <IconClockHour4
+                    size={20}
+                    style={{ color: "#D97706", flexShrink: 0 }}
+                  />
+                  <div>
+                    <div
+                      className="text-sm font-bold"
+                      style={{ color: "#92400E" }}
+                    >
+                      En attente du bailleur
+                    </div>
+                    <div className="text-xs" style={{ color: "#B45309" }}>
+                      Vous avez signé. Votre bailleur doit encore signer.
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Hero — statut + logement */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -393,7 +518,6 @@ export default function LocataireContratPage() {
                 className="rounded-2xl overflow-hidden"
                 style={{ border: "1px solid rgba(255,255,255,.1)" }}
               >
-                {/* Bandeau vert */}
                 <div
                   className="p-5 relative overflow-hidden"
                   style={{
@@ -407,7 +531,6 @@ export default function LocataireContratPage() {
                       background: "radial-gradient(circle,#A7F3D0,transparent)",
                     }}
                   />
-
                   <div className="relative">
                     <div className="flex items-center justify-between mb-4">
                       <StatutBadge statut={contrat.statut} />
@@ -418,7 +541,6 @@ export default function LocataireContratPage() {
                         #{contrat.id}
                       </span>
                     </div>
-
                     <div className="flex items-start gap-4">
                       <div
                         className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -484,8 +606,8 @@ export default function LocataireContratPage() {
                   </div>
                 </div>
 
-                {/* Barre progression bail */}
-                {dateDebut && (
+                {/* Barre progression */}
+                {dateDebut && contrat.statut === "actif" && (
                   <div className="px-5 py-4 bg-white">
                     <div className="flex items-center justify-between text-xs mb-2">
                       <span style={{ color: "#94A3B8" }}>
@@ -550,8 +672,6 @@ export default function LocataireContratPage() {
                 )}
               </motion.div>
 
-              {/* Sections accordéon */}
-
               {/* Conditions financières */}
               <div className="fade-up" style={{ animationDelay: ".1s" }}>
                 <Section
@@ -588,7 +708,6 @@ export default function LocataireContratPage() {
                     label="Charges électricité"
                     value="Selon relevé mensuel"
                   />
-                  {/* Total estimé */}
                   <div
                     className="mt-3 p-3 rounded-xl"
                     style={{
@@ -654,24 +773,6 @@ export default function LocataireContratPage() {
                         : "Indéterminée"
                     }
                   />
-                  {contrat.signe_locataire !== undefined && (
-                    <InfoRow
-                      label="Signature locataire"
-                      value={contrat.signe_locataire ? "Signé" : "En attente"}
-                      valueColor={
-                        contrat.signe_locataire ? "#059669" : "#D97706"
-                      }
-                    />
-                  )}
-                  {contrat.signe_bailleur !== undefined && (
-                    <InfoRow
-                      label="Signature bailleur"
-                      value={contrat.signe_bailleur ? "Signé" : "En attente"}
-                      valueColor={
-                        contrat.signe_bailleur ? "#059669" : "#D97706"
-                      }
-                    />
-                  )}
                 </Section>
               </div>
 
@@ -879,29 +980,70 @@ export default function LocataireContratPage() {
                 transition={{ delay: 0.4 }}
                 className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-6"
               >
-                <button
-                  className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white"
-                  style={{
-                    background: "linear-gradient(135deg,#059669,#047857)",
-                    boxShadow: "0 4px 14px rgba(5,150,105,.3)",
-                  }}
-                >
-                  <IconDownload size={17} />
-                  Télécharger le contrat PDF
-                </button>
-                <Link
-                  href="/locataire/paiement"
-                  className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold"
-                  style={{
-                    background: "#F0FDF4",
-                    border: "1.5px solid #A7F3D0",
-                    color: "#059669",
-                    textDecoration: "none",
-                  }}
-                >
-                  <IconCreditCard size={17} />
-                  Payer mon loyer
-                </Link>
+                {/* ✅ Bouton signer si locataire n'a pas encore signé */}
+                {!contrat.signe_locataire && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleSigner}
+                    disabled={signing}
+                    className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white sm:col-span-2"
+                    style={{
+                      background: signing
+                        ? "#94A3B8"
+                        : "linear-gradient(135deg,#EA580C,#C2410C)",
+                      boxShadow: signing
+                        ? "none"
+                        : "0 4px 14px rgba(234,88,12,.35)",
+                    }}
+                  >
+                    {signing ? (
+                      <>
+                        <IconLoader2
+                          size={17}
+                          style={{ animation: "spin 1s linear infinite" }}
+                        />
+                        Signature en cours...
+                      </>
+                    ) : (
+                      <>
+                        <IconSignature size={17} />
+                        Signer le contrat
+                      </>
+                    )}
+                  </motion.button>
+                )}
+
+                {/* Télécharger PDF — seulement si actif */}
+                {contrat.statut === "actif" && (
+                  <button
+                    className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white"
+                    style={{
+                      background: "linear-gradient(135deg,#059669,#047857)",
+                      boxShadow: "0 4px 14px rgba(5,150,105,.3)",
+                    }}
+                  >
+                    <IconDownload size={17} />
+                    Télécharger le contrat PDF
+                  </button>
+                )}
+
+                {/* Payer loyer — seulement si actif */}
+                {contrat.statut === "actif" && (
+                  <Link
+                    href="/locataire/paiement"
+                    className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold"
+                    style={{
+                      background: "#F0FDF4",
+                      border: "1.5px solid #A7F3D0",
+                      color: "#059669",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <IconCreditCard size={17} />
+                    Payer mon loyer
+                  </Link>
+                )}
               </motion.div>
             </>
           )}
