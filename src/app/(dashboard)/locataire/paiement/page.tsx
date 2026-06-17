@@ -110,6 +110,9 @@ export default function PaiementPage() {
 
   const handleConfirmer = async () => {
     if (!contrat) return
+      console.log('contrat.id:', contrat.id)
+      console.log('contrat.statut:', contrat.statut)
+      console.log('contrat complet:', JSON.stringify(contrat))
     setEtape('traitement'); setProc(true)
     try {
       const res = await api.post('/paiements/initier/', {
