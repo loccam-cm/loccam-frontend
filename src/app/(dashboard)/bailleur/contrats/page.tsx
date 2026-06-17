@@ -210,16 +210,15 @@ export default function ContratsPage() {
       const invs = Array.isArray(invRes.data)
         ? invRes.data
         : ((invRes.data as any)?.results ?? []);
+
       invs
-        .filter((i: any) => i.statut === "acceptee" && i.locataire)
+        .filter((i: any) => i.statut === "acceptee" && i.locataire_id)
         .forEach((i: any) => {
-          if (i.locataire_id) {
-            locSet.set(i.locataire_id, {
-              id: i.locataire_id,
-              nom_complet: i.nom_invite || i.email_invite,
-              email: i.email_invite,
-            });
-          }
+          locSet.set(i.locataire_id, {
+            id: i.locataire_id,
+            nom_complet: i.locataire_nom || i.nom_invite || i.email_invite,
+            email: i.email_invite,
+          });
         });
 
       // Depuis les contrats existants (locataires déjà liés)
