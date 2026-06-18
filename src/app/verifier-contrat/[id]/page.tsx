@@ -20,14 +20,18 @@ export default function VerifierContratPage() {
   }, [])
 
   const verifier = async () => {
-    try {
-      const res = await api.get(`/contrats/${id}/verifier/?h=${hash}`)
-      setData(res.data)
-      setStatus(res.data.valide ? 'valid' : 'invalid')
-    } catch {
-      setStatus('error')
-    }
+  try {
+    const res = await fetch(
+      `https://loccam-backend.onrender.com/api/v1/contrats/${id}/verifier/?h=${hash}`
+    )
+    if (!res.ok) { setStatus('error'); return }
+    const json = await res.json()
+    setData(json)
+    setStatus(json.valide ? 'valid' : 'invalid')
+  } catch {
+    setStatus('error')
   }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4"
