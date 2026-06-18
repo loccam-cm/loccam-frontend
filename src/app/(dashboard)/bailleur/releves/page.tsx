@@ -33,11 +33,11 @@ interface Structure {
   adresse: string;
 }
 interface Bien {
-  id: number;
-  titre: string;
-  adresse: string;
-  statut: string;
-  structure: { id: number } | number | null
+  id: number
+  titre: string
+  adresse: string
+  statut: string
+  structure_id: number | null  
 }
 
 interface IndexConsommation {
@@ -187,11 +187,10 @@ export default function RelevesPage() {
   s && typeof s === 'object' ? s.id : s
 
 const biensFiltres = isSansSturcture
-    ? allBiens.filter(b => !b.structure)
-    : selectedStructure
-      ? allBiens.filter(b => getStructureId(b.structure) === selectedStructure.id)
-      : []
-
+  ? allBiens.filter(b => !b.structure_id)
+  : selectedStructure
+    ? allBiens.filter(b => b.structure_id === selectedStructure.id)
+    : []
   const calculerCharges = async () => {
     if (!selectedBien) return;
     setCalcLoading(true);
