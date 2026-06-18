@@ -957,7 +957,7 @@ export default function BailleurDashboard() {
                   </div>
                 </Link>
 
-                {/* Paiements récents */}
+              
 
                 {/* Paiements récents */}
                 <div className="flex items-center justify-between mb-3 fade-up-5">

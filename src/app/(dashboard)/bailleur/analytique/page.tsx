@@ -12,7 +12,7 @@ import {
 } from '@tabler/icons-react'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell,
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
   RadialBarChart, RadialBar,
 } from 'recharts'
 
