@@ -199,6 +199,11 @@ export default function BailleurDashboard() {
           href: "/bailleur/impayes",
         },
         {
+          icon: <IconChartBar size={16} />,
+          label: "Analytique",
+          href: "/bailleur/analytique",
+        },
+        {
           label: "Relevés eau & élec",
           href: "/bailleur/releves",
           icon: <IconDroplet size={16} />,
@@ -206,24 +211,24 @@ export default function BailleurDashboard() {
       ],
     },
     {
-  label: "Communication",
-  items: [
-    {
-      icon: <IconMessage size={16}/>,
-      label: 'Messagerie',
-      href: '/bailleur/messages',
-      badge: 0,
-      badgeColor: '#3B82F6',
+      label: "Communication",
+      items: [
+        {
+          icon: <IconMessage size={16} />,
+          label: "Messagerie",
+          href: "/bailleur/messages",
+          badge: 0,
+          badgeColor: "#3B82F6",
+        },
+        {
+          icon: <IconTool size={16} />,
+          label: "Signalements",
+          href: "/bailleur/signalements",
+          badge: 0,
+          badgeColor: "#EF4444",
+        },
+      ],
     },
-    {
-      icon: <IconTool size={16}/>,
-      label: 'Signalements',
-      href: '/bailleur/signalements',
-      badge: 0,
-      badgeColor: '#EF4444',
-    },
-  ],
-},
     {
       label: "Compte",
       items: [
@@ -905,6 +910,54 @@ export default function BailleurDashboard() {
                     </div>
                   ))}
                 </div>
+
+                {/* Raccourci Analytique */}
+                <Link
+                  href="/bailleur/analytique"
+                  style={{ textDecoration: "none" }}
+                >
+                  <div
+                    className="kpi-card bg-white rounded-2xl p-4 mb-5 fade-up-5 flex items-center gap-4 cursor-pointer"
+                    style={{
+                      border: "1px solid #E2E8F0",
+                      boxShadow: "0 1px 3px rgba(0,0,0,.04)",
+                    }}
+                  >
+                    <div
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: "linear-gradient(135deg,#7C3AED,#6D28D9)",
+                        boxShadow: "0 4px 12px rgba(124,58,237,.3)",
+                      }}
+                    >
+                      <IconChartBar size={22} color="white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="text-sm font-bold"
+                        style={{ color: "#0F172A" }}
+                      >
+                        Analytique & statistiques
+                      </div>
+                      <div
+                        className="text-xs mt-0.5"
+                        style={{ color: "#94A3B8" }}
+                      >
+                        Revenus mensuels · Taux d'occupation · Répartition par
+                        type
+                      </div>
+                    </div>
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0"
+                      style={{ background: "#F5F3FF", color: "#7C3AED" }}
+                    >
+                      Voir les graphiques
+                      <IconArrowRight size={13} />
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Paiements récents */}
 
                 {/* Paiements récents */}
                 <div className="flex items-center justify-between mb-3 fade-up-5">
