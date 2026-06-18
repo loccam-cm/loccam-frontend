@@ -202,7 +202,7 @@ export default function LocataireContratPage() {
     }
   };
 
-  // ✅ Signer le contrat (locataire)
+  //  Signer le contrat (locataire)
   const handleSigner = async () => {
     if (!contrat) return;
     setSigning(true);
