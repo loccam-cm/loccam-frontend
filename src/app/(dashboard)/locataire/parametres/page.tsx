@@ -314,7 +314,7 @@ export default function LocataireParametresPage() {
                   <Row lbl="Langue de l'interface">
                     <select
                       value={prefs.langue}
-                      onChange={e => setProfil(p => ({ ...p, langue: e.target.value as 'fr' | 'en' }))}
+                      onChange={(e) => set("langue", e.target.value)}
                       style={{
                         height: "38px",
                         padding: "0 12px",
