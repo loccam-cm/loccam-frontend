@@ -2,9 +2,16 @@
 
 import { motion } from 'framer-motion'
 import { useT } from '@/hooks/useT'
-import { Skeleton } from '@/components/dashboard/shared/Skeleton'
 import { Contrat } from '@/types'
 import { IconHome2, IconMapPin } from '@tabler/icons-react'
+
+// ── Skeleton vert local ────────────────────────────────────
+function SkeletonGreen({ className = '' }: { className?: string }) {
+  return (
+    <div className={`rounded-lg ${className}`}
+         style={{ background: 'linear-gradient(90deg,#D1FAE5 25%,#ECFDF5 50%,#D1FAE5 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+  )
+}
 
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
@@ -48,10 +55,10 @@ export function LocataireHeroLogement({ prenom, contrat, loading }: Props) {
           <div className="flex-1 min-w-0">
             {loading ? (
               <div className="space-y-2">
-                <Skeleton className="h-5 w-52" variant="green" />
-                <Skeleton className="h-3 w-40" variant="green" />
+                <SkeletonGreen className="h-5 w-52" />
+                <SkeletonGreen className="h-3 w-40" />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-                  {Array(4).fill(0).map((_,i) => <Skeleton key={i} className="h-10" variant="green" />)}
+                  {Array(4).fill(0).map((_,i) => <SkeletonGreen key={i} className="h-10" />)}
                 </div>
               </div>
             ) : (
