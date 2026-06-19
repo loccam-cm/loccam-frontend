@@ -1,40 +1,24 @@
-﻿"use client";
+﻿'use client'
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { useAuth } from "@/contexts/AuthContext";
-import { useT } from "@/hooks/useT";
-import { useLocataireDashboard } from "@/hooks/useLocataireDashboard";
-import { LocataireSidebar } from "@/components/dashboard/locataire/LocataireSidebar";
-import { LocataireTopbar } from "@/components/dashboard/locataire/LocataireTopbar";
-import { LocataireHeroLogement } from "@/components/dashboard/locataire/LocataireHeroLogement";
-import { LocataireProchainPaiement } from "@/components/dashboard/locataire/LocataireProchainPaiement";
-import { LocataireTabs } from "@/components/dashboard/locataire/LocataireTabs";
-import { LocatairePanneauDroit } from "@/components/dashboard/locataire/LocatairePanneauDroit";
-
-type TabKey = "paiements" | "documents" | "messages" | "signalements";
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 14 },
-  visible: (i = 0) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.07, duration: 0.4, ease: "easeOut" as const },
-  }),
-};
+import { useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { useLocataireDashboard }        from '@/hooks/useLocataireDashboard'
+import { LocataireSidebar }             from '@/components/dashboard/locataire/LocataireSidebar'
+import { LocataireTopbar }              from '@/components/dashboard/locataire/LocataireTopbar'
+import { LocataireHeroLogement }        from '@/components/dashboard/locataire/LocataireHeroLogement'
+import { LocataireProchainPaiement }    from '@/components/dashboard/locataire/LocataireProchainPaiement'
+import { LocataireTabs }                from '@/components/dashboard/locataire/LocataireTabs'
+import { LocatairePanneauDroit }        from '@/components/dashboard/locataire/LocatairePanneauDroit'
 
 export default function LocataireDashboardPage() {
-  const t = useT();
-  const { user, deconnexion } = useAuth();
-  const { data, loading, load, joursRestants, progressMois, dateEcheance } =
-    useLocataireDashboard();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState("Tableau de bord");
-  const [activeTab, setActiveTab] = useState<TabKey>("paiements");
+  const { user, deconnexion } = useAuth()
+  const { data, loading, load, joursRestants, progressMois, dateEcheance } = useLocataireDashboard()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [activeNav, setActiveNav]     = useState('Tableau de bord')
 
-  if (!user) return null;
-  const ini = `${user.prenom?.[0] ?? ""}${user.nom?.[0] ?? ""}`;
-  const contrat = data?.contrat ?? null;
+  if (!user) return null
+  const ini     = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`
+  const contrat = data?.contrat ?? null
 
   return (
     <>
@@ -59,18 +43,11 @@ export default function LocataireDashboardPage() {
         }
       `}</style>
 
-      <div
-        className="flex h-screen overflow-hidden"
-        style={{
-          background: "#F0FDF4",
-          fontFamily: "'DM Sans','Helvetica Neue',sans-serif",
-        }}
-      >
+      <div className="flex h-screen overflow-hidden"
+           style={{ background: '#F0FDF4', fontFamily: "'DM Sans','Helvetica Neue',sans-serif" }}>
+
         {sidebarOpen && (
-          <div
-            className="sidebar-overlay lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <div className="sidebar-overlay lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
         <LocataireSidebar
@@ -81,13 +58,10 @@ export default function LocataireDashboardPage() {
           ini={ini}
           nomComplet={user.nom_complet}
           onDeconnexion={deconnexion}
-          messagesNonLus={data?.messages.filter((m) => !m.est_lu).length ?? 0}
-          signalementsOuverts={
-            data?.signalements.filter(
-              (s) => s.statut === "ouvert" || s.statut === "en_cours",
-            ).length ?? 0
-          }
+          messagesNonLus={data?.messages.filter(m => !m.est_lu).length ?? 0}
+          signalementsOuverts={data?.signalements.filter(s => s.statut === 'ouvert' || s.statut === 'en_cours').length ?? 0}
         />
+
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <LocataireTopbar
             onMenuOpen={() => setSidebarOpen(true)}
@@ -99,26 +73,13 @@ export default function LocataireDashboardPage() {
           <div className="flex-1 overflow-y-auto">
             <div className="flex h-full">
               <div className="flex-1 p-4 sm:p-5 overflow-y-auto min-w-0">
-                {/* Salutation */}
-                <motion.div
-                  variants={fadeUp}
-                  initial="hidden"
-                  animate="visible"
-                  custom={0}
-                  className="mb-4"
-                >
-                  <h2
-                    className="text-xl font-bold"
-                    style={{ color: "#0F172A" }}
-                  >
-                    {t("dashboard.bienvenue")}, {user.prenom}
-                  </h2>
-                  <p className="text-sm" style={{ color: "#64748B" }}>
-                    {t("dashboard.bienvenue_espace")}
-                  </p>
-                </motion.div>
 
-                <LocataireHeroLogement contrat={contrat} loading={loading} />
+                {/* prenom passé — salutation + hero dans le composant */}
+                <LocataireHeroLogement
+                  prenom={user.prenom}
+                  contrat={contrat}
+                  loading={loading}
+                />
 
                 <LocataireProchainPaiement
                   contrat={contrat}
@@ -128,9 +89,8 @@ export default function LocataireDashboardPage() {
                   dateEcheance={dateEcheance}
                 />
 
+                {/*activeTab géré en interne par LocataireTabs */}
                 <LocataireTabs
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
                   data={data}
                   loading={loading}
                   contrat={contrat}
@@ -148,5 +108,5 @@ export default function LocataireDashboardPage() {
         </div>
       </div>
     </>
-  );
+  )
 }
