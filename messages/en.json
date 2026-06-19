@@ -1,0 +1,64 @@
+{
+    "nav": {
+        "dashboard": "Dashboard",
+        "biens": "My properties",
+        "structures": "Structures",
+        "locataires": "Tenants",
+        "paiements": "Payments",
+        "contrats": "Contracts",
+        "impayes": "Unpaid rent",
+        "releves": "Water & electricity",
+        "messages": "Messaging",
+        "signalements": "Reports",
+        "analytique": "Analytics",
+        "parametres": "Settings",
+        "compte": "My account"
+    },
+    "common": {
+        "retour": "Back",
+        "sauvegarder": "Save",
+        "annuler": "Cancel",
+        "modifier": "Edit",
+        "loading": "Loading...",
+        "erreur": "Error",
+        "succes": "Success",
+        "nouveau": "New",
+        "voir": "View",
+        "telecharger": "Download",
+        "envoyer": "Send",
+        "confirmer": "Confirm",
+        "fermer": "Close"
+    },
+    "dashboard": {
+        "bienvenue": "Welcome",
+        "tableau_de_bord": "Dashboard",
+        "revenus_mois": "Monthly revenue",
+        "taux_occupation": "Occupancy rate",
+        "impayes": "Unpaid rent",
+        "total_biens": "Total properties"
+    },
+    "paiement": {
+        "titre": "Pay my rent",
+        "montant": "Amount",
+        "moyen": "Payment method",
+        "confirmer": "Confirm payment",
+        "succes": "Payment confirmed!",
+        "echec": "Payment failed"
+    },
+    "contrat": {
+        "titre": "My contract",
+        "signer": "Sign contract",
+        "telecharger": "Download PDF contract",
+        "statut_actif": "Active",
+        "statut_brouillon": "Draft"
+    },
+    "parametres": {
+        "titre": "Settings",
+        "notifications": "Notifications",
+        "paiements": "Payments",
+        "affichage": "Display",
+        "confidentialite": "Privacy",
+        "langue": "Interface language",
+        "moyen_prefere": "Preferred payment method"
+    }
+}

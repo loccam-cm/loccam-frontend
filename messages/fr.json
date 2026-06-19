@@ -1,0 +1,64 @@
+{
+    "nav": {
+        "dashboard": "Tableau de bord",
+        "biens": "Mes biens",
+        "structures": "Structures",
+        "locataires": "Locataires",
+        "paiements": "Paiements",
+        "contrats": "Contrats",
+        "impayes": "Impayés",
+        "releves": "Relevés eau & élec",
+        "messages": "Messagerie",
+        "signalements": "Signalements",
+        "analytique": "Analytique",
+        "parametres": "Paramètres",
+        "compte": "Mon compte"
+    },
+    "common": {
+        "retour": "Retour",
+        "sauvegarder": "Sauvegarder",
+        "annuler": "Annuler",
+        "modifier": "Modifier",
+        "loading": "Chargement...",
+        "erreur": "Erreur",
+        "succes": "Succès",
+        "nouveau": "Nouveau",
+        "voir": "Voir",
+        "telecharger": "Télécharger",
+        "envoyer": "Envoyer",
+        "confirmer": "Confirmer",
+        "fermer": "Fermer"
+    },
+    "dashboard": {
+        "bienvenue": "Bienvenue",
+        "tableau_de_bord": "Tableau de bord",
+        "revenus_mois": "Revenus du mois",
+        "taux_occupation": "Taux d'occupation",
+        "impayes": "Impayés en cours",
+        "total_biens": "Total biens"
+    },
+    "paiement": {
+        "titre": "Payer mon loyer",
+        "montant": "Montant",
+        "moyen": "Moyen de paiement",
+        "confirmer": "Confirmer le paiement",
+        "succes": "Paiement confirmé !",
+        "echec": "Paiement échoué"
+    },
+    "contrat": {
+        "titre": "Mon contrat",
+        "signer": "Signer le contrat",
+        "telecharger": "Télécharger le contrat PDF",
+        "statut_actif": "Actif",
+        "statut_brouillon": "Brouillon"
+    },
+    "parametres": {
+        "titre": "Paramètres",
+        "notifications": "Notifications",
+        "paiements": "Paiements",
+        "affichage": "Affichage",
+        "confidentialite": "Confidentialité",
+        "langue": "Langue de l'interface",
+        "moyen_prefere": "Moyen de paiement préféré"
+    }
+}

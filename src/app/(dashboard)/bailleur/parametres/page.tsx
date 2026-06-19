@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocale } from "@/hooks/useLocale";
 import {
   IconArrowLeft,
   IconSettings,
@@ -121,6 +122,8 @@ function Row({
 
 export default function BailleurParametresPage() {
   const { user } = useAuth();
+  // ✅ Hook déclaré DANS le composant
+  const { locale, changerLangue } = useLocale();
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -150,7 +153,12 @@ export default function BailleurParametresPage() {
     setSaving(true);
     try {
       await api.patch("/auth/preferences/", prefs);
-      toast.success("Préférences sauvegardées !");
+      // ✅ Si la langue a changé, l'appliquer et recharger
+      if (prefs.langue !== locale) {
+        await changerLangue(prefs.langue as "fr" | "en");
+      } else {
+        toast.success("Préférences sauvegardées !");
+      }
     } catch {
       toast.error("Erreur lors de la sauvegarde");
     } finally {
@@ -321,6 +329,7 @@ export default function BailleurParametresPage() {
                 {/* ── AFFICHAGE ─────────────────────────────── */}
                 <Section titre="Affichage" ico={<IconWorld size={15} />}>
                   <Row lbl="Langue de l'interface">
+                    {/* ✅ prefs.langue pour l'affichage, changerLangue au moment de sauvegarder */}
                     <select
                       value={prefs.langue}
                       onChange={(e) => set("langue", e.target.value)}
