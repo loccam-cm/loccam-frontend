@@ -7,7 +7,7 @@ import api from "@/lib/api";
 import { Bien, Paiement, Notification, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
 import NotificationBell from "@/components/NotificationBell";
-import { useT } from '@/hooks/useT'
+import { useT } from "@/hooks/useT";
 import {
   IconLayoutDashboard,
   IconBuilding,
@@ -23,7 +23,6 @@ import {
   IconBell,
   IconDownload,
   IconPlus,
-  IconCalendar,
   IconArrowRight,
   IconCheck,
   IconAlertCircle,
@@ -39,6 +38,7 @@ import {
   IconUser,
 } from "@tabler/icons-react";
 
+// ── Types ──────────────────────────────────────────────────
 interface Stats {
   total_biens: number;
   biens_libres: number;
@@ -53,6 +53,7 @@ interface Stats {
   baux_renouveler: number;
 }
 
+// ── Sous-composants ────────────────────────────────────────
 function AnimatedNumber({
   value,
   duration = 1000,
@@ -63,7 +64,6 @@ function AnimatedNumber({
   const [display, setDisplay] = useState(0);
   const startRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
-
   useEffect(() => {
     startRef.current = null;
     const animate = (ts: number) => {
@@ -76,7 +76,6 @@ function AnimatedNumber({
     rafRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafRef.current);
   }, [value, duration]);
-
   return <>{display.toLocaleString("fr-FR")}</>;
 }
 
@@ -86,7 +85,7 @@ function Skeleton({ className = "" }: { className?: string }) {
       className={`rounded-lg ${className}`}
       style={{
         background:
-          "linear-gradient(90deg, #E6EDF4 25%, #F1F5F9 50%, #E6EDF4 75%)",
+          "linear-gradient(90deg,#E6EDF4 25%,#F1F5F9 50%,#E6EDF4 75%)",
         backgroundSize: "200% 100%",
         animation: "shimmer 1.5s infinite",
       }}
@@ -94,17 +93,19 @@ function Skeleton({ className = "" }: { className?: string }) {
   );
 }
 
+// ── Dashboard principal ────────────────────────────────────
 export default function BailleurDashboard() {
-  const t = useT()
+  const t = useT();
   const { user, deconnexion } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [paiements, setPaiements] = useState<Paiement[]>([]);
-  const [notifications, setNotifs] = useState<Notification[]>([]);
+  const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("Dashboard");
-  const [notifOpen, setNotifOpen] = useState(false);
+
   const today = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -126,7 +127,6 @@ export default function BailleurDashboard() {
       const ps = paiRes.data.results;
       const occupes = bs.filter((b) => b.statut === "occupe").length;
       const libres = bs.filter((b) => b.statut === "libre").length;
-      const total = bs.length;
       const confirmes = ps.filter((p) => p.statut === "confirme");
       const impayes = ps.filter(
         (p) =>
@@ -134,16 +134,16 @@ export default function BailleurDashboard() {
           (p.statut === "en_attente" && p.est_en_retard),
       );
       const revenus = confirmes.reduce((s, p) => s + p.montant_total, 0);
-      const montantImpayes = impayes.reduce((s, p) => s + p.montant_total, 0);
       setStats({
-        total_biens: total,
+        total_biens: bs.length,
         biens_libres: libres,
         biens_occupes: occupes,
-        taux_occupation: total > 0 ? Math.round((occupes / total) * 100) : 0,
+        taux_occupation:
+          bs.length > 0 ? Math.round((occupes / bs.length) * 100) : 0,
         revenus_mois: revenus,
         revenus_encaisses: revenus,
         impayes: impayes.length,
-        montant_impayes: montantImpayes,
+        montant_impayes: impayes.reduce((s, p) => s + p.montant_total, 0),
         loyers_confirmes: confirmes.length,
         signalements: 0,
         baux_renouveler: 0,
@@ -157,27 +157,30 @@ export default function BailleurDashboard() {
   };
 
   if (!user) return null;
-
   const initiales = `${user.prenom[0]}${user.nom[0]}`;
 
+  // ── Navigation ─────────────────────────────────────────
   const navGroups = [
     {
-      label: "Principal",
+      label: t("nav.principal") || "Principal",
       items: [
-        { icon: <IconLayoutDashboard size={16} />, label: "Dashboard" },
+        {
+          icon: <IconLayoutDashboard size={16} />,
+          label: t("nav.dashboard") || "Dashboard",
+        },
         {
           icon: <IconBuilding size={16} />,
-          label: "Structures",
+          label: t("nav.structures") || "Structures",
           href: "/bailleur/structures",
         },
         {
           icon: <IconHome2 size={15} />,
-          label: "Mes biens",
+          label: t("nav.biens") || "Mes biens",
           href: "/bailleur/biens",
         },
         {
           icon: <IconUsers size={16} />,
-          label: "Locataires",
+          label: t("nav.locataires") || "Locataires",
           href: "/bailleur/locataires",
         },
       ],
@@ -187,28 +190,28 @@ export default function BailleurDashboard() {
       items: [
         {
           icon: <IconCreditCard size={16} />,
-          label: "Paiements",
+          label: t("nav.paiements") || "Paiements",
           href: "/bailleur/paiements",
         },
         {
           icon: <IconFileText size={16} />,
-          label: "Contrats",
+          label: t("nav.contrats") || "Contrats",
           href: "/bailleur/contrats",
         },
         {
           icon: <IconAlertCircle size={16} />,
-          label: "Impayés",
+          label: t("nav.impayes") || "Impayés",
           href: "/bailleur/impayes",
         },
         {
           icon: <IconChartBar size={16} />,
-          label: "Analytique",
+          label: t("nav.analytique") || "Analytique",
           href: "/bailleur/analytique",
         },
         {
-          label: "Relevés eau & élec",
-          href: "/bailleur/releves",
           icon: <IconDroplet size={16} />,
+          label: t("nav.releves") || "Relevés eau & élec",
+          href: "/bailleur/releves",
         },
       ],
     },
@@ -217,14 +220,14 @@ export default function BailleurDashboard() {
       items: [
         {
           icon: <IconMessage size={16} />,
-          label: "Messagerie",
+          label: t("nav.messages") || "Messagerie",
           href: "/bailleur/messages",
           badge: 0,
           badgeColor: "#3B82F6",
         },
         {
           icon: <IconTool size={16} />,
-          label: "Signalements",
+          label: t("nav.signalements") || "Signalements",
           href: "/bailleur/signalements",
           badge: 0,
           badgeColor: "#EF4444",
@@ -234,20 +237,26 @@ export default function BailleurDashboard() {
     {
       label: "Compte",
       items: [
-        { icon: <IconSettings size={16}/>, label: 'Paramètres', href: '/bailleur/parametres' },
+        {
+          icon: <IconSettings size={16} />,
+          label: t("nav.parametres") || "Paramètres",
+          href: "/bailleur/parametres",
+        },
         {
           icon: <IconUser size={16} />,
-          label: "Mon compte",
+          label: t("nav.compte") || "Mon compte",
           href: "/bailleur/compte",
         },
       ],
     },
   ];
 
+  // ── KPIs ───────────────────────────────────────────────
   const kpis = [
     {
-      label: "Total biens",
+      label: t("dashboard.total_biens") || "Total biens",
       value: stats?.total_biens ?? 0,
+      suffix: "",
       sub: `${stats?.biens_libres ?? 0} libres · ${stats?.biens_occupes ?? 0} occupés`,
       icon: <IconHome2 size={20} />,
       color: "#2563EB",
@@ -256,7 +265,7 @@ export default function BailleurDashboard() {
       progress: null,
     },
     {
-      label: "Taux d'occupation",
+      label: t("dashboard.taux_occupation") || "Taux d'occupation",
       value: stats?.taux_occupation ?? 0,
       suffix: "%",
       sub: `${stats?.biens_occupes ?? 0} / ${stats?.total_biens ?? 0} logements`,
@@ -267,7 +276,7 @@ export default function BailleurDashboard() {
       progress: stats?.taux_occupation ?? 0,
     },
     {
-      label: "Revenus du mois",
+      label: t("dashboard.revenus_mois") || "Revenus du mois",
       value: stats?.revenus_mois ?? 0,
       suffix: " XAF",
       sub: "Paiements confirmés",
@@ -278,8 +287,9 @@ export default function BailleurDashboard() {
       progress: null,
     },
     {
-      label: "Impayés en cours",
+      label: t("dashboard.impayes") || "Impayés en cours",
       value: stats?.impayes ?? 0,
+      suffix: "",
       sub: stats?.montant_impayes
         ? `${stats.montant_impayes.toLocaleString("fr-FR")} XAF`
         : "Aucun retard",
@@ -330,36 +340,30 @@ export default function BailleurDashboard() {
   return (
     <>
       <style>{`
-        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes slideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-        .fade-up { animation: fadeUp .4s ease both }
-        .fade-up-1 { animation: fadeUp .4s .05s ease both }
-        .fade-up-2 { animation: fadeUp .4s .1s ease both }
-        .fade-up-3 { animation: fadeUp .4s .15s ease both }
-        .fade-up-4 { animation: fadeUp .4s .2s ease both }
-        .fade-up-5 { animation: fadeUp .4s .25s ease both }
-        .fade-up-6 { animation: fadeUp .4s .3s ease both }
-        .slide-in { animation: slideIn .3s ease both }
-        .nav-item:hover { background: rgba(255,255,255,0.06); }
-        .nav-item { transition: background .15s, color .15s; }
-        .kpi-card { transition: transform .2s, box-shadow .2s; }
-        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-        .row-hover:hover { background: #F8FAFD; }
-        .row-hover { transition: background .15s; }
-        .btn-primary { transition: opacity .15s, transform .15s; }
-        .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
-        .notif-dot { animation: pulse 2s infinite; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #E6EDF4; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
-        * { scrollbar-width: thin; scrollbar-color: #E6EDF4 transparent; }
-        @media (max-width: 1024px) {
-          .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 40; }
-          .sidebar-mobile { position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; transform: translateX(-100%); transition: transform .3s; }
-          .sidebar-mobile.open { transform: translateX(0); }
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .fade-up{animation:fadeUp .4s ease both}
+        .fade-up-1{animation:fadeUp .4s .05s ease both}
+        .fade-up-2{animation:fadeUp .4s .1s ease both}
+        .fade-up-3{animation:fadeUp .4s .15s ease both}
+        .fade-up-4{animation:fadeUp .4s .2s ease both}
+        .fade-up-5{animation:fadeUp .4s .25s ease both}
+        .fade-up-6{animation:fadeUp .4s .3s ease both}
+        .nav-item{transition:background .15s,color .15s}
+        .nav-item:hover{background:rgba(255,255,255,.06)}
+        .kpi-card{transition:transform .2s,box-shadow .2s}
+        .kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+        .row-hover{transition:background .15s}.row-hover:hover{background:#F8FAFD}
+        .notif-dot{animation:pulse 2s infinite}
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#E6EDF4;border-radius:4px}
+        @media(max-width:1024px){
+          .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40}
+          .sidebar-mobile{position:fixed;left:0;top:0;bottom:0;z-index:50;transform:translateX(-100%);transition:transform .3s}
+          .sidebar-mobile.open{transform:translateX(0)}
         }
       `}</style>
 
@@ -367,10 +371,10 @@ export default function BailleurDashboard() {
         className="flex h-screen overflow-hidden"
         style={{
           background: "#F1F5F9",
-          fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+          fontFamily: "'DM Sans','Helvetica Neue',sans-serif",
         }}
       >
-        {/* ── SIDEBAR ── */}
+        {/* ── SIDEBAR ──────────────────────────────────── */}
         {sidebarOpen && (
           <div
             className="sidebar-overlay lg:hidden"
@@ -380,7 +384,7 @@ export default function BailleurDashboard() {
         <aside
           className={`sidebar-mobile lg:relative lg:translate-x-0 w-60 flex-shrink-0 flex flex-col h-full ${sidebarOpen ? "open" : ""}`}
           style={{
-            background: "linear-gradient(180deg, #0C1F35 0%, #0F2438 100%)",
+            background: "linear-gradient(180deg,#0C1F35 0%,#0F2438 100%)",
             boxShadow: "4px 0 24px rgba(0,0,0,.18)",
           }}
         >
@@ -392,7 +396,7 @@ export default function BailleurDashboard() {
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{
-                background: "linear-gradient(135deg, #2563EB, #1D4ED8)",
+                background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
                 boxShadow: "0 4px 12px rgba(37,99,235,.4)",
               }}
             >
@@ -412,7 +416,12 @@ export default function BailleurDashboard() {
             <button
               className="ml-auto lg:hidden"
               onClick={() => setSidebarOpen(false)}
-              style={{ color: "rgba(255,255,255,.4)" }}
+              style={{
+                color: "rgba(255,255,255,.4)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
               <IconX size={16} />
             </button>
@@ -442,7 +451,7 @@ export default function BailleurDashboard() {
                       >
                         {item.icon}
                       </span>
-                      <span className="flex-1">{item.label}</span>
+                      <span className="flex-1 text-sm">{item.label}</span>
                       {"badge" in item &&
                         typeof item.badge === "number" &&
                         item.badge > 0 && (
@@ -460,23 +469,22 @@ export default function BailleurDashboard() {
                         )}
                     </>
                   );
-
-                  const cls = `nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left`;
-                  const style = isActive
+                  const cls =
+                    "nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-left";
+                  const st = isActive
                     ? {
                         background: "rgba(37,99,235,.25)",
                         color: "#93C5FD",
                         fontWeight: 600,
                       }
                     : { color: "rgba(255,255,255,.5)" };
-
                   return "href" in item && item.href ? (
                     <Link
                       key={item.label}
                       href={item.href}
                       onClick={() => setActiveNav(item.label)}
                       className={cls}
-                      style={{ ...style, textDecoration: "none" }}
+                      style={{ ...st, textDecoration: "none" }}
                     >
                       {content}
                     </Link>
@@ -488,7 +496,7 @@ export default function BailleurDashboard() {
                         setSidebarOpen(false);
                       }}
                       className={cls}
-                      style={style}
+                      style={st}
                     >
                       {content}
                     </button>
@@ -498,7 +506,7 @@ export default function BailleurDashboard() {
             ))}
           </nav>
 
-          {/* Footer */}
+          {/* Footer utilisateur */}
           <div className="px-3 pb-4">
             <div
               className="flex items-center gap-3 px-3 py-3 rounded-xl"
@@ -510,7 +518,7 @@ export default function BailleurDashboard() {
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
                 style={{
-                  background: "linear-gradient(135deg, #2563EB, #7C3AED)",
+                  background: "linear-gradient(135deg,#2563EB,#7C3AED)",
                 }}
               >
                 {initiales}
@@ -534,9 +542,14 @@ export default function BailleurDashboard() {
               </div>
               <button
                 onClick={deconnexion}
-                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                style={{ color: "rgba(255,255,255,.3)" }}
                 title="Déconnexion"
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{
+                  color: "rgba(255,255,255,.3)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 <IconLogout size={14} />
               </button>
@@ -544,11 +557,11 @@ export default function BailleurDashboard() {
           </div>
         </aside>
 
-        {/* ── MAIN ── */}
+        {/* ── MAIN ──────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Topbar */}
           <header
-            className="flex items-center gap-3 px-5 h-14 flex-shrink-0"
+            className="flex items-center gap-3 px-4 sm:px-5 h-14 flex-shrink-0"
             style={{
               background: "#fff",
               borderBottom: "1px solid #E6EDF4",
@@ -562,22 +575,25 @@ export default function BailleurDashboard() {
             >
               <IconMenu2 size={18} style={{ color: "#64748B" }} />
             </button>
-            <div className="flex-1">
-              <h1 className="text-sm font-bold" style={{ color: "#0F172A" }}>
-                {t('dashboard.tableau_de_bord')}
+            <div className="flex-1 min-w-0">
+              <h1
+                className="text-sm font-bold truncate"
+                style={{ color: "#0F172A" }}
+              >
+                {t("dashboard.tableau_de_bord")}
               </h1>
-              <div className="text-xs" style={{ color: "#94A3B8" }}>
+              <div
+                className="text-xs hidden sm:block capitalize"
+                style={{ color: "#94A3B8" }}
+              >
                 {today}
               </div>
             </div>
-
             <div className="flex items-center gap-2">
-              {/* Refresh */}
               <button
                 onClick={chargerDonnees}
                 className="w-9 h-9 rounded-lg flex items-center justify-center"
                 style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }}
-                title="Actualiser"
               >
                 <IconRefresh
                   size={15}
@@ -587,15 +603,11 @@ export default function BailleurDashboard() {
                   }}
                 />
               </button>
-
-              {/* Notifs */}
               <NotificationBell
                 color="#64748B"
                 bgColor="#F1F5F9"
                 borderColor="#E2E8F0"
               />
-
-              {/* Export */}
               <button
                 className="hidden sm:flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-medium"
                 style={{
@@ -605,26 +617,24 @@ export default function BailleurDashboard() {
                 }}
               >
                 <IconDownload size={13} />
-                Exporter
+                {t("common.telecharger")}
               </button>
-
-              {/* CTA */}
-              <button
-                className="btn-primary flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold text-white"
+              <Link
+                href="/bailleur/biens"
+                className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold text-white"
                 style={{
-                  background: "linear-gradient(135deg, #2563EB, #1D4ED8)",
+                  background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
                   boxShadow: "0 2px 8px rgba(37,99,235,.35)",
+                  textDecoration: "none",
                 }}
               >
                 <IconPlus size={14} />
                 <span className="hidden sm:inline">Ajouter un bien</span>
-              </button>
-
-              {/* Avatar */}
+              </Link>
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
                 style={{
-                  background: "linear-gradient(135deg, #2563EB, #7C3AED)",
+                  background: "linear-gradient(135deg,#2563EB,#7C3AED)",
                 }}
               >
                 {initiales}
@@ -632,33 +642,30 @@ export default function BailleurDashboard() {
             </div>
           </header>
 
-          {/* Contenu */}
+          {/* Contenu scrollable */}
           <div className="flex-1 overflow-y-auto">
             <div className="flex h-full">
-              {/* ── Centre ── */}
-              <div className="flex-1 p-5 min-w-0 overflow-y-auto">
-                {/* Hero */}
+              {/* ── Zone centrale ─────────────────────── */}
+              <div className="flex-1 p-4 sm:p-5 min-w-0 overflow-y-auto">
+                {/* Hero banner */}
                 <div
-                  className="fade-up rounded-2xl p-5 mb-5 relative overflow-hidden"
+                  className="fade-up rounded-2xl p-4 sm:p-5 mb-5 relative overflow-hidden"
                   style={{
                     background:
-                      "linear-gradient(135deg, #0C1F35 0%, #1E3A5F 50%, #2563EB 100%)",
-                    minHeight: "120px",
+                      "linear-gradient(135deg,#0C1F35 0%,#1E3A5F 50%,#2563EB 100%)",
+                    minHeight: "110px",
                   }}
                 >
-                  {/* Cercles décoratifs */}
                   <div
                     className="absolute -right-10 -top-10 w-40 h-40 rounded-full opacity-10"
                     style={{
-                      background:
-                        "radial-gradient(circle, #60A5FA, transparent)",
+                      background: "radial-gradient(circle,#60A5FA,transparent)",
                     }}
                   />
                   <div
                     className="absolute right-20 bottom-0 w-24 h-24 rounded-full opacity-5"
                     style={{
-                      background:
-                        "radial-gradient(circle, #A78BFA, transparent)",
+                      background: "radial-gradient(circle,#A78BFA,transparent)",
                     }}
                   />
 
@@ -668,7 +675,7 @@ export default function BailleurDashboard() {
                         className="text-xs font-semibold uppercase tracking-widest mb-1"
                         style={{ color: "rgba(255,255,255,.45)" }}
                       >
-                        Bienvenue
+                        {t("dashboard.bienvenue")}
                       </div>
                       <div className="text-xl sm:text-2xl font-bold text-white mb-1">
                         {user.prenom} {user.nom}
@@ -682,11 +689,10 @@ export default function BailleurDashboard() {
                           className="text-xs"
                           style={{ color: "rgba(255,255,255,.5)" }}
                         >
-                          CNI validée · Bailleur certifié
+                          CNI validée · Bailleur certifié LocCam
                         </span>
                       </div>
                     </div>
-
                     <div className="flex gap-2 flex-wrap">
                       {loading
                         ? Array(3)
@@ -761,6 +767,7 @@ export default function BailleurDashboard() {
                     </div>
                   </div>
                 </div>
+
                 {/* KPIs */}
                 <div
                   className="text-xs font-bold uppercase tracking-widest mb-3 fade-up-1"
@@ -772,69 +779,65 @@ export default function BailleurDashboard() {
                   {kpis.map((k, i) => {
                     const card = (
                       <div
-                        className={`kpi-card bg-white rounded-2xl p-4 fade-up-${i + 2}`}
+                        className={`kpi-card bg-white rounded-2xl p-3 sm:p-4 fade-up-${i + 2} h-full`}
                         style={{
                           border: `1px solid ${k.border}`,
                           boxShadow: "0 1px 3px rgba(0,0,0,.04)",
                         }}
                       >
-                        <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start justify-between mb-2 sm:mb-3">
                           <div
-                            className="text-xs font-semibold uppercase tracking-wider"
+                            className="text-xs font-semibold uppercase tracking-wider leading-tight pr-2"
                             style={{ color: "#94A3B8" }}
                           >
                             {k.label}
                           </div>
                           <div
-                            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                             style={{ background: k.bg }}
                           >
                             <span style={{ color: k.color }}>{k.icon}</span>
                           </div>
                         </div>
                         <div
-                          className="text-2xl font-bold mb-1"
+                          className="text-xl sm:text-2xl font-bold mb-1"
                           style={{
                             color:
-                              k.alert && (stats?.impayes ?? 0) > 0
+                              (k as any).alert && (stats?.impayes ?? 0) > 0
                                 ? k.color
                                 : "#0F172A",
                           }}
                         >
                           {loading ? (
-                            <Skeleton className="h-8 w-16" />
-                          ) : (
+                            <Skeleton className="h-7 w-16" />
+                          ) : k.suffix === " XAF" ? (
                             <>
-                              {k.suffix === " XAF" ? (
-                                <>
-                                  {(stats?.revenus_mois ?? 0).toLocaleString(
-                                    "fr-FR",
-                                  )}
-                                  <span
-                                    className="text-sm font-medium ml-1"
-                                    style={{ color: "#94A3B8" }}
-                                  >
-                                    XAF
-                                  </span>
-                                </>
-                              ) : k.suffix === "%" ? (
-                                <>
-                                  <AnimatedNumber value={k.value} />
-                                  <span className="text-lg">%</span>
-                                </>
-                              ) : (
-                                <AnimatedNumber value={k.value} />
+                              {(stats?.revenus_mois ?? 0).toLocaleString(
+                                "fr-FR",
                               )}
+                              <span
+                                className="text-xs font-medium ml-1"
+                                style={{ color: "#94A3B8" }}
+                              >
+                                XAF
+                              </span>
                             </>
+                          ) : k.suffix === "%" ? (
+                            <>
+                              <AnimatedNumber value={k.value} />
+                              <span className="text-base">%</span>
+                            </>
+                          ) : (
+                            <AnimatedNumber value={k.value} />
                           )}
                         </div>
                         <div className="text-xs" style={{ color: k.color }}>
                           <IconTrendingUp size={11} className="inline mr-1" />
                           {k.sub}
                         </div>
-                        {k.progress !== null && k.progress !== undefined && (
+                        {k.progress != null && (
                           <div
-                            className="mt-3 h-1.5 rounded-full overflow-hidden"
+                            className="mt-2 sm:mt-3 h-1.5 rounded-full overflow-hidden"
                             style={{ background: "#E2E8F0" }}
                           >
                             <div
@@ -848,20 +851,17 @@ export default function BailleurDashboard() {
                         )}
                       </div>
                     );
-
-                    // ✅ Carte Impayés → lien vers /bailleur/impayes
-                    if (k.alert) {
-                      return (
-                        <Link
-                          key={k.label}
-                          href="/bailleur/impayes"
-                          style={{ textDecoration: "none", display: "block" }}
-                        >
-                          {card}
-                        </Link>
-                      );
-                    }
-                    return <div key={k.label}>{card}</div>;
+                    return (k as any).alert ? (
+                      <Link
+                        key={k.label}
+                        href="/bailleur/impayes"
+                        style={{ textDecoration: "none", display: "block" }}
+                      >
+                        {card}
+                      </Link>
+                    ) : (
+                      <div key={k.label}>{card}</div>
+                    );
                   })}
                 </div>
 
@@ -876,28 +876,28 @@ export default function BailleurDashboard() {
                   {suiviParc.map((s) => (
                     <div
                       key={s.label}
-                      className="kpi-card bg-white rounded-2xl p-4"
+                      className="kpi-card bg-white rounded-2xl p-3 sm:p-4"
                       style={{ border: "1px solid #E2E8F0" }}
                     >
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <div
-                          className="text-xs font-semibold uppercase tracking-wider"
+                          className="text-xs font-semibold uppercase tracking-wider leading-tight pr-2"
                           style={{ color: "#94A3B8" }}
                         >
                           {s.label}
                         </div>
                         <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ background: s.bg }}
                         >
                           <span style={{ color: s.color }}>{s.icon}</span>
                         </div>
                       </div>
                       {loading ? (
-                        <Skeleton className="h-8 w-12 mb-1" />
+                        <Skeleton className="h-7 w-12 mb-1" />
                       ) : (
                         <div
-                          className="text-2xl font-bold"
+                          className="text-xl sm:text-2xl font-bold"
                           style={{ color: s.color }}
                         >
                           <AnimatedNumber value={s.value} />
@@ -919,30 +919,30 @@ export default function BailleurDashboard() {
                   style={{ textDecoration: "none" }}
                 >
                   <div
-                    className="kpi-card bg-white rounded-2xl p-4 mb-5 fade-up-5 flex items-center gap-4 cursor-pointer"
+                    className="kpi-card bg-white rounded-2xl p-4 mb-5 fade-up-5 flex items-center gap-3 sm:gap-4 cursor-pointer"
                     style={{
                       border: "1px solid #E2E8F0",
                       boxShadow: "0 1px 3px rgba(0,0,0,.04)",
                     }}
                   >
                     <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                       style={{
                         background: "linear-gradient(135deg,#7C3AED,#6D28D9)",
                         boxShadow: "0 4px 12px rgba(124,58,237,.3)",
                       }}
                     >
-                      <IconChartBar size={22} color="white" />
+                      <IconChartBar size={20} color="white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div
                         className="text-sm font-bold"
                         style={{ color: "#0F172A" }}
                       >
-                        Analytique & statistiques
+                        {t("nav.analytique")} & statistiques
                       </div>
                       <div
-                        className="text-xs mt-0.5"
+                        className="text-xs mt-0.5 hidden sm:block"
                         style={{ color: "#94A3B8" }}
                       >
                         Revenus mensuels · Taux d'occupation · Répartition par
@@ -950,16 +950,16 @@ export default function BailleurDashboard() {
                       </div>
                     </div>
                     <div
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0"
+                      className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0"
                       style={{ background: "#F5F3FF", color: "#7C3AED" }}
                     >
-                      Voir les graphiques
+                      <span className="hidden sm:inline">
+                        Voir les graphiques
+                      </span>
                       <IconArrowRight size={13} />
                     </div>
                   </div>
                 </Link>
-
-              
 
                 {/* Paiements récents */}
                 <div className="flex items-center justify-between mb-3 fade-up-5">
@@ -970,11 +970,11 @@ export default function BailleurDashboard() {
                     Paiements récents
                   </div>
                   <Link
-                    href="#"
+                    href="/bailleur/paiements"
                     className="flex items-center gap-1 text-xs font-semibold"
-                    style={{ color: "#2563EB" }}
+                    style={{ color: "#2563EB", textDecoration: "none" }}
                   >
-                    Voir l&apos;historique <IconChevronRight size={12} />
+                    Voir tout <IconChevronRight size={12} />
                   </Link>
                 </div>
                 <div
@@ -1003,7 +1003,6 @@ export default function BailleurDashboard() {
                       ),
                     )}
                   </div>
-
                   {loading ? (
                     Array(3)
                       .fill(0)
@@ -1059,7 +1058,7 @@ export default function BailleurDashboard() {
                         : isRetard
                           ? "#FEF2F2"
                           : "#FFFBEB";
-                      const statut = isConfirme
+                      const lbl = isConfirme
                         ? "Confirmé"
                         : isRetard
                           ? "En retard"
@@ -1067,38 +1066,41 @@ export default function BailleurDashboard() {
                       return (
                         <div
                           key={p.id}
-                          className="row-hover grid grid-cols-5 px-5 py-3.5 items-center cursor-pointer"
+                          className="row-hover grid grid-cols-5 px-4 sm:px-5 py-3 sm:py-3.5 items-center cursor-pointer"
                           style={{ borderBottom: "1px solid #F8FAFC" }}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3 col-span-2 sm:col-span-1">
                             <div
                               className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
                               style={{
                                 background:
-                                  "linear-gradient(135deg, #2563EB, #7C3AED)",
+                                  "linear-gradient(135deg,#2563EB,#7C3AED)",
                               }}
                             >
                               {av}
                             </div>
-                            <div className="hidden sm:block">
+                            <div className="hidden sm:block min-w-0">
                               <div
-                                className="text-sm font-semibold"
+                                className="text-sm font-semibold truncate"
                                 style={{ color: "#0F172A" }}
                               >
                                 {loc?.nom_complet ?? "Locataire"}
                               </div>
                               <div
-                                className="text-xs"
+                                className="text-xs truncate"
                                 style={{ color: "#94A3B8" }}
                               >
                                 {p.contrat?.bien?.titre ?? "Bien"}
                               </div>
                             </div>
                           </div>
-                          <div className="text-sm" style={{ color: "#64748B" }}>
+                          <div
+                            className="text-xs sm:text-sm"
+                            style={{ color: "#64748B" }}
+                          >
                             {String(p.mois).padStart(2, "0")}/{p.annee}
                           </div>
-                          <div>
+                          <div className="hidden sm:block">
                             <span
                               className="text-xs font-semibold px-2.5 py-1 rounded-full"
                               style={{
@@ -1110,14 +1112,14 @@ export default function BailleurDashboard() {
                             </span>
                           </div>
                           <div
-                            className="text-sm font-bold"
+                            className="text-xs sm:text-sm font-bold"
                             style={{ color: col }}
                           >
                             {p.montant_total.toLocaleString("fr-FR")} XAF
                           </div>
                           <div>
                             <span
-                              className="text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"
+                              className="text-xs font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"
                               style={{ background: bg, color: col }}
                             >
                               {isConfirme && <IconCheck size={10} />}
@@ -1125,7 +1127,7 @@ export default function BailleurDashboard() {
                               {!isConfirme && !isRetard && (
                                 <IconClock size={10} />
                               )}
-                              {statut}
+                              <span className="hidden sm:inline">{lbl}</span>
                             </span>
                           </div>
                         </div>
@@ -1135,7 +1137,7 @@ export default function BailleurDashboard() {
                 </div>
               </div>
 
-              {/* ── Panneau droit ── */}
+              {/* ── Panneau droit (xl seulement) ──────── */}
               <div
                 className="hidden xl:flex w-72 flex-shrink-0 flex-col overflow-y-auto"
                 style={{ background: "#fff", borderLeft: "1px solid #E2E8F0" }}
@@ -1144,7 +1146,7 @@ export default function BailleurDashboard() {
                 <div
                   className="p-5"
                   style={{
-                    background: "linear-gradient(160deg, #0C1F35, #1E3A5F)",
+                    background: "linear-gradient(160deg,#0C1F35,#1E3A5F)",
                     borderBottom: "1px solid rgba(255,255,255,.06)",
                   }}
                 >
@@ -1223,7 +1225,6 @@ export default function BailleurDashboard() {
                       </div>
                     )}
                   </div>
-                  {/* Mini chart */}
                   <div
                     className="flex items-end gap-1"
                     style={{ height: "40px" }}
@@ -1266,7 +1267,7 @@ export default function BailleurDashboard() {
                           </div>
                         </div>
                       ))
-                  ) : notifications.length === 0 ? (
+                  ) : notifs.length === 0 ? (
                     <div className="py-8 text-center">
                       <IconBell
                         size={28}
@@ -1277,7 +1278,7 @@ export default function BailleurDashboard() {
                       </div>
                     </div>
                   ) : (
-                    notifications.map((n, i) => {
+                    notifs.map((n, i) => {
                       const icons: Record<
                         string,
                         { ico: React.ReactNode; bg: string; col: string }
@@ -1307,8 +1308,13 @@ export default function BailleurDashboard() {
                           bg: "#ECFDF5",
                           col: "#059669",
                         },
+                        contrat_signe: {
+                          ico: <IconFileText size={13} />,
+                          bg: "#F5F3FF",
+                          col: "#7C3AED",
+                        },
                       };
-                      const style = icons[n.type] ?? {
+                      const s = icons[n.type] ?? {
                         ico: <IconBell size={13} />,
                         bg: "#EFF6FF",
                         col: "#2563EB",
@@ -1324,11 +1330,9 @@ export default function BailleurDashboard() {
                         >
                           <div
                             className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ background: style.bg }}
+                            style={{ background: s.bg }}
                           >
-                            <span style={{ color: style.col }}>
-                              {style.ico}
-                            </span>
+                            <span style={{ color: s.col }}>{s.ico}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div
@@ -1377,7 +1381,6 @@ export default function BailleurDashboard() {
                     >
                       Vérification CNI
                     </div>
-
                     {user.cni_statut === "en_attente" ? (
                       <div
                         className="flex items-center gap-2.5 p-3 rounded-xl"
@@ -1407,10 +1410,7 @@ export default function BailleurDashboard() {
                         typeDocument="cni"
                         label="Photo CNI"
                         description="JPG, PNG ou PDF · Max 5 MB"
-                        onSuccess={() => {
-                          // Mettre à jour le statut CNI
-                          chargerDonnees();
-                        }}
+                        onSuccess={() => chargerDonnees()}
                       />
                     )}
                   </div>
