@@ -323,7 +323,7 @@ export default function BailleurParametresPage() {
                   <Row lbl="Langue de l'interface">
                     <select
                       value={prefs.langue}
-                      onChange={(e) => set("langue", e.target.value)}
+                      onChange={e => setProfil(p => ({ ...p, langue: e.target.value as 'fr' | 'en' }))}
                       style={{
                         height: "38px",
                         padding: "0 12px",
