@@ -5,7 +5,8 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
-import NotificationBell from '@/components/NotificationBell';
+import NotificationBell from "@/components/NotificationBell";
+import { useT } from "@/hooks/useT";
 import {
   Contrat,
   Paiement,
@@ -39,10 +40,11 @@ import {
   IconBolt,
   IconCircleCheck,
   IconAlertCircle,
-  IconSettings
+  IconSettings,
+  IconChevronRight,
 } from "@tabler/icons-react";
 
-// ── Types locaux ─────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────
 interface SignalementLocal {
   id: number;
   type_panne: string;
@@ -62,20 +64,15 @@ interface DashboardData {
   moisSansRetard: number;
 }
 
-// ── Variants d'animation ─────────────────────────────────────
+// ── Animations ─────────────────────────────────────────────
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
   visible: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: {
-      delay: i * 0.07,
-      duration: 0.4,
-      ease: "easeOut" as const,
-    },
+    transition: { delay: i * 0.07, duration: 0.4, ease: "easeOut" as const },
   }),
 };
-
 const listItem = {
   hidden: { opacity: 0, x: -10 },
   visible: (i = 0) => ({
@@ -85,7 +82,7 @@ const listItem = {
   }),
 };
 
-// ── Squelette de chargement ──────────────────────────────────
+// ── Sous-composants ────────────────────────────────────────
 function Skeleton({ className = "" }: { className?: string }) {
   return (
     <div
@@ -100,7 +97,6 @@ function Skeleton({ className = "" }: { className?: string }) {
   );
 }
 
-// ── Nombre animé ─────────────────────────────────────────────
 function AnimatedNumber({
   value,
   suffix = "",
@@ -128,7 +124,6 @@ function AnimatedNumber({
   );
 }
 
-// ── Barre de progression animée ──────────────────────────────
 function ProgressBar({ pct, color }: { pct: number; color: string }) {
   return (
     <div
@@ -146,7 +141,6 @@ function ProgressBar({ pct, color }: { pct: number; color: string }) {
   );
 }
 
-// ── Cercle de progression SVG animé ─────────────────────────
 function CircleProgress({
   pct,
   size = 60,
@@ -156,9 +150,9 @@ function CircleProgress({
   color?: string;
   size?: number;
 }) {
-  const stroke = 4;
-  const r = (size - stroke * 2) / 2;
-  const circ = 2 * Math.PI * r;
+  const stroke = 4,
+    r = (size - stroke * 2) / 2,
+    circ = 2 * Math.PI * r;
   const [prog, setProg] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setProg(pct), 250);
@@ -207,16 +201,14 @@ function CircleProgress({
   );
 }
 
-// ════════════════════════════════════════════════════════════
-//  DASHBOARD LOCATAIRE
-// ════════════════════════════════════════════════════════════
+// ── Dashboard locataire ────────────────────────────────────
 export default function LocataireDashboard() {
+  const t = useT();
   const { user, deconnexion } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("Tableau de bord");
-  const [notifOpen, setNotifOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "paiements" | "documents" | "messages" | "signalements"
   >("paiements");
@@ -279,25 +271,23 @@ export default function LocataireDashboard() {
   };
 
   if (!user) return null;
-
   const ini = `${user.prenom?.[0] ?? ""}${user.nom?.[0] ?? ""}`;
   const contrat = data?.contrat;
   const bien = contrat?.bien;
-  const nonLues = data?.notifications.filter((n) => !n.est_lue).length ?? 0;
 
+  // ── Navigation ────────────────────────────────────────
   const navGroups = [
     {
       label: "Mon logement",
       items: [
         {
           icon: <IconLayoutDashboard size={15} />,
-          label: "Tableau de bord",
+          label: t("nav.dashboard") || "Tableau de bord",
           href: "/locataire",
         },
-        { icon: <IconHome2 size={15} />, label: "Mon logement" },
         {
           icon: <IconFileText size={15} />,
-          label: "Mon contrat",
+          label: t("nav.contrats") || "Mon contrat",
           href: "/locataire/contrat",
         },
       ],
@@ -310,7 +300,11 @@ export default function LocataireDashboard() {
           label: "Payer mon loyer",
           href: "/locataire/paiement",
         },
-        { icon: <IconFileText size={15} />, label: "Mes quittances" },
+        {
+          icon: <IconFileText size={15} />,
+          label: "Mes quittances",
+          href: "/locataire/paiement",
+        },
       ],
     },
     {
@@ -318,20 +312,20 @@ export default function LocataireDashboard() {
       items: [
         {
           icon: <IconMessage size={15} />,
-          label: "Messagerie",
+          label: t("nav.messages") || "Messagerie",
           href: "/locataire/messagerie",
-          badge: data?.messages.length ?? 0,
+          badge: data?.messages.filter((m) => !m.est_lu).length ?? 0,
           badgeColor: "#059669",
         },
         {
           icon: <IconTool size={15} />,
-          label: "Signalements",
+          label: t("nav.signalements") || "Signalements",
+          href: "/locataire/signalements",
           badge:
             data?.signalements.filter(
               (s) => s.statut === "ouvert" || s.statut === "en_cours",
             ).length ?? 0,
           badgeColor: "#DC2626",
-          href: '/locataire/signalements'
         },
       ],
     },
@@ -339,11 +333,15 @@ export default function LocataireDashboard() {
       label: "Compte",
       items: [
         {
-          icon: <IconUser size={16} />,
-          label: "Mon compte",
+          icon: <IconUser size={15} />,
+          label: t("nav.compte") || "Mon compte",
           href: "/locataire/compte",
         },
-        { icon: <IconSettings size={16}/>, label: 'Paramètres', href: '/locataire/parametres' },
+        {
+          icon: <IconSettings size={15} />,
+          label: t("nav.parametres") || "Paramètres",
+          href: "/locataire/parametres",
+        },
       ],
     },
   ];
@@ -400,6 +398,11 @@ export default function LocataireDashboard() {
       col: "#059669",
       ico: <IconCircleCheck size={12} />,
     },
+    contrat_signe: {
+      bg: "#F5F3FF",
+      col: "#7C3AED",
+      ico: <IconFileText size={12} />,
+    },
   };
 
   return (
@@ -415,8 +418,7 @@ export default function LocataireDashboard() {
         *{scrollbar-width:thin;scrollbar-color:#A7F3D0 transparent}
         .nav-item{transition:all .15s ease}
         .nav-item:hover{background:rgba(5,150,105,.07)}
-        .row-hover{transition:background .12s}
-        .row-hover:hover{background:#F0FDF4}
+        .row-hover{transition:background .12s}.row-hover:hover{background:#F0FDF4}
         .card-hover{transition:transform .2s ease,box-shadow .2s ease}
         .card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(5,150,105,.1)}
         @media(max-width:1024px){
@@ -433,7 +435,6 @@ export default function LocataireDashboard() {
           fontFamily: "'DM Sans','Helvetica Neue',sans-serif",
         }}
       >
-        {/* Overlay mobile */}
         {sidebarOpen && (
           <div
             className="sidebar-overlay lg:hidden"
@@ -441,7 +442,7 @@ export default function LocataireDashboard() {
           />
         )}
 
-        {/* ══ SIDEBAR ══════════════════════════════════════════ */}
+        {/* ══ SIDEBAR ══════════════════════════════════════ */}
         <aside
           className={`sidebar-mobile lg:relative lg:translate-x-0 w-56 flex-shrink-0 flex flex-col h-full ${sidebarOpen ? "open" : ""}`}
           style={{
@@ -481,7 +482,12 @@ export default function LocataireDashboard() {
             <button
               className="ml-auto lg:hidden"
               onClick={() => setSidebarOpen(false)}
-              style={{ color: "#94A3B8" }}
+              style={{
+                color: "#94A3B8",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
               <IconX size={15} />
             </button>
@@ -499,7 +505,8 @@ export default function LocataireDashboard() {
                 </div>
                 {group.items.map((item) => {
                   const isActive = activeNav === item.label;
-                  const cls = `nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left`;
+                  const cls =
+                    "nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-0.5 text-sm text-left";
                   const style = isActive
                     ? {
                         background: "#ECFDF5",
@@ -508,7 +515,6 @@ export default function LocataireDashboard() {
                         boxShadow: "inset 2px 0 0 #059669",
                       }
                     : { color: "#64748B" };
-
                   const content = (
                     <>
                       <span style={{ color: isActive ? "#059669" : "#94A3B8" }}>
@@ -532,7 +538,6 @@ export default function LocataireDashboard() {
                         )}
                     </>
                   );
-
                   return "href" in item && item.href ? (
                     <Link
                       key={item.label}
@@ -564,7 +569,7 @@ export default function LocataireDashboard() {
             ))}
           </nav>
 
-          {/* Footer sidebar */}
+          {/* Footer */}
           <div className="px-3 pb-4">
             <div
               className="flex items-center gap-2.5 px-3 py-3 rounded-xl"
@@ -598,7 +603,12 @@ export default function LocataireDashboard() {
               <button
                 onClick={deconnexion}
                 title="Déconnexion"
-                style={{ color: "#94A3B8" }}
+                style={{
+                  color: "#94A3B8",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 <IconLogout size={14} />
               </button>
@@ -606,11 +616,11 @@ export default function LocataireDashboard() {
           </div>
         </aside>
 
-        {/* ══ MAIN ═════════════════════════════════════════════ */}
+        {/* ══ MAIN ═════════════════════════════════════════ */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Topbar */}
           <header
-            className="flex items-center gap-3 px-5 h-14 flex-shrink-0"
+            className="flex items-center gap-3 px-4 sm:px-5 h-14 flex-shrink-0"
             style={{
               background: "#fff",
               borderBottom: "1px solid #D1FAE5",
@@ -624,10 +634,9 @@ export default function LocataireDashboard() {
             >
               <IconMenu2 size={17} style={{ color: "#059669" }} />
             </button>
-
             <div className="flex-1 min-w-0">
               <h1 className="text-sm font-bold" style={{ color: "#0F172A" }}>
-                Tableau de bord
+                {t("dashboard.tableau_de_bord")}
               </h1>
               <p
                 className="text-xs capitalize hidden sm:block truncate"
@@ -636,9 +645,7 @@ export default function LocataireDashboard() {
                 {today}
               </p>
             </div>
-
             <div className="flex items-center gap-2">
-              {/* Refresh */}
               <button
                 onClick={load}
                 className="w-9 h-9 rounded-lg flex items-center justify-center"
@@ -652,24 +659,23 @@ export default function LocataireDashboard() {
                   }}
                 />
               </button>
-
-              {/* Notifications */}
-              <NotificationBell color="#059669" bgColor="#F0FDF4" borderColor="#D1FAE5" />
-
-              {/* CTA payer */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-2 px-4 h-9 rounded-xl text-xs font-bold text-white"
+              <NotificationBell
+                color="#059669"
+                bgColor="#F0FDF4"
+                borderColor="#D1FAE5"
+              />
+              <Link
+                href="/locataire/paiement"
+                className="flex items-center gap-2 px-3 sm:px-4 h-9 rounded-xl text-xs font-bold text-white"
                 style={{
                   background: "linear-gradient(135deg,#059669,#047857)",
                   boxShadow: "0 2px 8px rgba(5,150,105,.35)",
+                  textDecoration: "none",
                 }}
               >
                 <IconCreditCard size={14} />
                 <span className="hidden sm:inline">Payer mon loyer</span>
-              </motion.button>
-
+              </Link>
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
                 style={{
@@ -681,10 +687,10 @@ export default function LocataireDashboard() {
             </div>
           </header>
 
-          {/* Contenu principal */}
+          {/* Contenu */}
           <div className="flex-1 overflow-y-auto">
             <div className="flex h-full">
-              {/* ── Colonne centrale ── */}
+              {/* ── Zone centrale ─────────────────────────── */}
               <div className="flex-1 p-4 sm:p-5 overflow-y-auto min-w-0">
                 {/* Salutation */}
                 <motion.div
@@ -698,7 +704,7 @@ export default function LocataireDashboard() {
                     className="text-xl font-bold"
                     style={{ color: "#0F172A" }}
                   >
-                    Bonjour, {user.prenom}
+                    {t("dashboard.bienvenue")}, {user.prenom} 👋
                   </h2>
                   <p className="text-sm" style={{ color: "#64748B" }}>
                     Bienvenue sur votre espace locataire LocCam.
@@ -711,13 +717,12 @@ export default function LocataireDashboard() {
                   initial="hidden"
                   animate="visible"
                   custom={1}
-                  className="rounded-2xl p-5 mb-4 relative overflow-hidden"
+                  className="rounded-2xl p-4 sm:p-5 mb-4 relative overflow-hidden"
                   style={{
                     background:
                       "linear-gradient(135deg,#064E3B 0%,#059669 55%,#10B981 100%)",
                   }}
                 >
-                  {/* Cercles déco */}
                   <div
                     className="absolute -right-10 -top-10 w-44 h-44 rounded-full opacity-10"
                     style={{
@@ -731,12 +736,12 @@ export default function LocataireDashboard() {
                     }}
                   />
 
-                  <div className="relative flex items-start gap-4">
+                  <div className="relative flex items-start gap-3 sm:gap-4">
                     <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                       style={{ background: "rgba(255,255,255,.12)" }}
                     >
-                      <IconHome2 size={24} color="white" />
+                      <IconHome2 size={22} color="white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       {loading ? (
@@ -765,7 +770,7 @@ export default function LocataireDashboard() {
                               {bien?.adresse ?? "—"}
                             </span>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                             {[
                               {
                                 lbl: "Loyer mensuel",
@@ -803,7 +808,7 @@ export default function LocataireDashboard() {
                                 >
                                   {s.lbl}
                                 </div>
-                                <div className="text-sm font-semibold text-white truncate">
+                                <div className="text-xs sm:text-sm font-semibold text-white truncate">
                                   {s.val}
                                 </div>
                               </div>
@@ -821,14 +826,14 @@ export default function LocataireDashboard() {
                   initial="hidden"
                   animate="visible"
                   custom={2}
-                  className="card-hover bg-white rounded-2xl p-5 mb-4"
+                  className="card-hover bg-white rounded-2xl p-4 sm:p-5 mb-4"
                   style={{
                     border: "1px solid #D1FAE5",
                     boxShadow: "0 2px 8px rgba(5,150,105,.06)",
                   }}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                    <div>
+                    <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <div
                           className="w-6 h-6 rounded-lg flex items-center justify-center"
@@ -850,7 +855,7 @@ export default function LocataireDashboard() {
                         <Skeleton className="h-10 w-44 mb-1" />
                       ) : (
                         <div
-                          className="text-3xl font-bold"
+                          className="text-2xl sm:text-3xl font-bold"
                           style={{ color: "#059669" }}
                         >
                           <AnimatedNumber
@@ -867,7 +872,7 @@ export default function LocataireDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 flex-shrink-0">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
                       <div className="text-right">
                         <div
                           className="text-xs font-bold uppercase tracking-wider mb-0.5"
@@ -898,76 +903,68 @@ export default function LocataireDashboard() {
                       <CircleProgress
                         pct={progressMois}
                         color="#059669"
-                        size={58}
+                        size={56}
                       />
                     </div>
                   </div>
 
-                  {/* Boutons Mobile Money */}
-                  {/* Boutons Mobile Money */}
+                  {/* Boutons paiement */}
                   <div className="grid grid-cols-2 gap-3">
-                    <motion.button
-                      whileHover={{ scale: 1.03, y: -2 }}
-                      whileTap={{ scale: 0.97 }}
-                      className="relative flex items-center justify-center gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm text-white"
-                      style={{
-                        background: "linear-gradient(135deg, #FF6B00, #FF8C00)",
-                        boxShadow: "0 4px 16px rgba(255,107,0,.35)",
-                      }}
+                    <Link
+                      href="/locataire/paiement?moyen=orange_money"
+                      style={{ textDecoration: "none" }}
                     >
-                      {/* Fond décoratif */}
-                      <div
-                        className="absolute inset-0 opacity-20"
+                      <motion.div
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.97 }}
+                        className="relative flex items-center justify-center gap-2 py-3 rounded-2xl overflow-hidden font-bold text-sm text-white cursor-pointer"
                         style={{
-                          background:
-                            "radial-gradient(circle at 80% 50%, #fff, transparent)",
+                          background: "linear-gradient(135deg,#FF6B00,#FF8C00)",
+                          boxShadow: "0 4px 16px rgba(255,107,0,.3)",
                         }}
-                      />
-                      <img
-                        src="/orange-money.jpg"
-                        alt="Orange Money"
-                        className="relative z-10 h-7 w-auto object-contain"
-                        style={{
-                          // filter: "brightness(0) invert(1)",
-                          maxWidth: "100px",
-                        }}
-                      />
-                      <span className="relative z-10 text-xs sm:text-sm">
-                        Orange Money
-                      </span>
-                    </motion.button>
-
-                    <motion.button
-                      whileHover={{ scale: 1.03, y: -2 }}
-                      whileTap={{ scale: 0.97 }}
-                      className="relative flex items-center justify-center gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm"
-                      style={{
-                        background: "linear-gradient(135deg, #FFCC00, #FFB800)",
-                        color: "#1C1C1E",
-                        boxShadow: "0 4px 16px rgba(255,204,0,.35)",
-                      }}
+                      >
+                        <div
+                          className="absolute inset-0 opacity-20"
+                          style={{
+                            background:
+                              "radial-gradient(circle at 80% 50%,#fff,transparent)",
+                          }}
+                        />
+                        <span className="relative z-10 text-xs sm:text-sm font-bold">
+                          🟠 Orange Money
+                        </span>
+                      </motion.div>
+                    </Link>
+                    <Link
+                      href="/locataire/paiement?moyen=mtn_money"
+                      style={{ textDecoration: "none" }}
                     >
-                      <div
-                        className="absolute inset-0 opacity-20"
+                      <motion.div
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.97 }}
+                        className="relative flex items-center justify-center gap-2 py-3 rounded-2xl overflow-hidden font-bold text-sm cursor-pointer"
                         style={{
-                          background:
-                            "radial-gradient(circle at 80% 50%, #fff, transparent)",
+                          background: "linear-gradient(135deg,#FFCC00,#FFB800)",
+                          color: "#1C1C1E",
+                          boxShadow: "0 4px 16px rgba(255,204,0,.3)",
                         }}
-                      />
-                      <img
-                        src="/mtn-money.jpg"
-                        alt="MTN Mobile Money"
-                        className="relative z-10 h-7 w-auto object-contain"
-                        style={{ maxWidth: "100px" }}
-                      />
-                      <span className="relative z-10 text-xs sm:text-sm">
-                        MTN Mobile Money
-                      </span>
-                    </motion.button>
+                      >
+                        <div
+                          className="absolute inset-0 opacity-20"
+                          style={{
+                            background:
+                              "radial-gradient(circle at 80% 50%,#fff,transparent)",
+                          }}
+                        />
+                        <span className="relative z-10 text-xs sm:text-sm font-bold">
+                          🟡 MTN Mobile Money
+                        </span>
+                      </motion.div>
+                    </Link>
                   </div>
                 </motion.div>
 
-                {/* Tabs ── Paiements / Documents / Messages / Signalements */}
+                {/* Tabs */}
                 <motion.div
                   variants={fadeUp}
                   initial="hidden"
@@ -979,18 +976,18 @@ export default function LocataireDashboard() {
                     boxShadow: "0 2px 8px rgba(5,150,105,.05)",
                   }}
                 >
-                  {/* Tab headers */}
+                  {/* Headers */}
                   <div
                     className="flex overflow-x-auto"
                     style={{ borderBottom: "1px solid #F0FDF4" }}
                   >
-                    {tabs.map((t) => (
+                    {tabs.map((tab) => (
                       <button
-                        key={t.key}
-                        onClick={() => setActiveTab(t.key)}
-                        className="flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0"
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className="flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0"
                         style={
-                          activeTab === t.key
+                          activeTab === tab.key
                             ? {
                                 color: "#059669",
                                 borderBottom: "2px solid #059669",
@@ -1004,17 +1001,17 @@ export default function LocataireDashboard() {
                       >
                         <span
                           style={{
-                            color: activeTab === t.key ? "#059669" : "#94A3B8",
+                            color:
+                              activeTab === tab.key ? "#059669" : "#94A3B8",
                           }}
                         >
-                          {t.icon}
+                          {tab.icon}
                         </span>
-                        {t.label}
+                        {tab.label}
                       </button>
                     ))}
                   </div>
 
-                  {/* Tab body */}
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeTab}
@@ -1023,7 +1020,7 @@ export default function LocataireDashboard() {
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
                     >
-                      {/* ── Paiements ── */}
+                      {/* Paiements */}
                       {activeTab === "paiements" && (
                         <div className="p-4">
                           {loading ? (
@@ -1139,10 +1136,22 @@ export default function LocataireDashboard() {
                               );
                             })
                           )}
+                          <Link
+                            href="/locataire/paiement"
+                            style={{ textDecoration: "none" }}
+                          >
+                            <div
+                              className="flex items-center justify-center gap-1 pt-3 text-xs font-semibold"
+                              style={{ color: "#059669" }}
+                            >
+                              Voir tout l'historique{" "}
+                              <IconChevronRight size={12} />
+                            </div>
+                          </Link>
                         </div>
                       )}
 
-                      {/* ── Documents ── */}
+                      {/* Documents */}
                       {activeTab === "documents" && (
                         <div className="p-4">
                           {[
@@ -1154,7 +1163,7 @@ export default function LocataireDashboard() {
                               sub: contrat
                                 ? `Signé le ${new Date(contrat.date_debut).toLocaleDateString("fr-FR")}`
                                 : "Non disponible",
-                              url: contrat?.pdf_url,
+                              url: (contrat as any)?.pdf_url,
                             },
                             {
                               ico: <IconFileText size={15} />,
@@ -1196,7 +1205,7 @@ export default function LocataireDashboard() {
                               >
                                 <span style={{ color: d.col }}>{d.ico}</span>
                               </div>
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div
                                   className="text-sm font-semibold"
                                   style={{ color: "#0F172A" }}
@@ -1215,7 +1224,7 @@ export default function LocataireDashboard() {
                                   href={d.url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="p-1 rounded-lg"
+                                  className="p-1.5 rounded-lg"
                                   style={{ background: "#ECFDF5" }}
                                 >
                                   <IconDownload
@@ -1225,7 +1234,7 @@ export default function LocataireDashboard() {
                                 </a>
                               ) : (
                                 <div
-                                  className="p-1 rounded-lg"
+                                  className="p-1.5 rounded-lg"
                                   style={{ background: "#F1F5F9" }}
                                 >
                                   <IconDownload
@@ -1239,7 +1248,7 @@ export default function LocataireDashboard() {
                         </div>
                       )}
 
-                      {/* ── Messages ── */}
+                      {/* Messages */}
                       {activeTab === "messages" && (
                         <div className="p-4">
                           {loading ? (
@@ -1323,15 +1332,27 @@ export default function LocataireDashboard() {
                               </motion.div>
                             ))
                           )}
+                          <Link
+                            href="/locataire/messagerie"
+                            style={{ textDecoration: "none" }}
+                          >
+                            <div
+                              className="flex items-center justify-center gap-1 pt-3 text-xs font-semibold"
+                              style={{ color: "#059669" }}
+                            >
+                              Ouvrir la messagerie{" "}
+                              <IconChevronRight size={12} />
+                            </div>
+                          </Link>
                         </div>
                       )}
 
-                      {/* ── Signalements ── */}
+                      {/* Signalements */}
                       {activeTab === "signalements" && (
                         <div className="p-4">
                           {(data?.signalements ?? []).length === 0 &&
                           !loading ? (
-                            <div className="py-6 text-center">
+                            <div className="py-8 text-center">
                               <IconTool
                                 size={28}
                                 style={{
@@ -1367,7 +1388,7 @@ export default function LocataireDashboard() {
                                       background: open ? "#D97706" : "#059669",
                                     }}
                                   />
-                                  <div className="flex-1">
+                                  <div className="flex-1 min-w-0">
                                     <div
                                       className="text-sm font-semibold"
                                       style={{ color: "#0F172A" }}
@@ -1400,19 +1421,24 @@ export default function LocataireDashboard() {
                               );
                             })
                           )}
-                          <motion.button
-                            whileHover={{ scale: 1.01 }}
-                            whileTap={{ scale: 0.99 }}
-                            className="w-full mt-3 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold"
-                            style={{
-                              background: "#F0FDF4",
-                              border: "1.5px dashed #A7F3D0",
-                              color: "#059669",
-                            }}
+                          <Link
+                            href="/locataire/signalements"
+                            style={{ textDecoration: "none" }}
                           >
-                            <IconPlus size={14} />
-                            Déclarer une panne
-                          </motion.button>
+                            <motion.div
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.99 }}
+                              className="mt-3 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold cursor-pointer"
+                              style={{
+                                background: "#F0FDF4",
+                                border: "1.5px dashed #A7F3D0",
+                                color: "#059669",
+                              }}
+                            >
+                              <IconPlus size={14} />
+                              Déclarer une panne
+                            </motion.div>
+                          </Link>
                         </div>
                       )}
                     </motion.div>
@@ -1420,12 +1446,12 @@ export default function LocataireDashboard() {
                 </motion.div>
               </div>
 
-              {/* ── Panneau droit ── */}
+              {/* ── Panneau droit (xl) ────────────────────── */}
               <div
                 className="hidden xl:flex w-72 flex-shrink-0 flex-col overflow-y-auto"
                 style={{ background: "#fff", borderLeft: "1px solid #D1FAE5" }}
               >
-                {/* Détail paiement (fond vert foncé) */}
+                {/* Détail paiement */}
                 <div
                   className="p-5"
                   style={{
@@ -1590,7 +1616,6 @@ export default function LocataireDashboard() {
                   >
                     Activité récente
                   </div>
-
                   {loading ? (
                     Array(4)
                       .fill(0)
