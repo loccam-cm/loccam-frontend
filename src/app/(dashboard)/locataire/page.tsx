@@ -704,7 +704,7 @@ export default function LocataireDashboard() {
                     className="text-xl font-bold"
                     style={{ color: "#0F172A" }}
                   >
-                    {t("dashboard.bienvenue")}, {user.prenom} 👋
+                    {t("dashboard.bienvenue")}, {user.prenom}
                   </h2>
                   <p className="text-sm" style={{ color: "#64748B" }}>
                     Bienvenue sur votre espace locataire LocCam.
@@ -910,60 +910,62 @@ export default function LocataireDashboard() {
 
                   {/* Boutons paiement */}
                   {/* Boutons Mobile Money */}
-<div className="grid grid-cols-2 gap-3">
-  <motion.button
-    whileHover={{ scale: 1.03, y: -2 }}
-    whileTap={{ scale: 0.97 }}
-    className="relative flex items-center justify-center gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm text-white"
-    style={{
-      background: "linear-gradient(135deg, #FF6B00, #FF8C00)",
-      boxShadow: "0 4px 16px rgba(255,107,0,.35)",
-    }}
-  >
-    <div
-      className="absolute inset-0 opacity-20"
-      style={{
-        background: "radial-gradient(circle at 80% 50%, #fff, transparent)",
-      }}
-    />
-    <img
-      src="/orange-money.jpg"
-      alt="Orange Money"
-      className="relative z-10 h-7 w-auto object-contain"
-      style={{ maxWidth: "100px" }}
-    />
-    <span className="relative z-10 text-xs sm:text-sm">
-      Orange Money
-    </span>
-  </motion.button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.03, y: -2 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="relative flex items-center justify-center gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm text-white"
+                      style={{
+                        background: "linear-gradient(135deg, #FF6B00, #FF8C00)",
+                        boxShadow: "0 4px 16px rgba(255,107,0,.35)",
+                      }}
+                    >
+                      <div
+                        className="absolute inset-0 opacity-20"
+                        style={{
+                          background:
+                            "radial-gradient(circle at 80% 50%, #fff, transparent)",
+                        }}
+                      />
+                      <img
+                        src="/orange-money.jpg"
+                        alt="Orange Money"
+                        className="relative z-10 h-7 w-auto object-contain"
+                        style={{ maxWidth: "100px" }}
+                      />
+                      <span className="relative z-10 text-xs sm:text-sm">
+                        Orange Money
+                      </span>
+                    </motion.button>
 
-  <motion.button
-    whileHover={{ scale: 1.03, y: -2 }}
-    whileTap={{ scale: 0.97 }}
-    className="relative flex items-center justify-center gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm"
-    style={{
-      background: "linear-gradient(135deg, #FFCC00, #FFB800)",
-      color: "#1C1C1E",
-      boxShadow: "0 4px 16px rgba(255,204,0,.35)",
-    }}
-  >
-    <div
-      className="absolute inset-0 opacity-20"
-      style={{
-        background: "radial-gradient(circle at 80% 50%, #fff, transparent)",
-      }}
-    />
-    <img
-      src="/mtn-money.jpg"
-      alt="MTN Mobile Money"
-      className="relative z-10 h-7 w-auto object-contain"
-      style={{ maxWidth: "100px" }}
-    />
-    <span className="relative z-10 text-xs sm:text-sm">
-      MTN Mobile Money
-    </span>
-  </motion.button>
-</div>
+                    <motion.button
+                      whileHover={{ scale: 1.03, y: -2 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="relative flex items-center justify-center gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm"
+                      style={{
+                        background: "linear-gradient(135deg, #FFCC00, #FFB800)",
+                        color: "#1C1C1E",
+                        boxShadow: "0 4px 16px rgba(255,204,0,.35)",
+                      }}
+                    >
+                      <div
+                        className="absolute inset-0 opacity-20 pr-2"
+                        style={{
+                          background:
+                            "radial-gradient(circle at 80% 50%, #fff, transparent)",
+                        }}
+                      />
+                      <img
+                        src="/mtn-money.jpg"
+                        alt="MTN Mobile Money"
+                        className="relative z-10 h-7 w-auto object-contain"
+                        style={{ maxWidth: "100px" }}
+                      />
+                      <span className="relative z-10 text-xs sm:text-sm">
+                        MTN Mobile Money
+                      </span>
+                    </motion.button>
+                  </div>
                 </motion.div>
 
                 {/* Tabs */}
