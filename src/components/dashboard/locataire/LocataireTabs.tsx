@@ -1,9 +1,9 @@
 ﻿'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useT } from '@/hooks/useT'
-import { Skeleton } from '@/components/dashboard/shared/Skeleton'
 import { Contrat } from '@/types'
 import { LocataireDashboardData } from '@/types/locataire'
 import {
@@ -11,7 +11,14 @@ import {
   IconCircleCheck, IconAlertCircle, IconDownload, IconShieldCheck,
   IconHome2, IconPlus, IconChevronRight,
 } from '@tabler/icons-react'
-import { useState } from 'react'
+
+// ── Skeleton vert local (evite conflit avec prop variant) ────
+function SkeletonGreen({ className = '' }: { className?: string }) {
+  return (
+    <div className={`rounded-lg ${className}`}
+         style={{ background: 'linear-gradient(90deg,#D1FAE5 25%,#ECFDF5 50%,#D1FAE5 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+  )
+}
 
 interface Props {
   data: LocataireDashboardData | null
@@ -37,9 +44,9 @@ export function LocataireTabs({ data, loading, contrat }: Props) {
 
   const tabs = [
     { key: 'paiements'    as const, label: t('paiement.tab')      || 'Paiements',    icon: <IconCreditCard size={13}/> },
-    { key: 'documents'    as const, label: t('documents.titre')                      , icon: <IconFileText size={13}/> },
-    { key: 'messages'     as const, label: t('messagerie.titre')                     , icon: <IconMessage size={13}/> },
-    { key: 'signalements' as const, label: t('signalement.titre')                    , icon: <IconTool size={13}/> },
+    { key: 'documents'    as const, label: t('documents.titre'),                      icon: <IconFileText size={13}/> },
+    { key: 'messages'     as const, label: t('messagerie.titre'),                     icon: <IconMessage size={13}/> },
+    { key: 'signalements' as const, label: t('signalement.titre'),                    icon: <IconTool size={13}/> },
   ]
 
   return (
@@ -70,12 +77,12 @@ export function LocataireTabs({ data, loading, contrat }: Props) {
             <div className="p-4">
               {loading ? Array(3).fill(0).map((_,i) => (
                 <div key={i} className="flex gap-3 py-3" style={{ borderBottom: '1px solid #F8FAFC' }}>
-                  <Skeleton className="w-8 h-8 rounded-xl flex-shrink-0" variant="green" />
+                  <SkeletonGreen className="w-8 h-8 rounded-xl flex-shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-3 w-28" variant="green" />
-                    <Skeleton className="h-3 w-20" variant="green" />
+                    <SkeletonGreen className="h-3 w-28" />
+                    <SkeletonGreen className="h-3 w-20" />
                   </div>
-                  <Skeleton className="h-4 w-20 flex-shrink-0" variant="green" />
+                  <SkeletonGreen className="h-4 w-20 flex-shrink-0" />
                 </div>
               )) : (data?.paiements ?? []).length === 0 ? (
                 <div className="py-10 text-center">
@@ -134,30 +141,22 @@ export function LocataireTabs({ data, loading, contrat }: Props) {
           {activeTab === 'documents' && (
             <div className="p-4">
               {[
-                {
-                  ico: <IconFileText size={15}/>, bg: '#ECFDF5', col: '#059669',
+                { ico: <IconFileText size={15}/>, bg: '#ECFDF5', col: '#059669',
                   title: t('documents.contrat_bail'),
                   sub: contrat ? `${t('documents.signe_le')} ${new Date(contrat.date_debut).toLocaleDateString('fr-FR')}` : t('documents.non_disponible'),
-                  url: (contrat as any)?.pdf_url,
-                },
-                {
-                  ico: <IconFileText size={15}/>, bg: '#EFF6FF', col: '#2563EB',
+                  url: (contrat as any)?.pdf_url },
+                { ico: <IconFileText size={15}/>, bg: '#EFF6FF', col: '#2563EB',
                   title: t('documents.quittances'),
                   sub: `${data?.paiementsEffectues ?? 0} ${t('documents.disponible')}`,
-                  url: null,
-                },
-                {
-                  ico: <IconShieldCheck size={15}/>, bg: '#F5F3FF', col: '#7C3AED',
+                  url: null },
+                { ico: <IconShieldCheck size={15}/>, bg: '#F5F3FF', col: '#7C3AED',
                   title: t('documents.attestation'),
                   sub: t('documents.sur_demande'),
-                  url: null,
-                },
-                {
-                  ico: <IconHome2 size={15}/>, bg: '#FFFBEB', col: '#D97706',
+                  url: null },
+                { ico: <IconHome2 size={15}/>, bg: '#FFFBEB', col: '#D97706',
                   title: t('documents.etat_lieux'),
                   sub: t('documents.document_signe'),
-                  url: null,
-                },
+                  url: null },
               ].map((d, i) => (
                 <motion.div key={d.title} variants={listItem} initial="hidden" animate="visible" custom={i}
                   className="flex items-center gap-3 py-3 row-hover cursor-pointer -mx-4 px-4"
@@ -188,10 +187,10 @@ export function LocataireTabs({ data, loading, contrat }: Props) {
             <div className="p-4">
               {loading ? Array(3).fill(0).map((_,i) => (
                 <div key={i} className="flex gap-3 py-3">
-                  <Skeleton className="w-8 h-8 rounded-xl flex-shrink-0" variant="green" />
+                  <SkeletonGreen className="w-8 h-8 rounded-xl flex-shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-3 w-32" variant="green" />
-                    <Skeleton className="h-3 w-48" variant="green" />
+                    <SkeletonGreen className="h-3 w-32" />
+                    <SkeletonGreen className="h-3 w-48" />
                   </div>
                 </div>
               )) : (data?.messages ?? []).length === 0 ? (

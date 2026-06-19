@@ -33,7 +33,7 @@ export function LocataireSidebar({ isOpen, onClose, activeNav, onNavChange, ini,
     {
       label: t('nav.finances'),
       items: [
-        { icon: <IconCreditCard size={15}/>, label: t('paiement.titre'),  href: '/locataire/paiement' },
+        { icon: <IconCreditCard size={15}/>, label: t('paiement.titre'), href: '/locataire/paiement' },
         { icon: <IconFileText size={15}/>,   label: t('nav.quittances'), href: '/locataire/paiement' },
       ],
     },
