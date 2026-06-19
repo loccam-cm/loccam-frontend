@@ -39,7 +39,7 @@ import {
   IconBolt,
   IconCircleCheck,
   IconAlertCircle,
-  IconChevronRight,
+  IconSettings
 } from "@tabler/icons-react";
 
 // ── Types locaux ─────────────────────────────────────────────
@@ -343,6 +343,7 @@ export default function LocataireDashboard() {
           label: "Mon compte",
           href: "/locataire/compte",
         },
+        { icon: <IconSettings size={16}/>, label: 'Paramètres', href: '/locataire/parametres' },
       ],
     },
   ];

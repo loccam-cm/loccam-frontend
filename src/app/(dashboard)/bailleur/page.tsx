@@ -232,7 +232,7 @@ export default function BailleurDashboard() {
     {
       label: "Compte",
       items: [
-        { icon: <IconSettings size={16} />, label: "Paramètres" },
+        { icon: <IconSettings size={16}/>, label: 'Paramètres', href: '/bailleur/parametres' },
         {
           icon: <IconUser size={16} />,
           label: "Mon compte",
