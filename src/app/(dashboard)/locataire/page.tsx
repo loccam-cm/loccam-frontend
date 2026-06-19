@@ -1,35 +1,40 @@
-﻿'use client'
+﻿"use client";
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { useAuth } from '@/contexts/AuthContext'
-import { useT } from '@/hooks/useT'
-import { useLocataireDashboard }          from '@/hooks/useLocataireDashboard'
-import { LocataireSidebar }               from '@/components/dashboard/locataire/LocataireSidebar'
-import { LocataireTopbar }                from '@/components/dashboard/locataire/LocataireTopbar'
-import { LocataireHeroLogement }          from '@/components/dashboard/locataire/LocataireHeroLogement'
-import { LocataireProchainPaiement }      from '@/components/dashboard/locataire/LocataireProchainPaiement'
-import { LocataireTabs }                  from '@/components/dashboard/locataire/LocataireTabs'
-import { LocatairePanneauDroit }          from '@/components/dashboard/locataire/LocatairePanneauDroit'
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import { useT } from "@/hooks/useT";
+import { useLocataireDashboard } from "@/hooks/useLocataireDashboard";
+import { LocataireSidebar } from "@/components/dashboard/locataire/LocataireSidebar";
+import { LocataireTopbar } from "@/components/dashboard/locataire/LocataireTopbar";
+import { LocataireHeroLogement } from "@/components/dashboard/locataire/LocataireHeroLogement";
+import { LocataireProchainPaiement } from "@/components/dashboard/locataire/LocataireProchainPaiement";
+import { LocataireTabs } from "@/components/dashboard/locataire/LocataireTabs";
+import { LocatairePanneauDroit } from "@/components/dashboard/locataire/LocatairePanneauDroit";
 
-type TabKey = 'paiements' | 'documents' | 'messages' | 'signalements'
+type TabKey = "paiements" | "documents" | "messages" | "signalements";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
-  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.4, ease: 'easeOut' as const } }),
-}
+  visible: (i = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.07, duration: 0.4, ease: "easeOut" as const },
+  }),
+};
 
 export default function LocataireDashboardPage() {
-  const t = useT()
-  const { user, deconnexion } = useAuth()
-  const { data, loading, load, joursRestants, progressMois, dateEcheance } = useLocataireDashboard()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeNav, setActiveNav]     = useState('Tableau de bord')
-  const [activeTab, setActiveTab]     = useState<TabKey>('paiements')
+  const t = useT();
+  const { user, deconnexion } = useAuth();
+  const { data, loading, load, joursRestants, progressMois, dateEcheance } =
+    useLocataireDashboard();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeNav, setActiveNav] = useState("Tableau de bord");
+  const [activeTab, setActiveTab] = useState<TabKey>("paiements");
 
-  if (!user) return null
-  const ini     = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`
-  const contrat = data?.contrat ?? null
+  if (!user) return null;
+  const ini = `${user.prenom?.[0] ?? ""}${user.nom?.[0] ?? ""}`;
+  const contrat = data?.contrat ?? null;
 
   return (
     <>
@@ -54,10 +59,19 @@ export default function LocataireDashboardPage() {
         }
       `}</style>
 
-      <div className="flex h-screen overflow-hidden"
-           style={{ background: '#F0FDF4', fontFamily: "'DM Sans','Helvetica Neue',sans-serif" }}>
-
-        {sidebarOpen && <div className="sidebar-overlay lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      <div
+        className="flex h-screen overflow-hidden"
+        style={{
+          background: "#F0FDF4",
+          fontFamily: "'DM Sans','Helvetica Neue',sans-serif",
+        }}
+      >
+        {sidebarOpen && (
+          <div
+            className="sidebar-overlay lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
         <LocataireSidebar
           isOpen={sidebarOpen}
@@ -67,9 +81,13 @@ export default function LocataireDashboardPage() {
           ini={ini}
           nomComplet={user.nom_complet}
           onDeconnexion={deconnexion}
-          data={data}
+          messagesNonLus={data?.messages.filter((m) => !m.est_lu).length ?? 0}
+          signalementsOuverts={
+            data?.signalements.filter(
+              (s) => s.statut === "ouvert" || s.statut === "en_cours",
+            ).length ?? 0
+          }
         />
-
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <LocataireTopbar
             onMenuOpen={() => setSidebarOpen(true)}
@@ -81,14 +99,22 @@ export default function LocataireDashboardPage() {
           <div className="flex-1 overflow-y-auto">
             <div className="flex h-full">
               <div className="flex-1 p-4 sm:p-5 overflow-y-auto min-w-0">
-
                 {/* Salutation */}
-                <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0} className="mb-4">
-                  <h2 className="text-xl font-bold" style={{ color: '#0F172A' }}>
-                    {t('dashboard.bienvenue')}, {user.prenom}
+                <motion.div
+                  variants={fadeUp}
+                  initial="hidden"
+                  animate="visible"
+                  custom={0}
+                  className="mb-4"
+                >
+                  <h2
+                    className="text-xl font-bold"
+                    style={{ color: "#0F172A" }}
+                  >
+                    {t("dashboard.bienvenue")}, {user.prenom}
                   </h2>
-                  <p className="text-sm" style={{ color: '#64748B' }}>
-                    {t('dashboard.bienvenue_espace')}
+                  <p className="text-sm" style={{ color: "#64748B" }}>
+                    {t("dashboard.bienvenue_espace")}
                   </p>
                 </motion.div>
 
@@ -122,5 +148,5 @@ export default function LocataireDashboardPage() {
         </div>
       </div>
     </>
-  )
+  );
 }
