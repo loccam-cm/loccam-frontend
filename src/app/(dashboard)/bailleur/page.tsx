@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import { Bien, Paiement, Notification, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
 import NotificationBell from "@/components/NotificationBell";
+import { useT } from '@/hooks/useT'
 import {
   IconLayoutDashboard,
   IconBuilding,
@@ -94,6 +95,7 @@ function Skeleton({ className = "" }: { className?: string }) {
 }
 
 export default function BailleurDashboard() {
+  const t = useT()
   const { user, deconnexion } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [paiements, setPaiements] = useState<Paiement[]>([]);
@@ -562,7 +564,7 @@ export default function BailleurDashboard() {
             </button>
             <div className="flex-1">
               <h1 className="text-sm font-bold" style={{ color: "#0F172A" }}>
-                Tableau de bord
+                {t('dashboard.tableau_de_bord')}
               </h1>
               <div className="text-xs" style={{ color: "#94A3B8" }}>
                 {today}
