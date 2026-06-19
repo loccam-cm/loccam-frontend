@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useT } from '@/hooks/useT'
-import { LocataireDashboardData } from '@/types/locataire'
 import {
   IconLayoutDashboard, IconFileText, IconCreditCard, IconMessage,
   IconTool, IconUser, IconLogout, IconBuilding, IconX, IconSettings,
@@ -16,46 +15,48 @@ interface Props {
   ini: string
   nomComplet: string
   onDeconnexion: () => void
-  data: LocataireDashboardData | null
+  messagesNonLus: number
+  signalementsOuverts: number
 }
 
-export function LocataireSidebar({ isOpen, onClose, activeNav, onNavChange, ini, nomComplet, onDeconnexion, data }: Props) {
+export function LocataireSidebar({ isOpen, onClose, activeNav, onNavChange, ini, nomComplet, onDeconnexion, messagesNonLus, signalementsOuverts }: Props) {
   const t = useT()
 
   const navGroups = [
     {
-      label: 'Mon logement',
+      label: t('nav.mon_logement'),
       items: [
-        { icon: <IconLayoutDashboard size={15}/>, label: t('nav.dashboard') || 'Tableau de bord', href: '/locataire' },
-        { icon: <IconFileText size={15}/>,        label: t('nav.contrats')  || 'Mon contrat',     href: '/locataire/contrat' },
+        { icon: <IconLayoutDashboard size={15}/>, label: t('nav.dashboard'), href: '/locataire' },
+        { icon: <IconFileText size={15}/>,        label: t('nav.contrats'),  href: '/locataire/contrat' },
       ],
     },
     {
-      label: 'Finances',
+      label: t('nav.finances'),
       items: [
-        { icon: <IconCreditCard size={15}/>, label: 'Payer mon loyer', href: '/locataire/paiement' },
-        { icon: <IconFileText size={15}/>,   label: 'Mes quittances',  href: '/locataire/paiement' },
+        { icon: <IconCreditCard size={15}/>, label: t('paiement.titre'),  href: '/locataire/paiement' },
+        { icon: <IconFileText size={15}/>,   label: t('nav.quittances'), href: '/locataire/paiement' },
       ],
     },
     {
-      label: 'Communication',
+      label: t('nav.communication'),
       items: [
-        { icon: <IconMessage size={15}/>, label: t('nav.messages')     || 'Messagerie',   href: '/locataire/messagerie', badge: data?.messages.filter(m => !m.est_lu).length ?? 0,  badgeColor: '#059669' },
-        { icon: <IconTool size={15}/>,    label: t('nav.signalements') || 'Signalements', href: '/locataire/signalements', badge: data?.signalements.filter(s => s.statut === 'ouvert' || s.statut === 'en_cours').length ?? 0, badgeColor: '#DC2626' },
+        { icon: <IconMessage size={15}/>, label: t('nav.messages'),     href: '/locataire/messagerie',   badge: messagesNonLus,     badgeColor: '#059669' },
+        { icon: <IconTool size={15}/>,    label: t('nav.signalements'), href: '/locataire/signalements', badge: signalementsOuverts, badgeColor: '#DC2626' },
       ],
     },
     {
-      label: 'Compte',
+      label: t('compte.titre'),
       items: [
-        { icon: <IconUser size={15}/>,     label: t('nav.compte')     || 'Mon compte',  href: '/locataire/compte' },
-        { icon: <IconSettings size={15}/>, label: t('nav.parametres') || 'Paramètres',  href: '/locataire/parametres' },
+        { icon: <IconUser size={15}/>,     label: t('nav.compte'),     href: '/locataire/compte' },
+        { icon: <IconSettings size={15}/>, label: t('nav.parametres'), href: '/locataire/parametres' },
       ],
     },
   ]
 
   return (
-    <aside className={`sidebar-mobile lg:relative lg:translate-x-0 w-56 flex-shrink-0 flex flex-col h-full ${isOpen ? 'open' : ''}`}
-           style={{ background: '#fff', borderRight: '1px solid #D1FAE5', boxShadow: '4px 0 20px rgba(5,150,105,.06)' }}>
+    <aside
+      className={`sidebar-mobile lg:relative lg:translate-x-0 w-56 flex-shrink-0 flex flex-col h-full ${isOpen ? 'open' : ''}`}
+      style={{ background: '#fff', borderRight: '1px solid #D1FAE5', boxShadow: '4px 0 20px rgba(5,150,105,.06)' }}>
 
       <div className="flex items-center gap-3 px-4 py-5" style={{ borderBottom: '1px solid #D1FAE5' }}>
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -64,7 +65,9 @@ export function LocataireSidebar({ isOpen, onClose, activeNav, onNavChange, ini,
         </div>
         <div>
           <div className="font-bold text-sm leading-none" style={{ color: '#059669' }}>LocCam</div>
-          <div className="text-xs mt-0.5 font-medium" style={{ color: '#6EE7B7' }}>Espace locataire</div>
+          <div className="text-xs mt-0.5 font-medium" style={{ color: '#6EE7B7' }}>
+            {t('dashboard.espace_locataire')}
+          </div>
         </div>
         <button className="ml-auto lg:hidden" onClick={onClose}
                 style={{ color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -126,10 +129,10 @@ export function LocataireSidebar({ isOpen, onClose, activeNav, onNavChange, ini,
             <div className="text-xs font-semibold truncate" style={{ color: '#0F172A' }}>{nomComplet}</div>
             <div className="flex items-center gap-1 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full pulse" style={{ background: '#10B981' }} />
-              <span className="text-xs" style={{ color: '#6EE7B7' }}>En ligne</span>
+              <span className="text-xs" style={{ color: '#6EE7B7' }}>{t('common.en_ligne')}</span>
             </div>
           </div>
-          <button onClick={onDeconnexion} title="Déconnexion"
+          <button onClick={onDeconnexion} title={t('compte.deconnexion')}
                   style={{ color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}>
             <IconLogout size={14} />
           </button>

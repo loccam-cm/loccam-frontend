@@ -20,8 +20,7 @@ export function LocataireTopbar({ onMenuOpen, loading, onRefresh, ini }: Props) 
     <header className="flex items-center gap-3 px-4 sm:px-5 h-14 flex-shrink-0"
             style={{ background: '#fff', borderBottom: '1px solid #D1FAE5', boxShadow: '0 1px 4px rgba(5,150,105,.05)' }}>
       <button className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: '#F0FDF4', border: '1px solid #D1FAE5' }}
-              onClick={onMenuOpen}>
+              style={{ background: '#F0FDF4', border: '1px solid #D1FAE5' }} onClick={onMenuOpen}>
         <IconMenu2 size={17} style={{ color: '#059669' }} />
       </button>
       <div className="flex-1 min-w-0">
@@ -40,7 +39,7 @@ export function LocataireTopbar({ onMenuOpen, loading, onRefresh, ini }: Props) 
               className="flex items-center gap-2 px-3 sm:px-4 h-9 rounded-xl text-xs font-bold text-white"
               style={{ background: 'linear-gradient(135deg,#059669,#047857)', boxShadow: '0 2px 8px rgba(5,150,105,.35)', textDecoration: 'none' }}>
           <IconCreditCard size={14} />
-          <span className="hidden sm:inline">Payer mon loyer</span>
+          <span className="hidden sm:inline">{t('paiement.titre')}</span>
         </Link>
         <div className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
              style={{ background: 'linear-gradient(135deg,#059669,#7C3AED)' }}>
