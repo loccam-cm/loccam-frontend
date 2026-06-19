@@ -704,7 +704,7 @@ export default function LocataireDashboard() {
                     className="text-xl font-bold"
                     style={{ color: "#0F172A" }}
                   >
-                    {t("dashboard.bienvenue")}, {user.prenom} 
+                    {t("dashboard.bienvenue")}, {user.prenom} 👋
                   </h2>
                   <p className="text-sm" style={{ color: "#64748B" }}>
                     Bienvenue sur votre espace locataire LocCam.
@@ -964,6 +964,7 @@ export default function LocataireDashboard() {
     </span>
   </motion.button>
 </div>
+                </motion.div>
 
                 {/* Tabs */}
                 <motion.div
