@@ -941,7 +941,7 @@ export default function LocataireDashboard() {
                     <motion.button
                       whileHover={{ scale: 1.03, y: -2 }}
                       whileTap={{ scale: 0.97 }}
-                      className="relative flex items-center justify-center gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm"
+                      className="relative flex items-center justify-center gap-1.5 sm:gap-3 py-3.5 rounded-2xl overflow-hidden font-bold text-sm"
                       style={{
                         background: "linear-gradient(135deg, #FFCC00, #FFB800)",
                         color: "#1C1C1E",
@@ -958,7 +958,7 @@ export default function LocataireDashboard() {
                       <img
                         src="/mtn-money.jpg"
                         alt="MTN Mobile Money"
-                        className="relative z-10 h-7 w-auto object-contain"
+                        className="relative z-10 h-5 sm:h-7 w-auto object-contain"
                         style={{ maxWidth: "100px" }}
                       />
                       <span className="relative z-10 text-xs sm:text-sm">
