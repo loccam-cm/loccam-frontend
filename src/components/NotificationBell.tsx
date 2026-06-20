@@ -44,9 +44,10 @@ export default function NotificationBell({
   bgColor     = '#F1F5F9',
   borderColor = '#E2E8F0',
 }: Props) {
-  const [open, setOpen]       = useState(false)
-  const [notifs, setNotifs]   = useState<Notification[]>([])
-  const [loading, setLoading] = useState(false)
+  const [open, setOpen]           = useState(false)
+  const [notifs, setNotifs]       = useState<Notification[]>([])
+  const [loading, setLoading]     = useState(false)
+  const [notifInapp, setNotifInapp] = useState(true)
   const ref = useRef<HTMLDivElement>(null)
 
   const nonLues = notifs.filter(n => !n.est_lue).length
@@ -59,11 +60,26 @@ export default function NotificationBell({
     } catch {}
   }
 
-  // ── Polling toutes les 30s ─────────────────────────────
+  // ── Charger préférences + lancer polling si activé ────
   useEffect(() => {
-    charger()
-    const interval = setInterval(charger, 30000)
-    return () => clearInterval(interval)
+    let interval: ReturnType<typeof setInterval> | null = null
+
+    api.get('/auth/preferences/')
+      .then(res => {
+        const inapp = res.data.notif_inapp ?? true
+        setNotifInapp(inapp)
+        if (inapp) {
+          charger()
+          interval = setInterval(charger, 30000)
+        }
+      })
+      .catch(() => {
+        // Erreur réseau → comportement par défaut (activé)
+        charger()
+        interval = setInterval(charger, 30000)
+      })
+
+    return () => { if (interval) clearInterval(interval) }
   }, [])
 
   // ── Fermer en cliquant dehors ──────────────────────────
@@ -93,6 +109,20 @@ export default function NotificationBell({
       setNotifs(prev => prev.map(n => ({ ...n, est_lue: true })))
     } catch {}
     setLoading(false)
+  }
+
+  // ── notif_inapp désactivé → cloche grisée ─────────────
+  if (!notifInapp) {
+    return (
+      <div style={{
+        width: '36px', height: '36px', borderRadius: '10px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: bgColor, border: `1px solid ${borderColor}`,
+        opacity: 0.4, cursor: 'not-allowed',
+      }}>
+        <IconBell size={15} style={{ color }} />
+      </div>
+    )
   }
 
   return (
@@ -140,13 +170,20 @@ export default function NotificationBell({
             }}>
 
             {/* Header */}
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{
+              padding: '14px 16px', borderBottom: '1px solid #F1F5F9',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
                   Notifications
                 </span>
                 {nonLues > 0 && (
-                  <span style={{ padding: '1px 7px', borderRadius: '100px', background: '#EFF6FF', color: '#2563EB', fontSize: '10px', fontWeight: 700 }}>
+                  <span style={{
+                    padding: '1px 7px', borderRadius: '100px',
+                    background: '#EFF6FF', color: '#2563EB',
+                    fontSize: '10px', fontWeight: 700,
+                  }}>
                     {nonLues} non lue{nonLues > 1 ? 's' : ''}
                   </span>
                 )}
@@ -156,12 +193,19 @@ export default function NotificationBell({
                   <button
                     onClick={toutMarquerLu}
                     disabled={loading}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '8px', background: '#F1F5F9', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      padding: '4px 8px', borderRadius: '8px',
+                      background: '#F1F5F9', border: 'none', cursor: 'pointer',
+                      fontSize: '11px', fontWeight: 600, color: '#64748B',
+                    }}>
                     <IconCheck size={11} />
                     Tout lire
                   </button>
                 )}
-                <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', display: 'flex' }}>
+                <button
+                  onClick={() => setOpen(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', display: 'flex' }}>
                   <IconX size={14} />
                 </button>
               </div>
@@ -183,18 +227,31 @@ export default function NotificationBell({
                       onClick={() => !n.est_lue && marquerLue(n.id)}
                       style={{
                         display: 'flex', gap: '10px', padding: '12px 16px',
-                        borderBottom: '1px solid #F8FAFC', cursor: n.est_lue ? 'default' : 'pointer',
+                        borderBottom: '1px solid #F8FAFC',
+                        cursor: n.est_lue ? 'default' : 'pointer',
                         background: n.est_lue ? 'transparent' : '#FAFCFF',
                         transition: 'background 0.15s',
                       }}>
-                      <div style={{ width: '30px', height: '30px', borderRadius: '9px', background: st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: st.col, flexShrink: 0, marginTop: '1px' }}>
+                      <div style={{
+                        width: '30px', height: '30px', borderRadius: '9px',
+                        background: st.bg, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', color: st.col,
+                        flexShrink: 0, marginTop: '1px',
+                      }}>
                         {st.ico}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '12px', fontWeight: n.est_lue ? 500 : 700, color: '#0F172A', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{
+                          fontSize: '12px', fontWeight: n.est_lue ? 500 : 700,
+                          color: '#0F172A', marginBottom: '2px',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
                           {n.titre}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{
+                          fontSize: '11px', color: '#64748B', lineHeight: 1.5,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
                           {n.message}
                         </div>
                         <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '3px' }}>
@@ -202,7 +259,10 @@ export default function NotificationBell({
                         </div>
                       </div>
                       {!n.est_lue && (
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563EB', flexShrink: 0, marginTop: '6px' }} />
+                        <div style={{
+                          width: '6px', height: '6px', borderRadius: '50%',
+                          background: '#2563EB', flexShrink: 0, marginTop: '6px',
+                        }} />
                       )}
                     </div>
                   )
@@ -215,7 +275,10 @@ export default function NotificationBell({
               <div style={{ padding: '10px 16px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
                 <button
                   onClick={charger}
-                  style={{ fontSize: '12px', fontWeight: 600, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  style={{
+                    fontSize: '12px', fontWeight: 600, color: '#2563EB',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                  }}>
                   Actualiser
                 </button>
               </div>
