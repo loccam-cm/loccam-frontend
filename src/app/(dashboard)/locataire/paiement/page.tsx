@@ -17,7 +17,7 @@ import {
   IconBuildingBank, IconAlertTriangle, IconDownload,
 } from '@tabler/icons-react'
 
-// ── Types locaux ──────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────
 type Etape = 'choix' | 'saisie' | 'confirmation' | 'traitement' | 'succes' | 'erreur'
 type Moyen = 'orange_money' | 'mtn_money' | 'cash'
 
@@ -52,19 +52,22 @@ function StepDot({ n, active, done }: { n: number; active: boolean; done: boolea
   )
 }
 
-// ────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────
 export default function PaiementPage() {
   const { user } = useAuth()
-  const [contrat, setContrat]       = useState<Contrat | null>(null)
-  const [loading, setLoading]       = useState(true)
-  const [etape, setEtape]           = useState<Etape>('choix')
-  const [moyen, setMoyen]           = useState<Moyen | null>(null)
-  const [telephone, setTel]         = useState('')
-  const [telError, setTelError]     = useState('')
-  const [processing, setProc]       = useState(false)
-  const [paiementId, setPaiId]      = useState<number | null>(null)
-  const [downloading, setDownloading] = useState(false)
-  const [charges, setCharges]       = useState<ChargesIndex>({
+  const router   = useRouter()
+
+  const [contrat, setContrat]           = useState<Contrat | null>(null)
+  const [loading, setLoading]           = useState(true)
+  const [etape, setEtape]               = useState<Etape>('choix')
+  const [moyen, setMoyen]               = useState<Moyen | null>(null)
+  const [moyenParDefaut, setMoyenPD]    = useState<Moyen | null>(null)
+  const [telephone, setTel]             = useState('')
+  const [telError, setTelError]         = useState('')
+  const [processing, setProc]           = useState(false)
+  const [paiementId, setPaiId]          = useState<number | null>(null)
+  const [downloading, setDownloading]   = useState(false)
+  const [charges, setCharges]           = useState<ChargesIndex>({
     eau_m3: '', eau_prix_m3: '250', elec_kwh: '', elec_prix_kwh: '100',
   })
   const [inclureCharges, setInclureCharges] = useState(false)
@@ -72,23 +75,30 @@ export default function PaiementPage() {
   useEffect(() => { if (user) load() }, [user])
 
   const load = async () => {
-  setLoading(true)
-  try {
-    const res = await api.get<PaginatedResponse<Contrat>>('/contrats/')
-    // Le backend filtre déjà par locataire connecté — on cherche juste le premier actif
-    const actif = res.data.results.find(c => c.statut === 'actif') ?? null
-    setContrat(actif)
-  } catch { } finally { setLoading(false) }
-}
+    setLoading(true)
+    try {
+      const [contratRes, prefsRes] = await Promise.all([
+        api.get<PaginatedResponse<Contrat>>('/contrats/'),
+        api.get('/auth/preferences/'),
+      ])
+      const actif = contratRes.data.results.find(c => c.statut === 'actif') ?? null
+      setContrat(actif)
 
-  // Calculs montants
+      // Pré-sélectionner le moyen préféré
+      const prefere = prefsRes.data.moyen_paiement_prefere as Moyen
+      if (['orange_money', 'mtn_money', 'cash'].includes(prefere)) {
+        setMoyen(prefere)
+        setMoyenPD(prefere)
+      }
+    } catch { } finally { setLoading(false) }
+  }
+
+  // ── Calculs ───────────────────────────────────────────────
   const loyer       = contrat?.loyer_mensuel ?? 0
   const montantEau  = inclureCharges && charges.eau_m3 && charges.eau_prix_m3
-    ? Math.round(parseFloat(charges.eau_m3) * parseFloat(charges.eau_prix_m3))
-    : 0
+    ? Math.round(parseFloat(charges.eau_m3) * parseFloat(charges.eau_prix_m3)) : 0
   const montantElec = inclureCharges && charges.elec_kwh && charges.elec_prix_kwh
-    ? Math.round(parseFloat(charges.elec_kwh) * parseFloat(charges.elec_prix_kwh))
-    : 0
+    ? Math.round(parseFloat(charges.elec_kwh) * parseFloat(charges.elec_prix_kwh)) : 0
   const total = loyer + montantEau + montantElec
 
   const moisCourant = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -107,13 +117,8 @@ export default function PaiementPage() {
     setEtape('confirmation')
   }
 
-  const router = useRouter()
-
   const handleConfirmer = async () => {
     if (!contrat) return
-      console.log('contrat.id:', contrat.id)
-      console.log('contrat.statut:', contrat.statut)
-      console.log('contrat complet:', JSON.stringify(contrat))
     setEtape('traitement'); setProc(true)
     try {
       const res = await api.post('/paiements/initier/', {
@@ -133,19 +138,15 @@ export default function PaiementPage() {
       const e = err as { response?: { data?: unknown; status?: number }; message?: string }
       console.error('Status:', e.response?.status)
       console.error('Data:', JSON.stringify(e.response?.data))
-      console.error('Message:', e.message)
       setEtape('erreur')
     } finally { setProc(false) }
   }
 
-  // ── Télécharger la quittance ──────────────────────────────
   const telechargerQuittance = async () => {
     if (!paiementId) return
     setDownloading(true)
     try {
-      const res = await api.get(`/paiements/${paiementId}/quittance/`, {
-        responseType: 'blob',
-      })
+      const res = await api.get(`/paiements/${paiementId}/quittance/`, { responseType: 'blob' })
       const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
       const link = document.createElement('a')
       link.href  = url
@@ -157,9 +158,7 @@ export default function PaiementPage() {
       toast.success('Quittance téléchargée !')
     } catch {
       toast.error('Erreur lors du téléchargement.')
-    } finally {
-      setDownloading(false)
-    }
+    } finally { setDownloading(false) }
   }
 
   if (!user) return null
@@ -202,7 +201,6 @@ export default function PaiementPage() {
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        @keyframes checkBounce{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
         .fade-up{animation:fadeUp .4s ease both}
         .pulse-dot{animation:pulse 1.8s ease-in-out infinite}
         ::-webkit-scrollbar{width:3px}
@@ -244,7 +242,7 @@ export default function PaiementPage() {
 
         <div className="max-w-md mx-auto px-4 sm:px-6 py-5 sm:py-6">
 
-          {/* ── LOADING ──────────────────────────────────────── */}
+          {/* Loading */}
           {loading && (
             <div className="space-y-4">
               <Skeleton className="h-32" />
@@ -252,11 +250,10 @@ export default function PaiementPage() {
             </div>
           )}
 
-          {/* ── AUCUN CONTRAT ────────────────────────────────── */}
+          {/* Aucun contrat */}
           {!loading && !contrat && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
-                   style={{ background:'#FFFBEB' }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background:'#FFFBEB' }}>
                 <IconAlertCircle size={26} style={{ color:'#D97706' }} />
               </div>
               <h3 className="text-sm font-bold mb-1" style={{ color:'#0F172A' }}>Aucun contrat actif</h3>
@@ -267,14 +264,13 @@ export default function PaiementPage() {
           {!loading && contrat && (
             <AnimatePresence mode="wait">
 
-              {/* ════════════════════════════
-                  ÉTAPE 1 — CHOIX DU MOYEN
-              ════════════════════════════ */}
+              {/* ══ ÉTAPE 1 — CHOIX DU MOYEN ══ */}
               {etape === 'choix' && (
                 <motion.div key="choix"
                   initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
                   exit={{ opacity:0, y:-16 }} transition={{ duration:.3 }}>
 
+                  {/* Carte logement */}
                   <div className="rounded-2xl p-4 mb-5 flex items-center gap-3"
                        style={{ background:'linear-gradient(135deg,#064E3B,#059669)' }}>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -291,6 +287,7 @@ export default function PaiementPage() {
                     </div>
                   </div>
 
+                  {/* Charges */}
                   <div className="bg-white rounded-2xl p-4 mb-5" style={{ border:'1px solid #D1FAE5' }}>
                     <div className="flex items-center justify-between mb-3">
                       <div>
@@ -309,10 +306,10 @@ export default function PaiementPage() {
                                     exit={{ height:0, opacity:0 }} transition={{ duration:.2 }}>
                           <div className="grid grid-cols-2 gap-3 pt-3" style={{ borderTop:'1px solid #F0FDF4' }}>
                             {[
-                              { key:'eau_m3', lbl:'Eau (m³)', ph:'12.5' },
-                              { key:'eau_prix_m3', lbl:'Prix/m³ (XAF)', ph:'250' },
-                              { key:'elec_kwh', lbl:'Électricité (kWh)', ph:'48' },
-                              { key:'elec_prix_kwh', lbl:'Prix/kWh (XAF)', ph:'100' },
+                              { key:'eau_m3',       lbl:'Eau (m³)',          ph:'12.5' },
+                              { key:'eau_prix_m3',  lbl:'Prix/m³ (XAF)',     ph:'250' },
+                              { key:'elec_kwh',     lbl:'Électricité (kWh)', ph:'48' },
+                              { key:'elec_prix_kwh',lbl:'Prix/kWh (XAF)',    ph:'100' },
                             ].map(f => (
                               <div key={f.key}>
                                 <label className="block text-xs font-semibold mb-1" style={{ color:'#374151' }}>{f.lbl}</label>
@@ -344,12 +341,14 @@ export default function PaiementPage() {
                     </AnimatePresence>
                   </div>
 
+                  {/* Total */}
                   <div className="flex justify-between items-center px-5 py-4 rounded-2xl mb-5"
                        style={{ background:'#ECFDF5', border:'1px solid #A7F3D0' }}>
                     <span className="text-sm font-bold" style={{ color:'#059669' }}>Total à payer</span>
                     <span className="text-2xl font-bold" style={{ color:'#059669' }}>{total.toLocaleString('fr-FR')} XAF</span>
                   </div>
 
+                  {/* Moyens */}
                   <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color:'#94A3B8' }}>
                     Choisir le moyen de paiement
                   </div>
@@ -357,16 +356,25 @@ export default function PaiementPage() {
                     {MOYENS.map(m => (
                       <motion.div key={m.id} whileHover={{ scale:1.01 }} whileTap={{ scale:.99 }}
                         className="moyen-card flex items-center gap-4 p-4 rounded-2xl"
-                        style={{ background: moyen === m.id ? m.bg : '#fff', border:`2px solid ${moyen === m.id ? m.color : '#E2E8F0'}`, transition:'all .15s' }}
+                        style={{ background: moyen === m.id ? m.bg : '#fff', border:`2px solid ${moyen === m.id ? m.color : '#E2E8F0'}` }}
                         onClick={() => setMoyen(m.id)}>
                         <div className="w-14 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                              style={{ background: m.bg, border:`1px solid ${m.border}` }}>
                           {m.img
                             ? <img src={m.img} alt={m.lbl} style={{ height:'32px', width:'auto', objectFit:'contain' }} />
-                            : m.icon}
+                            : (m as any).icon}
                         </div>
-                        <div className="flex-1">
-                          <div className="text-sm font-bold" style={{ color:'#0F172A' }}>{m.lbl}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-bold" style={{ color:'#0F172A' }}>{m.lbl}</div>
+                            {/* ── Badge "Préféré" ── */}
+                            {moyenParDefaut === m.id && (
+                              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                    style={{ background:'#ECFDF5', color:'#059669' }}>
+                                Préféré
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs" style={{ color:'#94A3B8' }}>{m.sub}</div>
                         </div>
                         <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
@@ -380,7 +388,7 @@ export default function PaiementPage() {
                   <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:.98 }}
                     onClick={() => moyen && setEtape('saisie')}
                     disabled={!moyen}
-                    className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-sm font-bold text-white mt-5"
+                    className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-sm font-bold mt-5"
                     style={{ background: moyen ? 'linear-gradient(135deg,#059669,#047857)' : '#E2E8F0', boxShadow: moyen ? '0 4px 14px rgba(5,150,105,.35)' : 'none', color: moyen ? '#fff' : '#94A3B8', transition:'all .2s' }}>
                     Continuer <IconChevronRight size={17} />
                   </motion.button>
@@ -392,9 +400,7 @@ export default function PaiementPage() {
                 </motion.div>
               )}
 
-              {/* ════════════════════════════
-                  ÉTAPE 2 — SAISIE NUMÉRO
-              ════════════════════════════ */}
+              {/* ══ ÉTAPE 2 — SAISIE NUMÉRO ══ */}
               {etape === 'saisie' && (
                 <motion.div key="saisie"
                   initial={{ opacity:0, x:30 }} animate={{ opacity:1, x:0 }}
@@ -478,9 +484,7 @@ export default function PaiementPage() {
                 </motion.div>
               )}
 
-              {/* ════════════════════════════
-                  ÉTAPE 3 — CONFIRMATION
-              ════════════════════════════ */}
+              {/* ══ ÉTAPE 3 — CONFIRMATION ══ */}
               {etape === 'confirmation' && (
                 <motion.div key="confirmation"
                   initial={{ opacity:0, x:30 }} animate={{ opacity:1, x:0 }}
@@ -545,9 +549,7 @@ export default function PaiementPage() {
                 </motion.div>
               )}
 
-              {/* ════════════════════════════
-                  TRAITEMENT
-              ════════════════════════════ */}
+              {/* ══ TRAITEMENT ══ */}
               {etape === 'traitement' && (
                 <motion.div key="traitement"
                   initial={{ opacity:0 }} animate={{ opacity:1 }}
@@ -573,9 +575,7 @@ export default function PaiementPage() {
                 </motion.div>
               )}
 
-              {/* ════════════════════════════
-                  SUCCÈS
-              ════════════════════════════ */}
+              {/* ══ SUCCÈS ══ */}
               {etape === 'succes' && (
                 <motion.div key="succes"
                   initial={{ opacity:0 }} animate={{ opacity:1 }}
@@ -605,23 +605,20 @@ export default function PaiementPage() {
                     ].map(r => (
                       <div key={r.lbl} className="flex justify-between py-2.5" style={{ borderBottom:'1px solid #F0FDF4' }}>
                         <span className="text-xs" style={{ color:'#94A3B8' }}>{r.lbl}</span>
-                        <span className="text-sm font-semibold" style={{ color: r.col ?? '#0F172A' }}>{r.val}</span>
+                        <span className="text-sm font-semibold" style={{ color: (r as any).col ?? '#0F172A' }}>{r.val}</span>
                       </div>
                     ))}
                   </div>
 
                   <div className="w-full grid grid-cols-1 gap-3">
-                    {/* ── Bouton téléchargement quittance ── */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                    <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
                       onClick={telechargerQuittance}
                       disabled={downloading || !paiementId}
                       className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white w-full"
                       style={{ background:'linear-gradient(135deg,#059669,#047857)', boxShadow:'0 4px 14px rgba(5,150,105,.3)', opacity: downloading ? 0.7 : 1 }}>
                       {downloading
                         ? <><IconLoader2 size={17} style={{ animation:'spin 1s linear infinite' }} />Téléchargement...</>
-                        : <><IconDownload size={17} />Télécharger la quittance</>
-                      }
+                        : <><IconDownload size={17} />Télécharger la quittance</>}
                     </motion.button>
                     <Link href="/locataire"
                           className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold"
@@ -632,9 +629,7 @@ export default function PaiementPage() {
                 </motion.div>
               )}
 
-              {/* ════════════════════════════
-                  ERREUR
-              ════════════════════════════ */}
+              {/* ══ ERREUR ══ */}
               {etape === 'erreur' && (
                 <motion.div key="erreur"
                   initial={{ opacity:0 }} animate={{ opacity:1 }}
@@ -649,7 +644,7 @@ export default function PaiementPage() {
                   <div className="w-full grid gap-3">
                     <button onClick={() => setEtape('confirmation')}
                       className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold text-white"
-                      style={{ background:'linear-gradient(135deg,#059669,#047857)' }}>
+                      style={{ background:'linear-gradient(135deg,#059669,#047857)', border:'none', cursor:'pointer' }}>
                       <IconRefresh size={17} />Réessayer
                     </button>
                     <button onClick={() => { setEtape('choix'); setMoyen(null); setTel('') }}
