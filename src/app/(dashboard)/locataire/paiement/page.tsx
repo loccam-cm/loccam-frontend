@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Contrat, Paiement, PaginatedResponse } from "@/types";
+import { Contrat, PaginatedResponse } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   IconCreditCard,
@@ -18,15 +18,17 @@ import {
   IconLoader2,
   IconShieldCheck,
   IconCircleCheck,
-  IconClock,
   IconX,
   IconChevronRight,
   IconLock,
   IconPhone,
-  IconReceipt,
   IconBuildingBank,
   IconAlertTriangle,
   IconDownload,
+  IconDroplet,
+  IconBolt,
+  IconReceipt,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -39,15 +41,41 @@ type Etape =
   | "erreur";
 type Moyen = "orange_money" | "mtn_money" | "cash";
 
-interface ChargesIndex {
-  eau_m3: string;
-  eau_prix_m3: string;
-  elec_kwh: string;
-  elec_prix_kwh: string;
+interface Releve {
+  id: number;
+  mois: number;
+  annee: number;
+  bien_titre: string;
+  locataire_nom: string;
+  conso_eau: number;
+  montant_eau: number;
+  conso_elec: number;
+  montant_elec: number;
+  montant_total: number;
+  statut: string;
+  tarif_eau: string;
+  tarif_elec: string;
 }
 
+// ── Constantes ────────────────────────────────────────────────
+const MOIS_FR = [
+  "",
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
+];
+
 // ── Composants ────────────────────────────────────────────────
-function Skeleton({ className = "" }: { className?: string }) {
+function SkeletonGreen({ className = "" }: { className?: string }) {
   return (
     <div
       className={`rounded-xl ${className}`}
@@ -71,17 +99,54 @@ function StepDot({
   done: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div
-        className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
-        style={{
-          background: done ? "#059669" : active ? "#059669" : "#E2E8F0",
-          color: done || active ? "#fff" : "#94A3B8",
-        }}
-      >
-        {done ? <IconCheck size={13} /> : n}
-      </div>
+    <div
+      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
+      style={{
+        background: done ? "#059669" : active ? "#059669" : "#E2E8F0",
+        color: done || active ? "#fff" : "#94A3B8",
+      }}
+    >
+      {done ? <IconCheck size={13} /> : n}
     </div>
+  );
+}
+
+function Toggle({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!value)}
+      style={{
+        width: "44px",
+        height: "24px",
+        borderRadius: "12px",
+        border: "none",
+        cursor: "pointer",
+        position: "relative",
+        transition: "background .2s",
+        flexShrink: 0,
+        background: value ? "#059669" : "#E2E8F0",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: "4px",
+          left: value ? "22px" : "4px",
+          width: "16px",
+          height: "16px",
+          borderRadius: "50%",
+          background: "#fff",
+          transition: "left .2s",
+          boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+        }}
+      />
+    </button>
   );
 }
 
@@ -91,6 +156,7 @@ export default function PaiementPage() {
   const router = useRouter();
 
   const [contrat, setContrat] = useState<Contrat | null>(null);
+  const [releve, setReleve] = useState<Releve | null>(null);
   const [loading, setLoading] = useState(true);
   const [etape, setEtape] = useState<Etape>("choix");
   const [moyen, setMoyen] = useState<Moyen | null>(null);
@@ -100,12 +166,9 @@ export default function PaiementPage() {
   const [processing, setProc] = useState(false);
   const [paiementId, setPaiId] = useState<number | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [charges, setCharges] = useState<ChargesIndex>({
-    eau_m3: "",
-    eau_prix_m3: "250",
-    elec_kwh: "",
-    elec_prix_kwh: "100",
-  });
+
+  // Ce que le locataire choisit de payer
+  const [inclureLoyer, setInclureLoyer] = useState(true);
   const [inclureCharges, setInclureCharges] = useState(false);
 
   useEffect(() => {
@@ -115,15 +178,28 @@ export default function PaiementPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [contratRes, prefsRes] = await Promise.all([
+      const [contratRes, prefsRes, relevesRes] = await Promise.all([
         api.get<PaginatedResponse<Contrat>>("/contrats/"),
         api.get("/auth/preferences/"),
+        api.get("/releves/"),
       ]);
       const actif =
         contratRes.data.results.find((c) => c.statut === "actif") ?? null;
       setContrat(actif);
 
-      // Pré-sélectionner le moyen préféré
+      // Relevé en attente de paiement (envoyé par le bailleur ce mois)
+      const now = new Date();
+      const relevePending =
+        (relevesRes.data.results ?? []).find(
+          (r: Releve) =>
+            r.statut === "envoye" &&
+            r.mois === now.getMonth() + 1 &&
+            r.annee === now.getFullYear(),
+        ) ?? null;
+      setReleve(relevePending);
+      setInclureCharges(!!relevePending);
+
+      // Moyen préféré
       const prefere = prefsRes.data.moyen_paiement_prefere as Moyen;
       if (["orange_money", "mtn_money", "cash"].includes(prefere)) {
         setMoyen(prefere);
@@ -137,24 +213,19 @@ export default function PaiementPage() {
 
   // ── Calculs ───────────────────────────────────────────────
   const loyer = contrat?.loyer_mensuel ?? 0;
-  const montantEau =
-    inclureCharges && charges.eau_m3 && charges.eau_prix_m3
-      ? Math.round(parseFloat(charges.eau_m3) * parseFloat(charges.eau_prix_m3))
-      : 0;
-  const montantElec =
-    inclureCharges && charges.elec_kwh && charges.elec_prix_kwh
-      ? Math.round(
-          parseFloat(charges.elec_kwh) * parseFloat(charges.elec_prix_kwh),
-        )
-      : 0;
-  const total = loyer + montantEau + montantElec;
+  const montantLoyer = inclureLoyer ? loyer : 0;
+  const montantCharges = inclureCharges && releve ? releve.montant_total : 0;
+  const montantEau = inclureCharges && releve ? releve.montant_eau : 0;
+  const montantElec = inclureCharges && releve ? releve.montant_elec : 0;
+  const total = montantLoyer + montantCharges;
 
-  const moisCourant = new Date().toLocaleDateString("fr-FR", {
+  const now = new Date();
+  const moisCourant = now.toLocaleDateString("fr-FR", {
     month: "long",
     year: "numeric",
   });
-  const moisNum = new Date().getMonth() + 1;
-  const anneeNum = new Date().getFullYear();
+  const moisNum = now.getMonth() + 1;
+  const anneeNum = now.getFullYear();
 
   const validateTel = (): boolean => {
     const cleaned = telephone.replace(/\s/g, "");
@@ -170,7 +241,7 @@ export default function PaiementPage() {
     return true;
   };
 
-  const handlePayer = async () => {
+  const handlePayer = () => {
     if (moyen !== "cash" && !validateTel()) return;
     setEtape("confirmation");
   };
@@ -180,12 +251,17 @@ export default function PaiementPage() {
     setEtape("traitement");
     setProc(true);
     try {
-      const res = await api.post("/paiements/initier/", {
+      const payload: Record<string, unknown> = {
         contrat_id: contrat.id,
         moyen: moyen,
         montant_eau: montantEau,
         montant_elec: montantElec,
-      });
+      };
+      // Lier au relevé si les charges sont incluses
+      if (inclureCharges && releve) {
+        payload.releve_id = releve.id;
+      }
+      const res = await api.post("/paiements/initier/", payload);
       const { paiement_id, paydunya_url } = res.data;
       setPaiId(paiement_id);
       if (moyen === "cash") {
@@ -194,12 +270,8 @@ export default function PaiementPage() {
         router.push(paydunya_url);
       }
     } catch (err: unknown) {
-      const e = err as {
-        response?: { data?: unknown; status?: number };
-        message?: string;
-      };
-      console.error("Status:", e.response?.status);
-      console.error("Data:", JSON.stringify(e.response?.data));
+      const e = err as { response?: { data?: unknown; status?: number } };
+      console.error("Erreur paiement:", e.response?.status, e.response?.data);
       setEtape("erreur");
     } finally {
       setProc(false);
@@ -269,18 +341,14 @@ export default function PaiementPage() {
       <style>{`
         @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
         @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        .fade-up{animation:fadeUp .4s ease both}
         .pulse-dot{animation:pulse 1.8s ease-in-out infinite}
-        ::-webkit-scrollbar{width:3px}
-        ::-webkit-scrollbar-thumb{background:#D1FAE5;border-radius:4px}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#D1FAE5;border-radius:4px}
         .moyen-card{transition:all .2s ease;cursor:pointer}
         .moyen-card:hover{transform:translateY(-2px)}
-        .input-tel{width:100%;height:48px;padding:0 16px 0 52px;border-radius:14px;border:2px solid #E2E8F0;font-size:16px;color:#0F172A;outline:none;background:#fff;transition:border-color .15s;font-family:inherit}
+        .input-tel{width:100%;height:48px;padding:0 16px 0 80px;border-radius:14px;border:2px solid #E2E8F0;font-size:16px;color:#0F172A;outline:none;background:#fff;transition:border-color .15s;font-family:inherit}
         .input-tel:focus{border-color:#059669;box-shadow:0 0 0 4px rgba(5,150,105,.1)}
         .input-tel.err{border-color:#EF4444}
-        .toggle-charges{width:44px;height:24px;border-radius:12px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
       `}</style>
 
       <div
@@ -303,7 +371,6 @@ export default function PaiementPage() {
               etape !== "traitement" &&
               (etape === "choix" ? null : setEtape("choix"))
             }
-            className="flex items-center gap-1.5 text-sm font-medium flex-shrink-0"
             style={{
               color: "#64748B",
               background: "none",
@@ -329,10 +396,10 @@ export default function PaiementPage() {
             ) : etape !== "traitement" &&
               etape !== "succes" &&
               etape !== "erreur" ? (
-              <>
+              <span className="flex items-center gap-1.5 text-sm font-medium">
                 <IconArrowLeft size={16} />
                 <span className="hidden sm:inline">Retour</span>
-              </>
+              </span>
             ) : null}
           </button>
           <div
@@ -363,8 +430,8 @@ export default function PaiementPage() {
           {/* Loading */}
           {loading && (
             <div className="space-y-4">
-              <Skeleton className="h-32" />
-              <Skeleton className="h-48" />
+              <SkeletonGreen className="h-32" />
+              <SkeletonGreen className="h-48" />
             </div>
           )}
 
@@ -391,7 +458,7 @@ export default function PaiementPage() {
 
           {!loading && contrat && (
             <AnimatePresence mode="wait">
-              {/* ══ ÉTAPE 1 — CHOIX DU MOYEN ══ */}
+              {/* ══ ÉTAPE 1 — CHOIX ══ */}
               {etape === "choix" && (
                 <motion.div
                   key="choix"
@@ -402,7 +469,7 @@ export default function PaiementPage() {
                 >
                   {/* Carte logement */}
                   <div
-                    className="rounded-2xl p-4 mb-5 flex items-center gap-3"
+                    className="rounded-2xl p-4 mb-4 flex items-center gap-3"
                     style={{
                       background: "linear-gradient(135deg,#064E3B,#059669)",
                     }}
@@ -421,279 +488,357 @@ export default function PaiementPage() {
                         className="text-xs"
                         style={{ color: "rgba(255,255,255,.6)" }}
                       >
-                        Loyer {moisCourant}
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-white font-bold text-lg">
-                        {loyer.toLocaleString("fr-FR")}
-                      </div>
-                      <div
-                        className="text-xs"
-                        style={{ color: "rgba(255,255,255,.6)" }}
-                      >
-                        XAF
+                        {moisCourant}
                       </div>
                     </div>
                   </div>
 
-                  {/* Charges */}
+                  {/* ── Section loyer ── */}
                   <div
-                    className="bg-white rounded-2xl p-4 mb-5"
+                    className="bg-white rounded-2xl p-4 mb-3"
                     style={{ border: "1px solid #D1FAE5" }}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <div
-                          className="text-sm font-bold"
-                          style={{ color: "#0F172A" }}
-                        >
-                          Inclure les charges
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <IconReceipt size={15} style={{ color: "#059669" }} />
+                          <span
+                            className="text-sm font-bold"
+                            style={{ color: "#0F172A" }}
+                          >
+                            Loyer
+                          </span>
                         </div>
-                        <div className="text-xs" style={{ color: "#94A3B8" }}>
-                          Eau et électricité selon relevés
+                        <div
+                          className="text-2xl font-bold"
+                          style={{ color: "#059669" }}
+                        >
+                          {loyer.toLocaleString("fr-FR")}
+                          <span
+                            className="text-sm font-normal ml-1"
+                            style={{ color: "#94A3B8" }}
+                          >
+                            XAF
+                          </span>
+                        </div>
+                        <div
+                          className="text-xs mt-0.5"
+                          style={{ color: "#94A3B8" }}
+                        >
+                          Loyer mensuel — {moisCourant}
                         </div>
                       </div>
-                      <button
-                        className="toggle-charges"
-                        onClick={() => setInclureCharges(!inclureCharges)}
+                      <Toggle value={inclureLoyer} onChange={setInclureLoyer} />
+                    </div>
+                    {!inclureLoyer && (
+                      <div
+                        className="flex items-center gap-1.5 mt-3 pt-3 text-xs"
                         style={{
-                          background: inclureCharges ? "#059669" : "#E2E8F0",
+                          borderTop: "1px solid #F0FDF4",
+                          color: "#94A3B8",
                         }}
                       >
-                        <span
-                          style={{
-                            position: "absolute",
-                            top: "4px",
-                            left: inclureCharges ? "22px" : "4px",
-                            width: "16px",
-                            height: "16px",
-                            borderRadius: "50%",
-                            background: "#fff",
-                            transition: "left .2s",
-                            boxShadow: "0 1px 3px rgba(0,0,0,.2)",
-                          }}
-                        />
-                      </button>
-                    </div>
-                    <AnimatePresence>
-                      {inclureCharges && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <div
-                            className="grid grid-cols-2 gap-3 pt-3"
-                            style={{ borderTop: "1px solid #F0FDF4" }}
-                          >
-                            {[
-                              { key: "eau_m3", lbl: "Eau (m³)", ph: "12.5" },
-                              {
-                                key: "eau_prix_m3",
-                                lbl: "Prix/m³ (XAF)",
-                                ph: "250",
-                              },
-                              {
-                                key: "elec_kwh",
-                                lbl: "Électricité (kWh)",
-                                ph: "48",
-                              },
-                              {
-                                key: "elec_prix_kwh",
-                                lbl: "Prix/kWh (XAF)",
-                                ph: "100",
-                              },
-                            ].map((f) => (
-                              <div key={f.key}>
-                                <label
-                                  className="block text-xs font-semibold mb-1"
-                                  style={{ color: "#374151" }}
-                                >
-                                  {f.lbl}
-                                </label>
-                                <input
-                                  type="number"
-                                  value={charges[f.key as keyof ChargesIndex]}
-                                  onChange={(e) =>
-                                    setCharges((p) => ({
-                                      ...p,
-                                      [f.key]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder={f.ph}
-                                  style={{
-                                    width: "100%",
-                                    height: "38px",
-                                    padding: "0 10px",
-                                    borderRadius: "10px",
-                                    border: "1.5px solid #D1FAE5",
-                                    fontSize: "13px",
-                                    color: "#0F172A",
-                                    outline: "none",
-                                    background: "#F0FDF4",
-                                    fontFamily: "inherit",
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                          {(montantEau > 0 || montantElec > 0) && (
-                            <div
-                              className="mt-3 pt-3 space-y-1"
-                              style={{ borderTop: "1px solid #F0FDF4" }}
-                            >
-                              {montantEau > 0 && (
-                                <div className="flex justify-between text-xs">
-                                  <span style={{ color: "#64748B" }}>Eau</span>
-                                  <span
-                                    className="font-semibold"
-                                    style={{ color: "#059669" }}
-                                  >
-                                    {montantEau.toLocaleString("fr-FR")} XAF
-                                  </span>
-                                </div>
-                              )}
-                              {montantElec > 0 && (
-                                <div className="flex justify-between text-xs">
-                                  <span style={{ color: "#64748B" }}>
-                                    Électricité
-                                  </span>
-                                  <span
-                                    className="font-semibold"
-                                    style={{ color: "#059669" }}
-                                  >
-                                    {montantElec.toLocaleString("fr-FR")} XAF
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                        <IconInfoCircle size={12} />
+                        Le loyer ne sera pas inclus dans ce paiement
+                      </div>
+                    )}
                   </div>
+
+                  {/* ── Section charges (depuis relevé bailleur) ── */}
+                  {releve ? (
+                    <div
+                      className="bg-white rounded-2xl p-4 mb-3"
+                      style={{ border: "1px solid #D1FAE5" }}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <IconDroplet size={15} style={{ color: "#0EA5E9" }} />
+                          <span
+                            className="text-sm font-bold"
+                            style={{ color: "#0F172A" }}
+                          >
+                            Charges du mois
+                          </span>
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                            style={{ background: "#EFF6FF", color: "#2563EB" }}
+                          >
+                            Relevé bailleur
+                          </span>
+                        </div>
+                        <Toggle
+                          value={inclureCharges}
+                          onChange={setInclureCharges}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        {/* Eau */}
+                        {releve.montant_eau > 0 && (
+                          <div
+                            className="rounded-xl p-3"
+                            style={{ background: "#F0F9FF" }}
+                          >
+                            <div className="flex items-center gap-1 mb-1">
+                              <IconDroplet
+                                size={11}
+                                style={{ color: "#0EA5E9" }}
+                              />
+                              <span
+                                className="text-xs font-bold"
+                                style={{ color: "#0284C7" }}
+                              >
+                                Eau
+                              </span>
+                            </div>
+                            <div
+                              className="text-xs"
+                              style={{ color: "#7DD3FC" }}
+                            >
+                              {releve.conso_eau.toFixed(2)} m³
+                            </div>
+                            <div
+                              className="text-sm font-bold mt-0.5"
+                              style={{ color: "#0EA5E9" }}
+                            >
+                              {releve.montant_eau.toLocaleString("fr-FR")} XAF
+                            </div>
+                          </div>
+                        )}
+                        {/* Élec */}
+                        {releve.montant_elec > 0 && (
+                          <div
+                            className="rounded-xl p-3"
+                            style={{ background: "#FFFBEB" }}
+                          >
+                            <div className="flex items-center gap-1 mb-1">
+                              <IconBolt
+                                size={11}
+                                style={{ color: "#F59E0B" }}
+                              />
+                              <span
+                                className="text-xs font-bold"
+                                style={{ color: "#D97706" }}
+                              >
+                                Électricité
+                              </span>
+                            </div>
+                            <div
+                              className="text-xs"
+                              style={{ color: "#FCD34D" }}
+                            >
+                              {releve.conso_elec.toFixed(2)} kWh
+                            </div>
+                            <div
+                              className="text-sm font-bold mt-0.5"
+                              style={{ color: "#F59E0B" }}
+                            >
+                              {releve.montant_elec.toLocaleString("fr-FR")} XAF
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div
+                        className="flex items-center justify-between pt-2"
+                        style={{ borderTop: "1px solid #F0FDF4" }}
+                      >
+                        <span
+                          className="text-xs font-semibold"
+                          style={{ color: "#64748B" }}
+                        >
+                          Total charges
+                        </span>
+                        <span
+                          className="text-base font-bold"
+                          style={{
+                            color: inclureCharges ? "#059669" : "#94A3B8",
+                          }}
+                        >
+                          {releve.montant_total.toLocaleString("fr-FR")} XAF
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="bg-white rounded-2xl p-4 mb-3"
+                      style={{ border: "1px solid #E2E8F0" }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: "#F1F5F9" }}
+                        >
+                          <IconDroplet size={16} style={{ color: "#CBD5E1" }} />
+                        </div>
+                        <div>
+                          <div
+                            className="text-sm font-semibold"
+                            style={{ color: "#94A3B8" }}
+                          >
+                            Aucune facture de charges
+                          </div>
+                          <div
+                            className="text-xs mt-0.5"
+                            style={{ color: "#CBD5E1" }}
+                          >
+                            Votre bailleur n&apos;a pas encore envoyé le relevé
+                            de ce mois
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Total */}
                   <div
                     className="flex justify-between items-center px-5 py-4 rounded-2xl mb-5"
                     style={{
-                      background: "#ECFDF5",
-                      border: "1px solid #A7F3D0",
+                      background: total > 0 ? "#ECFDF5" : "#F1F5F9",
+                      border: `1px solid ${total > 0 ? "#A7F3D0" : "#E2E8F0"}`,
                     }}
                   >
                     <span
                       className="text-sm font-bold"
-                      style={{ color: "#059669" }}
+                      style={{ color: total > 0 ? "#059669" : "#94A3B8" }}
                     >
                       Total à payer
                     </span>
                     <span
                       className="text-2xl font-bold"
-                      style={{ color: "#059669" }}
+                      style={{ color: total > 0 ? "#059669" : "#94A3B8" }}
                     >
                       {total.toLocaleString("fr-FR")} XAF
                     </span>
                   </div>
 
-                  {/* Moyens */}
-                  <div
-                    className="text-xs font-bold uppercase tracking-wider mb-3"
-                    style={{ color: "#94A3B8" }}
-                  >
-                    Choisir le moyen de paiement
-                  </div>
-                  <div className="space-y-3">
-                    {MOYENS.map((m) => (
-                      <motion.div
-                        key={m.id}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        className="moyen-card flex items-center gap-4 p-4 rounded-2xl"
-                        style={{
-                          background: moyen === m.id ? m.bg : "#fff",
-                          border: `2px solid ${moyen === m.id ? m.color : "#E2E8F0"}`,
-                        }}
-                        onClick={() => setMoyen(m.id)}
+                  {/* Moyens de paiement */}
+                  {total > 0 && (
+                    <>
+                      <div
+                        className="text-xs font-bold uppercase tracking-wider mb-3"
+                        style={{ color: "#94A3B8" }}
                       >
-                        <div
-                          className="w-14 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-                          style={{
-                            background: m.bg,
-                            border: `1px solid ${m.border}`,
-                          }}
-                        >
-                          {m.img ? (
-                            <img
-                              src={m.img}
-                              alt={m.lbl}
-                              style={{
-                                height: "32px",
-                                width: "auto",
-                                objectFit: "contain",
-                              }}
-                            />
-                          ) : (
-                            (m as any).icon
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                        Choisir le moyen de paiement
+                      </div>
+                      <div className="space-y-3">
+                        {MOYENS.map((m) => (
+                          <motion.div
+                            key={m.id}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                            className="moyen-card flex items-center gap-4 p-4 rounded-2xl"
+                            style={{
+                              background: moyen === m.id ? m.bg : "#fff",
+                              border: `2px solid ${moyen === m.id ? m.color : "#E2E8F0"}`,
+                            }}
+                            onClick={() => setMoyen(m.id)}
+                          >
                             <div
-                              className="text-sm font-bold"
-                              style={{ color: "#0F172A" }}
+                              className="w-14 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                              style={{
+                                background: m.bg,
+                                border: `1px solid ${m.border}`,
+                              }}
                             >
-                              {m.lbl}
+                              {m.img ? (
+                                <img
+                                  src={m.img}
+                                  alt={m.lbl}
+                                  style={{
+                                    height: "32px",
+                                    width: "auto",
+                                    objectFit: "contain",
+                                  }}
+                                />
+                              ) : (
+                                (m as any).icon
+                              )}
                             </div>
-                            {/* ── Badge "Préféré" ── */}
-                            {moyenParDefaut === m.id && (
-                              <span
-                                className="text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                                style={{
-                                  background: "#ECFDF5",
-                                  color: "#059669",
-                                }}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="text-sm font-bold"
+                                  style={{ color: "#0F172A" }}
+                                >
+                                  {m.lbl}
+                                </div>
+                                {moyenParDefaut === m.id && (
+                                  <span
+                                    className="text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                    style={{
+                                      background: "#ECFDF5",
+                                      color: "#059669",
+                                    }}
+                                  >
+                                    Préféré
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                className="text-xs"
+                                style={{ color: "#94A3B8" }}
                               >
-                                Préféré
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs" style={{ color: "#94A3B8" }}>
-                            {m.sub}
-                          </div>
-                        </div>
-                        <div
-                          className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                          style={{
-                            borderColor: moyen === m.id ? m.color : "#E2E8F0",
-                            background:
-                              moyen === m.id ? m.color : "transparent",
-                          }}
-                        >
-                          {moyen === m.id && (
-                            <IconCheck size={11} color="white" />
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
+                                {m.sub}
+                              </div>
+                            </div>
+                            <div
+                              className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                              style={{
+                                borderColor:
+                                  moyen === m.id ? m.color : "#E2E8F0",
+                                background:
+                                  moyen === m.id ? m.color : "transparent",
+                              }}
+                            >
+                              {moyen === m.id && (
+                                <IconCheck size={11} color="white" />
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {total === 0 && (
+                    <div
+                      className="flex items-center gap-2 p-3 rounded-xl"
+                      style={{
+                        background: "#FFFBEB",
+                        border: "1px solid #FDE68A",
+                      }}
+                    >
+                      <IconInfoCircle
+                        size={14}
+                        style={{ color: "#D97706", flexShrink: 0 }}
+                      />
+                      <p className="text-xs" style={{ color: "#92400E" }}>
+                        Sélectionnez au moins le loyer ou les charges pour
+                        continuer.
+                      </p>
+                    </div>
+                  )}
 
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => moyen && setEtape("saisie")}
-                    disabled={!moyen}
+                    onClick={() => moyen && total > 0 && setEtape("saisie")}
+                    disabled={!moyen || total === 0}
                     className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-sm font-bold mt-5"
                     style={{
-                      background: moyen
-                        ? "linear-gradient(135deg,#059669,#047857)"
-                        : "#E2E8F0",
-                      boxShadow: moyen
-                        ? "0 4px 14px rgba(5,150,105,.35)"
-                        : "none",
-                      color: moyen ? "#fff" : "#94A3B8",
+                      background:
+                        moyen && total > 0
+                          ? "linear-gradient(135deg,#059669,#047857)"
+                          : "#E2E8F0",
+                      boxShadow:
+                        moyen && total > 0
+                          ? "0 4px 14px rgba(5,150,105,.35)"
+                          : "none",
+                      color: moyen && total > 0 ? "#fff" : "#94A3B8",
                       transition: "all .2s",
+                      border: "none",
+                      cursor: moyen && total > 0 ? "pointer" : "not-allowed",
                     }}
                   >
                     Continuer <IconChevronRight size={17} />
@@ -747,8 +892,92 @@ export default function PaiementPage() {
                       {total.toLocaleString("fr-FR")} XAF
                     </div>
                     <div className="text-sm mt-1" style={{ color: "#64748B" }}>
-                      Loyer {moisCourant}
+                      {moisCourant}
                     </div>
+                  </div>
+
+                  {/* Détail paiement */}
+                  <div
+                    className="bg-white rounded-2xl p-4 mb-5"
+                    style={{ border: "1px solid #D1FAE5" }}
+                  >
+                    {inclureLoyer && (
+                      <div
+                        className="flex justify-between py-2"
+                        style={{
+                          borderBottom:
+                            inclureCharges && releve
+                              ? "1px solid #F0FDF4"
+                              : "none",
+                        }}
+                      >
+                        <span
+                          className="text-xs flex items-center gap-1.5"
+                          style={{ color: "#64748B" }}
+                        >
+                          <IconReceipt size={12} />
+                          Loyer
+                        </span>
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: "#0F172A" }}
+                        >
+                          {loyer.toLocaleString("fr-FR")} XAF
+                        </span>
+                      </div>
+                    )}
+                    {inclureCharges && releve && (
+                      <>
+                        {releve.montant_eau > 0 && (
+                          <div
+                            className="flex justify-between py-2"
+                            style={{
+                              borderBottom:
+                                releve.montant_elec > 0
+                                  ? "1px solid #F0FDF4"
+                                  : "none",
+                            }}
+                          >
+                            <span
+                              className="text-xs flex items-center gap-1.5"
+                              style={{ color: "#64748B" }}
+                            >
+                              <IconDroplet
+                                size={12}
+                                style={{ color: "#0EA5E9" }}
+                              />
+                              Eau ({releve.conso_eau.toFixed(2)} m³)
+                            </span>
+                            <span
+                              className="text-sm font-semibold"
+                              style={{ color: "#0F172A" }}
+                            >
+                              {releve.montant_eau.toLocaleString("fr-FR")} XAF
+                            </span>
+                          </div>
+                        )}
+                        {releve.montant_elec > 0 && (
+                          <div className="flex justify-between py-2">
+                            <span
+                              className="text-xs flex items-center gap-1.5"
+                              style={{ color: "#64748B" }}
+                            >
+                              <IconBolt
+                                size={12}
+                                style={{ color: "#F59E0B" }}
+                              />
+                              Élec ({releve.conso_elec.toFixed(2)} kWh)
+                            </span>
+                            <span
+                              className="text-sm font-semibold"
+                              style={{ color: "#0F172A" }}
+                            >
+                              {releve.montant_elec.toLocaleString("fr-FR")} XAF
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {moyen === "cash" ? (
@@ -850,7 +1079,6 @@ export default function PaiementPage() {
                           }}
                           placeholder="6XX XXX XXX"
                           className={`input-tel ${telError ? "err" : ""}`}
-                          style={{ paddingLeft: "80px" }}
                         />
                       </div>
                       {telError && (
@@ -877,11 +1105,12 @@ export default function PaiementPage() {
                     style={{
                       background: "linear-gradient(135deg,#059669,#047857)",
                       boxShadow: "0 4px 14px rgba(5,150,105,.35)",
+                      border: "none",
+                      cursor: "pointer",
                     }}
                   >
                     Vérifier et continuer <IconChevronRight size={17} />
                   </motion.button>
-
                   <button
                     onClick={() => setEtape("choix")}
                     className="w-full text-center py-3 text-sm font-medium mt-2"
@@ -892,7 +1121,7 @@ export default function PaiementPage() {
                       cursor: "pointer",
                     }}
                   >
-                    Changer de moyen de paiement
+                    Modifier ma sélection
                   </button>
                 </motion.div>
               )}
@@ -956,38 +1185,39 @@ export default function PaiementPage() {
                         className="text-xs mt-0.5"
                         style={{ color: "rgba(255,255,255,.6)" }}
                       >
-                        Loyer {moisCourant}
+                        {moisCourant}
                       </div>
                     </div>
-                    <div className="px-5 py-4 space-y-0">
+                    <div className="px-5 py-4">
                       {[
                         { lbl: "Logement", val: contrat.bien?.titre ?? "—" },
-                        {
-                          lbl: "Loyer de base",
-                          val: `${loyer.toLocaleString("fr-FR")} XAF`,
-                        },
-                        ...(montantEau > 0
+                        ...(inclureLoyer
                           ? [
                               {
-                                lbl: "Charges eau",
-                                val: `${montantEau.toLocaleString("fr-FR")} XAF`,
+                                lbl: "Loyer",
+                                val: `${loyer.toLocaleString("fr-FR")} XAF`,
                               },
                             ]
                           : []),
-                        ...(montantElec > 0
+                        ...(inclureCharges && releve && releve.montant_eau > 0
                           ? [
                               {
-                                lbl: "Charges élec.",
-                                val: `${montantElec.toLocaleString("fr-FR")} XAF`,
+                                lbl: "Charges eau",
+                                val: `${releve.montant_eau.toLocaleString("fr-FR")} XAF`,
+                              },
+                            ]
+                          : []),
+                        ...(inclureCharges && releve && releve.montant_elec > 0
+                          ? [
+                              {
+                                lbl: "Charges élec",
+                                val: `${releve.montant_elec.toLocaleString("fr-FR")} XAF`,
                               },
                             ]
                           : []),
                         {
                           lbl: "Moyen",
-                          val:
-                            MOYENS.find((m) => m.id === moyen)?.lbl ??
-                            moyen ??
-                            "—",
+                          val: MOYENS.find((m) => m.id === moyen)?.lbl ?? "—",
                         },
                         ...(moyen !== "cash" && telephone
                           ? [{ lbl: "Numéro", val: `+237 ${telephone}` }]
@@ -1050,11 +1280,12 @@ export default function PaiementPage() {
                     style={{
                       background: "linear-gradient(135deg,#059669,#047857)",
                       boxShadow: "0 4px 14px rgba(5,150,105,.4)",
+                      border: "none",
+                      cursor: "pointer",
                     }}
                   >
                     <IconShieldCheck size={17} /> Confirmer le paiement
                   </motion.button>
-
                   <button
                     onClick={() => setEtape("saisie")}
                     className="w-full py-3 rounded-2xl text-sm font-semibold"
@@ -1165,7 +1396,7 @@ export default function PaiementPage() {
                     Paiement confirmé !
                   </h2>
                   <p className="text-sm mb-1" style={{ color: "#64748B" }}>
-                    {total.toLocaleString("fr-FR")} XAF — Loyer {moisCourant}
+                    {total.toLocaleString("fr-FR")} XAF — {moisCourant}
                   </p>
                   <p className="text-xs mb-6" style={{ color: "#94A3B8" }}>
                     Votre quittance a été générée automatiquement.
@@ -1217,7 +1448,7 @@ export default function PaiementPage() {
                     ))}
                   </div>
 
-                  <div className="w-full grid grid-cols-1 gap-3">
+                  <div className="w-full grid gap-3">
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -1228,6 +1459,8 @@ export default function PaiementPage() {
                         background: "linear-gradient(135deg,#059669,#047857)",
                         boxShadow: "0 4px 14px rgba(5,150,105,.3)",
                         opacity: downloading ? 0.7 : 1,
+                        border: "none",
+                        cursor: "pointer",
                       }}
                     >
                       {downloading ? (
@@ -1319,7 +1552,7 @@ export default function PaiementPage() {
                         cursor: "pointer",
                       }}
                     >
-                      Changer de moyen
+                      Modifier ma sélection
                     </button>
                   </div>
                 </motion.div>
