@@ -43,7 +43,7 @@ interface Bien {
 }
 interface Contrat {
   id: number;
-  bien: number;
+  bien: { id: number; titre: string } | number;
   locataire: { id: number; nom_complet: string; telephone: string };
   statut: string;
 }
@@ -615,7 +615,10 @@ export default function RelevesPage() {
     setSelectedBien(b);
     // Trouver le contrat actif pour ce bien
     const contrat =
-      contrats.find((c) => c.bien === b.id && c.statut === "actif") ?? null;
+      contrats.find((c) => {
+        const bienId = typeof c.bien === "object" ? c.bien.id : c.bien;
+        return bienId === b.id && c.statut === "actif";
+      }) ?? null;
     setSelectedContrat(contrat);
     // Charger les tarifs
     setTarifLoading(true);
@@ -1068,9 +1071,13 @@ export default function RelevesPage() {
                         ) : (
                           <div className="space-y-2">
                             {biensFiltres.map((b) => {
-                              const contrat = contrats.find(
-                                (c) => c.bien === b.id && c.statut === "actif",
-                              );
+                              const contrat = contrats.find((c) => {
+                                const bienId =
+                                  typeof c.bien === "object"
+                                    ? c.bien.id
+                                    : c.bien;
+                                return bienId === b.id && c.statut === "actif";
+                              });
                               return (
                                 <button
                                   key={b.id}
