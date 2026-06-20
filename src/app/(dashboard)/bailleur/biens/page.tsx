@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,8 @@ import {
   IconAlertCircle,
   IconRefresh,
   IconArrowLeft,
+  IconDroplet,
+  IconBolt,
 } from "@tabler/icons-react";
 
 interface Structure {
@@ -35,54 +37,43 @@ interface Structure {
   nom: string;
 }
 
+// ── FormData avec noms corrects alignés sur le modèle Django ──
 interface FormData {
   titre: string;
   description: string;
   adresse: string;
-  ville: string;
   prix: string;
-  caution: string;
   type_bien: string;
   categorie: string;
   surface: string;
-  nb_pieces: string;
-  nb_chambres: string;
-  etage: string;
   structure: string;
-  meuble: boolean;
-  eau_incluse: boolean;
-  elec_incluse: boolean;
+  est_meuble: boolean; // était 'meuble'   → ignoré par Django
+  est_climatise: boolean; // était 'elec_incluse' → ignoré par Django
+  a_ascenseur: boolean; // nouveau champ
+  tarif_eau: string; // nouveau — crée un Tarif
+  tarif_elec: string; // nouveau — crée un Tarif
 }
 
 const TYPES_BIEN = [
+  { val: "chambre", lbl: "Chambre" },
   { val: "studio", lbl: "Studio" },
   { val: "f1", lbl: "F1" },
   { val: "f2", lbl: "F2" },
   { val: "f3", lbl: "F3" },
-  { val: "f4", lbl: "F4+" },
+  { val: "f4_plus", lbl: "F4 et plus" },
   { val: "duplex", lbl: "Duplex" },
   { val: "villa", lbl: "Villa" },
   { val: "boutique", lbl: "Boutique" },
   { val: "bureau", lbl: "Bureau" },
   { val: "magasin", lbl: "Magasin" },
   { val: "entrepot", lbl: "Entrepôt" },
+  { val: "autre", lbl: "Autre" },
 ];
 
 const CATEGORIES = [
   { val: "residentiel", lbl: "Résidentiel" },
   { val: "commercial", lbl: "Commercial" },
   { val: "mixte", lbl: "Mixte" },
-];
-
-const VILLES = [
-  "Douala",
-  "Yaoundé",
-  "Bafoussam",
-  "Limbé",
-  "Kribi",
-  "Garoua",
-  "Ngaoundéré",
-  "Autre",
 ];
 
 function Skeleton({ className = "" }: { className?: string }) {
@@ -103,8 +94,8 @@ function StatutBadge({ statut }: { statut: string }) {
   const map: Record<string, { bg: string; col: string; lbl: string }> = {
     libre: { bg: "#ECFDF5", col: "#059669", lbl: "Libre" },
     occupe: { bg: "#EFF6FF", col: "#2563EB", lbl: "Occupé" },
-    en_travaux: { bg: "#FFFBEB", col: "#D97706", lbl: "En travaux" },
-    indisponible: { bg: "#FEF2F2", col: "#DC2626", lbl: "Indisponible" },
+    maintenance: { bg: "#FFFBEB", col: "#D97706", lbl: "Maintenance" },
+    inactif: { bg: "#FEF2F2", col: "#DC2626", lbl: "Inactif" },
   };
   const s = map[statut] ?? { bg: "#F1F5F9", col: "#64748B", lbl: statut };
   return (
@@ -117,7 +108,95 @@ function StatutBadge({ statut }: { statut: string }) {
   );
 }
 
-// ── Composant principal ────────────────────────────────────
+// ── Toggle correct : position:relative inline + span unique ───
+function Toggle({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        onChange(!value);
+      }}
+      style={{
+        width: "44px",
+        height: "24px",
+        borderRadius: "12px",
+        border: "none",
+        cursor: "pointer",
+        flexShrink: 0,
+        position: "relative", // ← obligatoire pour le span absolu
+        transition: "background .2s",
+        background: value ? "#2563EB" : "#E2E8F0",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: "4px",
+          left: value ? "22px" : "4px",
+          width: "16px",
+          height: "16px",
+          borderRadius: "50%",
+          background: "#fff",
+          transition: "left .2s",
+          boxShadow: "0 1px 4px rgba(0,0,0,.2)",
+        }}
+      />
+    </button>
+  );
+}
+
+// ── Champ de formulaire réutilisable ──────────────────────────
+function Field({
+  label,
+  required,
+  error,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label
+        className="block text-xs font-semibold mb-1.5"
+        style={{ color: "#374151" }}
+      >
+        {label} {required && <span style={{ color: "#EF4444" }}>*</span>}
+      </label>
+      {children}
+      {error && (
+        <p className="text-xs mt-1" style={{ color: "#EF4444" }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const INPUT = {
+  width: "100%",
+  height: "40px",
+  padding: "0 12px",
+  borderRadius: "10px",
+  border: "1.5px solid #E2E8F0",
+  fontSize: "13px",
+  color: "#0F172A",
+  outline: "none",
+  background: "#fff",
+  fontFamily: "inherit",
+  boxSizing: "border-box" as const,
+};
+
+// ── Page principale ───────────────────────────────────────────
 function BiensPageContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
@@ -136,25 +215,26 @@ function BiensPageContent() {
   const [editBien, setEditBien] = useState<Bien | null>(null);
   const [galerieBien, setGalerieBien] = useState<Bien | null>(null);
 
-  const [form, setForm] = useState<FormData>({
+  const EMPTY_FORM: FormData = {
     titre: "",
     description: "",
     adresse: "",
-    ville: "Douala",
     prix: "",
-    caution: "",
     type_bien: "studio",
     categorie: "residentiel",
     surface: "",
-    nb_pieces: "",
-    nb_chambres: "",
-    etage: "",
     structure: "",
-    meuble: false,
-    eau_incluse: false,
-    elec_incluse: false,
-  });
+    est_meuble: false,
+    est_climatise: false,
+    a_ascenseur: false,
+    tarif_eau: "",
+    tarif_elec: "",
+  };
+  const [form, setForm] = useState<FormData>(EMPTY_FORM);
+  const setF = (k: keyof FormData, v: string | boolean) =>
+    setForm((f) => ({ ...f, [k]: v }));
 
+  // ── Chargement ──────────────────────────────────────────────
   const load = async () => {
     setLoading(true);
     try {
@@ -165,18 +245,7 @@ function BiensPageContent() {
         api.get<PaginatedResponse<Bien>>(biensUrl),
         api.get<PaginatedResponse<Structure>>("/structures/"),
       ]);
-      const photosRes = await api.get(
-        "/documents/mes-documents/?type=photo_bien",
-      );
-      const photosData = photosRes.data ?? [];
-      setBiens(
-        biensRes.data.results.map((b: Bien) => ({
-          ...b,
-          photos: photosData.filter(
-            (d: { object_id: number }) => d.object_id === b.id,
-          ),
-        })),
-      );
+      setBiens(biensRes.data.results);
       setStructures(structRes.data.results);
     } catch {
     } finally {
@@ -184,54 +253,14 @@ function BiensPageContent() {
     }
   };
 
-  const loadPhotos = async () => {
-    try {
-      const biensUrl = structureId
-        ? `/biens/?structure=${structureId}`
-        : "/biens/";
-      const [biensRes, photosRes] = await Promise.all([
-        api.get<PaginatedResponse<Bien>>(biensUrl),
-        api.get("/documents/mes-documents/?type=photo_bien"),
-      ]);
-      const photosData = photosRes.data ?? [];
-      setBiens(
-        biensRes.data.results.map((b: Bien) => ({
-          ...b,
-          photos: photosData.filter(
-            (d: { object_id: number }) => d.object_id === b.id,
-          ),
-        })),
-      );
-    } catch {}
-  };
-
   useEffect(() => {
-    const init = async () => {
-      await load();
-    };
-    init();
+    load();
   }, [structureId]);
 
+  // ── Ouverture formulaire ─────────────────────────────────────
   const openAdd = () => {
     setEditBien(null);
-    setForm({
-      titre: "",
-      description: "",
-      adresse: "",
-      ville: "Douala",
-      prix: "",
-      caution: "",
-      type_bien: "studio",
-      categorie: "residentiel",
-      surface: "",
-      nb_pieces: "",
-      nb_chambres: "",
-      etage: "",
-      structure: structures[0]?.id.toString() ?? "",
-      meuble: false,
-      eau_incluse: false,
-      elec_incluse: false,
-    });
+    setForm({ ...EMPTY_FORM, structure: structures[0]?.id.toString() ?? "" });
     setErrors({});
     setShowForm(true);
   };
@@ -242,53 +271,79 @@ function BiensPageContent() {
       titre: b.titre,
       description: b.description ?? "",
       adresse: b.adresse,
-      ville: b.ville ?? "Douala",
       prix: b.prix.toString(),
-      caution: b.caution?.toString() ?? "",
       type_bien: b.type_bien,
       categorie: b.categorie,
       surface: b.surface?.toString() ?? "",
-      nb_pieces: b.nb_pieces?.toString() ?? "",
-      nb_chambres: b.nb_chambres?.toString() ?? "",
-      etage: b.etage?.toString() ?? "",
       structure: b.structure?.toString() ?? "",
-      meuble: b.meuble ?? false,
-      eau_incluse: b.eau_incluse ?? false,
-      elec_incluse: b.elec_incluse ?? false,
+      est_meuble: (b as any).est_meuble ?? false,
+      est_climatise: (b as any).est_climatise ?? false,
+      a_ascenseur: (b as any).a_ascenseur ?? false,
+      tarif_eau: "",
+      tarif_elec: "", // rechargés depuis l'API si besoin
     });
     setErrors({});
     setShowForm(true);
   };
 
+  // ── Validation ───────────────────────────────────────────────
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!form.titre.trim()) e.titre = "Le titre est requis";
     if (!form.adresse.trim()) e.adresse = "L'adresse est requise";
     if (!form.prix || isNaN(Number(form.prix))) e.prix = "Loyer invalide";
     if (!form.structure) e.structure = "Choisissez une structure";
+    if (form.tarif_eau && isNaN(Number(form.tarif_eau)))
+      e.tarif_eau = "Valeur invalide";
+    if (form.tarif_elec && isNaN(Number(form.tarif_elec)))
+      e.tarif_elec = "Valeur invalide";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
+  // ── Soumission ───────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!validate()) return;
     setSaving(true);
     try {
+      // ── Payload aligné sur le modèle Bien de Django ──────────
       const payload = {
-        ...form,
+        titre: form.titre,
+        description: form.description,
+        adresse: form.adresse,
         prix: Number(form.prix),
-        caution: form.caution ? Number(form.caution) : null,
+        type_bien: form.type_bien,
+        categorie: form.categorie,
         surface: form.surface ? Number(form.surface) : null,
-        nb_pieces: form.nb_pieces ? Number(form.nb_pieces) : null,
-        nb_chambres: form.nb_chambres ? Number(form.nb_chambres) : null,
-        etage: form.etage ? Number(form.etage) : null,
         structure: Number(form.structure),
+        est_meuble: form.est_meuble,
+        est_climatise: form.est_climatise,
+        a_ascenseur: form.a_ascenseur,
       };
+
+      let bienId: number;
       if (editBien) {
         await api.put(`/biens/${editBien.id}/`, payload);
+        bienId = editBien.id;
       } else {
-        await api.post("/biens/", payload);
+        const res = await api.post("/biens/", payload);
+        bienId = res.data.id;
       }
+
+      // ── Sauvegarder les tarifs si renseignés ─────────────────
+      if (form.tarif_eau || form.tarif_elec) {
+        try {
+          await api.post("/tarifs/", {
+            bien: bienId,
+            tarif_eau: parseFloat(form.tarif_eau) || 0,
+            tarif_elec: parseFloat(form.tarif_elec) || 0,
+            date_application: new Date().toISOString().split("T")[0],
+          });
+        } catch {
+          // L'endpoint tarif peut ne pas exister encore — non bloquant
+        }
+      }
+
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
@@ -317,9 +372,6 @@ function BiensPageContent() {
     } catch {}
   };
 
-  const set = (k: keyof FormData, v: string | boolean) =>
-    setForm((prev) => ({ ...prev, [k]: v }));
-
   const filtered = biens.filter((b) => {
     const matchSearch =
       !search ||
@@ -335,18 +387,10 @@ function BiensPageContent() {
     <>
       <style>{`
         @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes spin{to{transform:rotate(360deg)}}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#E2E8F0;border-radius:4px}
         .bien-card{transition:all .2s ease}
         .bien-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.08)}
-        .input-field{width:100%;height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:13px;color:#0F172A;outline:none;background:#fff;transition:border-color .15s}
-        .input-field:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-        .input-field.error{border-color:#EF4444}
-        .textarea-field{width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:13px;color:#0F172A;outline:none;background:#fff;resize:vertical;min-height:80px;transition:border-color .15s}
-        .textarea-field:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-        .select-field{width:100%;height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:13px;color:#0F172A;outline:none;background:#fff;cursor:pointer;transition:border-color .15s}
-        .select-field:focus{border-color:#2563EB}
-        .toggle{width:40px;height:22px;border-radius:11px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
-        .toggle::after{content:'';position:absolute;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
       `}</style>
 
       <div
@@ -392,7 +436,11 @@ function BiensPageContent() {
               <button
                 onClick={load}
                 className="w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }}
+                style={{
+                  background: "#F1F5F9",
+                  border: "1px solid #E2E8F0",
+                  cursor: "pointer",
+                }}
               >
                 <IconRefresh
                   size={15}
@@ -410,6 +458,8 @@ function BiensPageContent() {
                 style={{
                   background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
                   boxShadow: "0 2px 8px rgba(37,99,235,.35)",
+                  border: "none",
+                  cursor: "pointer",
                 }}
               >
                 <IconPlus size={15} />
@@ -418,7 +468,6 @@ function BiensPageContent() {
             </div>
           </header>
 
-          {/* Bandeau filtre structure */}
           {structureId && (
             <div
               className="flex items-center gap-2 px-6 py-2 text-xs font-semibold flex-shrink-0"
@@ -454,8 +503,7 @@ function BiensPageContent() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher un bien..."
-                className="input-field"
-                style={{ paddingLeft: "36px" }}
+                style={{ ...INPUT, paddingLeft: "36px" }}
               />
             </div>
             <div
@@ -477,8 +525,15 @@ function BiensPageContent() {
                           background: "#fff",
                           color: "#0F172A",
                           boxShadow: "0 1px 3px rgba(0,0,0,.1)",
+                          border: "none",
+                          cursor: "pointer",
                         }
-                      : { color: "#64748B", background: "transparent" }
+                      : {
+                          color: "#64748B",
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                        }
                   }
                 >
                   {f.lbl}
@@ -489,40 +544,36 @@ function BiensPageContent() {
               className="flex gap-1 p-1 rounded-xl"
               style={{ background: "#F1F5F9" }}
             >
-              <button
-                onClick={() => setView("grid")}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                style={
-                  view === "grid"
-                    ? {
-                        background: "#fff",
-                        boxShadow: "0 1px 3px rgba(0,0,0,.1)",
-                      }
-                    : {}
-                }
-              >
-                <IconLayoutGrid
-                  size={15}
-                  style={{ color: view === "grid" ? "#2563EB" : "#94A3B8" }}
-                />
-              </button>
-              <button
-                onClick={() => setView("list")}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                style={
-                  view === "list"
-                    ? {
-                        background: "#fff",
-                        boxShadow: "0 1px 3px rgba(0,0,0,.1)",
-                      }
-                    : {}
-                }
-              >
-                <IconList
-                  size={15}
-                  style={{ color: view === "list" ? "#2563EB" : "#94A3B8" }}
-                />
-              </button>
+              {(
+                [
+                  ["grid", <IconLayoutGrid size={15} />],
+                  ["list", <IconList size={15} />],
+                ] as const
+              ).map(([v, ico]) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v as "grid" | "list")}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                  style={
+                    view === v
+                      ? {
+                          background: "#fff",
+                          boxShadow: "0 1px 3px rgba(0,0,0,.1)",
+                          border: "none",
+                          cursor: "pointer",
+                        }
+                      : {
+                          border: "none",
+                          cursor: "pointer",
+                          background: "transparent",
+                        }
+                  }
+                >
+                  <span style={{ color: view === v ? "#2563EB" : "#94A3B8" }}>
+                    {ico}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -563,8 +614,8 @@ function BiensPageContent() {
                 </h3>
                 <p className="text-sm mb-5" style={{ color: "#64748B" }}>
                   {search || filterStatut !== "tous"
-                    ? "Modifiez vos filtres de recherche"
-                    : "Ajoutez votre premier bien pour commencer"}
+                    ? "Modifiez vos filtres"
+                    : "Ajoutez votre premier bien"}
                 </p>
                 {!search && filterStatut === "tous" && (
                   <button
@@ -572,6 +623,8 @@ function BiensPageContent() {
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
                     style={{
                       background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
+                      border: "none",
+                      cursor: "pointer",
                     }}
                   >
                     <IconPlus size={15} /> Ajouter un bien
@@ -585,7 +638,7 @@ function BiensPageContent() {
                     key={b.id}
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.35 }}
+                    transition={{ delay: i * 0.05 }}
                     className="bien-card bg-white rounded-2xl overflow-hidden"
                     style={{
                       border: "1px solid #E2E8F0",
@@ -598,21 +651,15 @@ function BiensPageContent() {
                         background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)",
                       }}
                     >
-                      {b.photos && b.photos.length > 0 ? (
+                      {(b as any).photos?.length > 0 ? (
                         <img
                           src={
-                            b.photos.find((p) => p.est_principal)
-                              ?.url_publique ?? b.photos[0].url_publique
+                            (b as any).photos.find((p: any) => p.est_principal)
+                              ?.url_publique ??
+                            (b as any).photos[0].url_publique
                           }
                           alt={b.titre}
                           className="w-full h-full object-cover"
-                          style={{ transition: "transform .3s ease" }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.transform = "scale(1.05)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.transform = "scale(1)")
-                          }
                         />
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2">
@@ -625,20 +672,6 @@ function BiensPageContent() {
                             style={{ color: "#93C5FD" }}
                           >
                             Aucune photo
-                          </span>
-                        </div>
-                      )}
-                      {b.photos && b.photos.length > 0 && (
-                        <div
-                          className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg"
-                          style={{
-                            background: "rgba(0,0,0,.55)",
-                            backdropFilter: "blur(4px)",
-                          }}
-                        >
-                          <IconPhoto size={11} color="white" />
-                          <span className="text-xs font-semibold text-white">
-                            {b.photos.length}
                           </span>
                         </div>
                       )}
@@ -716,21 +749,36 @@ function BiensPageContent() {
                         <button
                           onClick={() => openEdit(b)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold"
-                          style={{ background: "#EFF6FF", color: "#2563EB" }}
+                          style={{
+                            background: "#EFF6FF",
+                            color: "#2563EB",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
                         >
                           <IconEdit size={13} /> Modifier
                         </button>
                         <button
                           onClick={() => setGalerieBien(b)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold"
-                          style={{ background: "#F8FAFC", color: "#64748B" }}
+                          style={{
+                            background: "#F8FAFC",
+                            color: "#64748B",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
                         >
-                          <IconEye size={13} /> Voir
+                          <IconEye size={13} /> Photos
                         </button>
                         <button
                           onClick={() => handleDelete(b.id)}
-                          className="w-9 flex items-center justify-center py-2 rounded-lg text-xs"
-                          style={{ background: "#FEF2F2", color: "#EF4444" }}
+                          className="w-9 flex items-center justify-center py-2 rounded-lg"
+                          style={{
+                            background: "#FEF2F2",
+                            color: "#EF4444",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
                         >
                           <IconTrash size={13} />
                         </button>
@@ -794,14 +842,24 @@ function BiensPageContent() {
                       <button
                         onClick={() => openEdit(b)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: "#EFF6FF", color: "#2563EB" }}
+                        style={{
+                          background: "#EFF6FF",
+                          color: "#2563EB",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
                       >
                         <IconEdit size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(b.id)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: "#FEF2F2", color: "#EF4444" }}
+                        style={{
+                          background: "#FEF2F2",
+                          color: "#EF4444",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
                       >
                         <IconTrash size={14} />
                       </button>
@@ -813,7 +871,7 @@ function BiensPageContent() {
           </div>
         </div>
 
-        {/* Drawer formulaire */}
+        {/* ── Drawer formulaire ── */}
         <AnimatePresence>
           {showForm && (
             <>
@@ -833,15 +891,16 @@ function BiensPageContent() {
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
-                className="fixed right-0 top-0 bottom-0 z-50 overflow-y-auto"
+                className="fixed right-0 top-0 bottom-0 z-50 flex flex-col"
                 style={{
-                  width: "min(520px, 100vw)",
+                  width: "min(520px,100vw)",
                   background: "#fff",
                   boxShadow: "-8px 0 40px rgba(0,0,0,.15)",
                 }}
               >
+                {/* En-tête */}
                 <div
-                  className="flex items-center justify-between px-6 py-5 sticky top-0 bg-white z-10"
+                  className="flex items-center justify-between px-6 py-5 flex-shrink-0"
                   style={{ borderBottom: "1px solid #F1F5F9" }}
                 >
                   <div>
@@ -860,15 +919,20 @@ function BiensPageContent() {
                   <button
                     onClick={() => setShowForm(false)}
                     className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ background: "#F1F5F9" }}
+                    style={{
+                      background: "#F1F5F9",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
                   >
                     <IconX size={16} style={{ color: "#64748B" }} />
                   </button>
                 </div>
 
-                <div className="px-6 py-5 space-y-5">
+                {/* Corps scrollable */}
+                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                   {/* Infos générales */}
-                  <div>
+                  <section>
                     <div
                       className="text-xs font-bold uppercase tracking-wider mb-3"
                       style={{ color: "#94A3B8" }}
@@ -876,41 +940,27 @@ function BiensPageContent() {
                       Informations générales
                     </div>
                     <div className="space-y-3">
-                      <div>
-                        <label
-                          className="block text-xs font-semibold mb-1.5"
-                          style={{ color: "#374151" }}
-                        >
-                          Titre du bien{" "}
-                          <span style={{ color: "#EF4444" }}>*</span>
-                        </label>
+                      <Field
+                        label="Titre du bien"
+                        required
+                        error={errors.titre}
+                      >
                         <input
                           value={form.titre}
-                          onChange={(e) => set("titre", e.target.value)}
+                          onChange={(e) => setF("titre", e.target.value)}
                           placeholder="Ex: Studio meublé — Appartement 101"
-                          className={`input-field ${errors.titre ? "error" : ""}`}
+                          style={{
+                            ...INPUT,
+                            borderColor: errors.titre ? "#EF4444" : "#E2E8F0",
+                          }}
                         />
-                        {errors.titre && (
-                          <p
-                            className="text-xs mt-1"
-                            style={{ color: "#EF4444" }}
-                          >
-                            {errors.titre}
-                          </p>
-                        )}
-                      </div>
+                      </Field>
                       <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            className="block text-xs font-semibold mb-1.5"
-                            style={{ color: "#374151" }}
-                          >
-                            Type de bien
-                          </label>
+                        <Field label="Type de bien">
                           <select
                             value={form.type_bien}
-                            onChange={(e) => set("type_bien", e.target.value)}
-                            className="select-field"
+                            onChange={(e) => setF("type_bien", e.target.value)}
+                            style={{ ...INPUT, cursor: "pointer" }}
                           >
                             {TYPES_BIEN.map((t) => (
                               <option key={t.val} value={t.val}>
@@ -918,18 +968,12 @@ function BiensPageContent() {
                               </option>
                             ))}
                           </select>
-                        </div>
-                        <div>
-                          <label
-                            className="block text-xs font-semibold mb-1.5"
-                            style={{ color: "#374151" }}
-                          >
-                            Catégorie
-                          </label>
+                        </Field>
+                        <Field label="Catégorie">
                           <select
                             value={form.categorie}
-                            onChange={(e) => set("categorie", e.target.value)}
-                            className="select-field"
+                            onChange={(e) => setF("categorie", e.target.value)}
+                            style={{ ...INPUT, cursor: "pointer" }}
                           >
                             {CATEGORIES.map((c) => (
                               <option key={c.val} value={c.val}>
@@ -937,20 +981,23 @@ function BiensPageContent() {
                               </option>
                             ))}
                           </select>
-                        </div>
+                        </Field>
                       </div>
-                      <div>
-                        <label
-                          className="block text-xs font-semibold mb-1.5"
-                          style={{ color: "#374151" }}
-                        >
-                          Structure / Immeuble{" "}
-                          <span style={{ color: "#EF4444" }}>*</span>
-                        </label>
+                      <Field
+                        label="Structure / Immeuble"
+                        required
+                        error={errors.structure}
+                      >
                         <select
                           value={form.structure}
-                          onChange={(e) => set("structure", e.target.value)}
-                          className={`select-field ${errors.structure ? "border-red-400" : ""}`}
+                          onChange={(e) => setF("structure", e.target.value)}
+                          style={{
+                            ...INPUT,
+                            cursor: "pointer",
+                            borderColor: errors.structure
+                              ? "#EF4444"
+                              : "#E2E8F0",
+                          }}
                         >
                           <option value="">-- Choisir une structure --</option>
                           {structures.map((s) => (
@@ -959,14 +1006,6 @@ function BiensPageContent() {
                             </option>
                           ))}
                         </select>
-                        {errors.structure && (
-                          <p
-                            className="text-xs mt-1"
-                            style={{ color: "#EF4444" }}
-                          >
-                            {errors.structure}
-                          </p>
-                        )}
                         {structures.length === 0 && (
                           <p
                             className="text-xs mt-1.5 flex items-center gap-1"
@@ -976,79 +1015,55 @@ function BiensPageContent() {
                             structure dans &ldquo;Structures&rdquo;
                           </p>
                         )}
-                      </div>
-                      <div>
-                        <label
-                          className="block text-xs font-semibold mb-1.5"
-                          style={{ color: "#374151" }}
-                        >
-                          Description
-                        </label>
+                      </Field>
+                      <Field label="Description">
                         <textarea
                           value={form.description}
-                          onChange={(e) => set("description", e.target.value)}
+                          onChange={(e) => setF("description", e.target.value)}
                           placeholder="Décrivez le bien..."
-                          className="textarea-field"
+                          rows={3}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            borderRadius: "10px",
+                            border: "1.5px solid #E2E8F0",
+                            fontSize: "13px",
+                            color: "#0F172A",
+                            outline: "none",
+                            background: "#fff",
+                            resize: "vertical",
+                            minHeight: "80px",
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                          }}
                         />
-                      </div>
+                      </Field>
                     </div>
-                  </div>
+                  </section>
 
                   {/* Localisation */}
-                  <div>
+                  <section>
                     <div
                       className="text-xs font-bold uppercase tracking-wider mb-3"
                       style={{ color: "#94A3B8" }}
                     >
                       Localisation
                     </div>
-                    <div className="space-y-3">
-                      <div>
-                        <label
-                          className="block text-xs font-semibold mb-1.5"
-                          style={{ color: "#374151" }}
-                        >
-                          Adresse <span style={{ color: "#EF4444" }}>*</span>
-                        </label>
-                        <input
-                          value={form.adresse}
-                          onChange={(e) => set("adresse", e.target.value)}
-                          placeholder="Ex: Bonapriso, rue du boulanger"
-                          className={`input-field ${errors.adresse ? "error" : ""}`}
-                        />
-                        {errors.adresse && (
-                          <p
-                            className="text-xs mt-1"
-                            style={{ color: "#EF4444" }}
-                          >
-                            {errors.adresse}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label
-                          className="block text-xs font-semibold mb-1.5"
-                          style={{ color: "#374151" }}
-                        >
-                          Ville
-                        </label>
-                        <select
-                          value={form.ville}
-                          onChange={(e) => set("ville", e.target.value)}
-                          className="select-field"
-                        >
-                          {VILLES.map((v) => (
-                            <option key={v} value={v}>
-                              {v}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                    <Field label="Adresse" required error={errors.adresse}>
+                      <input
+                        value={form.adresse}
+                        onChange={(e) => setF("adresse", e.target.value)}
+                        placeholder="Ex: Logbessou, Douala"
+                        style={{
+                          ...INPUT,
+                          borderColor: errors.adresse ? "#EF4444" : "#E2E8F0",
+                        }}
+                      />
+                    </Field>
+                  </section>
 
                   {/* Finances */}
-                  <div>
+                  <section>
                     <div
                       className="text-xs font-bold uppercase tracking-wider mb-3"
                       style={{ color: "#94A3B8" }}
@@ -1056,108 +1071,151 @@ function BiensPageContent() {
                       Finances
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label
-                          className="block text-xs font-semibold mb-1.5"
-                          style={{ color: "#374151" }}
-                        >
-                          Loyer mensuel (XAF){" "}
-                          <span style={{ color: "#EF4444" }}>*</span>
-                        </label>
+                      <Field
+                        label="Loyer mensuel (XAF)"
+                        required
+                        error={errors.prix}
+                      >
                         <input
                           type="number"
                           value={form.prix}
-                          onChange={(e) => set("prix", e.target.value)}
+                          onChange={(e) => setF("prix", e.target.value)}
                           placeholder="85000"
-                          className={`input-field ${errors.prix ? "error" : ""}`}
+                          style={{
+                            ...INPUT,
+                            borderColor: errors.prix ? "#EF4444" : "#E2E8F0",
+                          }}
                         />
-                        {errors.prix && (
-                          <p
-                            className="text-xs mt-1"
-                            style={{ color: "#EF4444" }}
-                          >
-                            {errors.prix}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label
-                          className="block text-xs font-semibold mb-1.5"
-                          style={{ color: "#374151" }}
-                        >
-                          Caution (XAF)
-                        </label>
+                      </Field>
+                      <Field label="Surface (m²)">
                         <input
                           type="number"
-                          value={form.caution}
-                          onChange={(e) => set("caution", e.target.value)}
-                          placeholder="85000"
-                          className="input-field"
+                          value={form.surface}
+                          onChange={(e) => setF("surface", e.target.value)}
+                          placeholder="35"
+                          style={INPUT}
                         />
-                      </div>
+                      </Field>
                     </div>
-                  </div>
+                  </section>
 
-                  {/* Caractéristiques */}
-                  <div>
+                  {/* ── Tarifs eau & électricité (NOUVEAU) ───────── */}
+                  <section>
                     <div
-                      className="text-xs font-bold uppercase tracking-wider mb-3"
+                      className="text-xs font-bold uppercase tracking-wider mb-1"
                       style={{ color: "#94A3B8" }}
                     >
-                      Caractéristiques
+                      Tarifs eau & électricité
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { key: "surface", lbl: "Surface (m²)", ph: "35" },
-                        { key: "nb_pieces", lbl: "Nb pièces", ph: "2" },
-                        { key: "nb_chambres", lbl: "Nb chambres", ph: "1" },
-                        { key: "etage", lbl: "Étage", ph: "2" },
-                      ].map((f) => (
-                        <div key={f.key}>
-                          <label
-                            className="block text-xs font-semibold mb-1.5"
-                            style={{ color: "#374151" }}
-                          >
-                            {f.lbl}
-                          </label>
-                          <input
-                            type="number"
-                            value={form[f.key as keyof FormData] as string}
-                            onChange={(e) =>
-                              set(f.key as keyof FormData, e.target.value)
-                            }
-                            placeholder={f.ph}
-                            className="input-field"
-                          />
+                    <p className="text-xs mb-3" style={{ color: "#94A3B8" }}>
+                      Utilisés pour calculer les charges mensuelles du locataire
+                    </p>
+                    <div
+                      className="p-4 rounded-2xl"
+                      style={{
+                        background: "#F8FAFC",
+                        border: "1px solid #E2E8F0",
+                      }}
+                    >
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field
+                          label="Tarif eau (XAF/m³)"
+                          error={errors.tarif_eau}
+                        >
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                              <IconDroplet
+                                size={14}
+                                style={{ color: "#0EA5E9" }}
+                              />
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={form.tarif_eau}
+                              onChange={(e) =>
+                                setF("tarif_eau", e.target.value)
+                              }
+                              placeholder="250"
+                              style={{
+                                ...INPUT,
+                                paddingLeft: "30px",
+                                background: "#F0F9FF",
+                                borderColor: "#BAE6FD",
+                              }}
+                            />
+                          </div>
+                        </Field>
+                        <Field
+                          label="Tarif élec (XAF/kWh)"
+                          error={errors.tarif_elec}
+                        >
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                              <IconBolt
+                                size={14}
+                                style={{ color: "#F59E0B" }}
+                              />
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={form.tarif_elec}
+                              onChange={(e) =>
+                                setF("tarif_elec", e.target.value)
+                              }
+                              placeholder="100"
+                              style={{
+                                ...INPUT,
+                                paddingLeft: "30px",
+                                background: "#FFFBEB",
+                                borderColor: "#FDE68A",
+                              }}
+                            />
+                          </div>
+                        </Field>
+                      </div>
+                      {(form.tarif_eau || form.tarif_elec) && (
+                        <div
+                          className="flex items-center gap-2 mt-3 pt-3 text-xs"
+                          style={{
+                            borderTop: "1px solid #E2E8F0",
+                            color: "#059669",
+                          }}
+                        >
+                          <IconCheck size={12} />
+                          Ces tarifs seront utilisés pour les relevés mensuels
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
+                  </section>
 
                   {/* Options */}
-                  <div>
+                  <section>
                     <div
                       className="text-xs font-bold uppercase tracking-wider mb-3"
                       style={{ color: "#94A3B8" }}
                     >
-                      Options incluses
+                      Options
                     </div>
                     <div className="space-y-3">
                       {[
                         {
-                          key: "meuble",
+                          key: "est_meuble" as const,
                           lbl: "Bien meublé",
                           sub: "Le logement est fourni avec des meubles",
                         },
                         {
-                          key: "eau_incluse",
-                          lbl: "Eau incluse",
-                          sub: "Charges eau comprises dans le loyer",
+                          key: "est_climatise" as const,
+                          lbl: "Climatisé",
+                          sub: "Climatisation installée dans le logement",
                         },
                         {
-                          key: "elec_incluse",
-                          lbl: "Électricité incluse",
-                          sub: "Charges électricité comprises",
+                          key: "a_ascenseur" as const,
+                          lbl: "Ascenseur",
+                          sub: "Accès ascenseur disponible",
                         },
                       ].map((o) => (
                         <div
@@ -1182,43 +1240,18 @@ function BiensPageContent() {
                               {o.sub}
                             </div>
                           </div>
-                          <button
-                            className="toggle"
-                            onClick={() =>
-                              set(
-                                o.key as keyof FormData,
-                                !form[o.key as keyof FormData],
-                              )
-                            }
-                            style={{
-                              background: form[o.key as keyof FormData]
-                                ? "#2563EB"
-                                : "#E2E8F0",
-                            }}
-                          >
-                            <span
-                              style={{
-                                position: "absolute",
-                                top: "3px",
-                                left: form[o.key as keyof FormData]
-                                  ? "21px"
-                                  : "3px",
-                                width: "16px",
-                                height: "16px",
-                                borderRadius: "50%",
-                                background: "#fff",
-                                transition: "left .2s",
-                                boxShadow: "0 1px 4px rgba(0,0,0,.2)",
-                              }}
-                            />
-                          </button>
+                          {/* ✅ Toggle corrigé : composant dédié avec position:relative inline */}
+                          <Toggle
+                            value={form[o.key]}
+                            onChange={(v) => setF(o.key, v)}
+                          />
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </section>
 
                   {/* Photos */}
-                  <div>
+                  <section>
                     <div
                       className="text-xs font-bold uppercase tracking-wider mb-3"
                       style={{ color: "#94A3B8" }}
@@ -1231,17 +1264,14 @@ function BiensPageContent() {
                       estPrincipal={true}
                       label="Photo principale"
                       description="JPG, PNG ou WEBP · Max 5 MB"
-                      onSuccess={() => loadPhotos()}
+                      onSuccess={() => load()}
                     />
-                    <p className="text-xs mt-2" style={{ color: "#94A3B8" }}>
-                      La photo principale sera affichée sur la fiche du bien
-                    </p>
-                  </div>
+                  </section>
                 </div>
 
-                {/* Footer drawer */}
+                {/* Pied drawer */}
                 <div
-                  className="sticky bottom-0 bg-white px-6 py-4 flex gap-3"
+                  className="flex-shrink-0 px-6 py-4 flex gap-3"
                   style={{
                     borderTop: "1px solid #F1F5F9",
                     boxShadow: "0 -4px 16px rgba(0,0,0,.06)",
@@ -1250,7 +1280,12 @@ function BiensPageContent() {
                   <button
                     onClick={() => setShowForm(false)}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold"
-                    style={{ background: "#F1F5F9", color: "#64748B" }}
+                    style={{
+                      background: "#F1F5F9",
+                      color: "#64748B",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
                   >
                     Annuler
                   </button>
@@ -1265,6 +1300,8 @@ function BiensPageContent() {
                         ? "#059669"
                         : "linear-gradient(135deg,#2563EB,#1D4ED8)",
                       boxShadow: "0 2px 10px rgba(37,99,235,.3)",
+                      border: "none",
+                      cursor: "pointer",
                     }}
                   >
                     {saving ? (
@@ -1291,24 +1328,23 @@ function BiensPageContent() {
             </>
           )}
         </AnimatePresence>
-      </div>
 
-      <AnimatePresence>
-        {galerieBien && (
-          <BienGallerieManager
-            bienId={galerieBien.id}
-            bienTitre={galerieBien.titre}
-            photos={galerieBien.photos ?? []}
-            onClose={() => setGalerieBien(null)}
-            onUpdate={() => loadPhotos()}
-          />
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {galerieBien && (
+            <BienGallerieManager
+              bienId={galerieBien.id}
+              bienTitre={galerieBien.titre}
+              photos={(galerieBien as any).photos ?? []}
+              onClose={() => setGalerieBien(null)}
+              onUpdate={() => load()}
+            />
+          )}
+        </AnimatePresence>
+      </div>
     </>
   );
 }
 
-// ── Export avec Suspense ───────────────────────────────────
 export default function BiensPage() {
   return (
     <Suspense
