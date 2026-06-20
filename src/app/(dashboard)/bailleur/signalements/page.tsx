@@ -781,21 +781,41 @@ export default function BailleurSignalementsPage() {
                 style={{ background: "#F1F5F9" }}
               >
                 {[
-                  { val: "tous", lbl: "Tous" },
-                  { val: "ouvert", lbl: "Ouverts" },
-                  { val: "en_cours", lbl: "En cours" },
-                  { val: "resolu", lbl: "Résolus" },
-                  { val: "clos", lbl: "Clos" },
+                  { val: "tous", lbl: "Tous", ico: null },
+                  {
+                    val: "ouvert",
+                    lbl: "Ouverts",
+                    ico: <IconClock size={11} />,
+                    col: "#2563EB",
+                  },
+                  {
+                    val: "en_cours",
+                    lbl: "En cours",
+                    ico: <IconTool size={11} />,
+                    col: "#D97706",
+                  },
+                  {
+                    val: "resolu",
+                    lbl: "Résolus",
+                    ico: <IconCheck size={11} />,
+                    col: "#059669",
+                  },
+                  {
+                    val: "clos",
+                    lbl: "Clos",
+                    ico: <IconCircleCheck size={11} />,
+                    col: "#64748B",
+                  },
                 ].map((f) => (
                   <button
                     key={f.val}
                     onClick={() => setFilterStatut(f.val)}
-                    className="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+                    className="filter-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
                     style={
                       filterStatut === f.val
                         ? {
                             background: "#fff",
-                            color: "#0F172A",
+                            color: f.col ?? "#0F172A",
                             boxShadow: "0 1px 4px rgba(0,0,0,.1)",
                             border: "none",
                             cursor: "pointer",
@@ -808,6 +828,15 @@ export default function BailleurSignalementsPage() {
                           }
                     }
                   >
+                    {f.ico && (
+                      <span
+                        style={{
+                          color: filterStatut === f.val ? f.col : "#94A3B8",
+                        }}
+                      >
+                        {f.ico}
+                      </span>
+                    )}
                     {f.lbl}
                   </button>
                 ))}
@@ -819,16 +848,16 @@ export default function BailleurSignalementsPage() {
                 style={{ background: "#F1F5F9" }}
               >
                 {[
-                  { val: "tous", lbl: "Toutes" },
-                  { val: "critique", lbl: "🔴 Critique" },
-                  { val: "elevee", lbl: "🟠 Élevée" },
-                  { val: "moyenne", lbl: "🟡 Moyenne" },
-                  { val: "basse", lbl: "🟢 Basse" },
+                  { val: "tous", lbl: "Urgence", dot: null },
+                  { val: "critique", lbl: "Critique", dot: "#F43F5E" },
+                  { val: "elevee", lbl: "Élevée", dot: "#EF4444" },
+                  { val: "moyenne", lbl: "Moyenne", dot: "#F59E0B" },
+                  { val: "basse", lbl: "Basse", dot: "#10B981" },
                 ].map((f) => (
                   <button
                     key={f.val}
                     onClick={() => setFilterUrg(f.val)}
-                    className="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+                    className="filter-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
                     style={
                       filterUrgence === f.val
                         ? {
@@ -846,6 +875,18 @@ export default function BailleurSignalementsPage() {
                           }
                     }
                   >
+                    {f.dot && (
+                      <span
+                        style={{
+                          width: "7px",
+                          height: "7px",
+                          borderRadius: "50%",
+                          background: f.dot,
+                          flexShrink: 0,
+                          display: "inline-block",
+                        }}
+                      />
+                    )}
                     {f.lbl}
                   </button>
                 ))}
