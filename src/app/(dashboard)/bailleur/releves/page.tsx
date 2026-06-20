@@ -15,17 +15,19 @@ import {
   IconCalendar,
   IconCheck,
   IconLoader2,
-  IconCalculator,
   IconX,
   IconHome2,
   IconChevronRight,
   IconBrandWhatsapp,
   IconRefresh,
   IconAlertCircle,
-  IconFileText,
+  IconSend,
+  IconClock,
+  IconUser,
+  IconCurrencyDollar,
 } from "@tabler/icons-react";
 
-// ── Types ──────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────
 interface Structure {
   id: number;
   nom: string;
@@ -39,29 +41,40 @@ interface Bien {
   statut: string;
   structure_id: number | null;
 }
-
-interface IndexConsommation {
+interface Contrat {
   id: number;
-  bien: { id: number; titre: string };
+  bien: number;
+  locataire: { id: number; nom_complet: string; telephone: string };
+  statut: string;
+}
+
+interface Releve {
+  id: number;
+  contrat: number;
+  bien: number;
+  bien_titre: string;
+  bien_adresse: string;
+  locataire_nom: string;
+  locataire_tel: string;
   mois: number;
   annee: number;
-  index_eau: string;
-  index_elec: string;
-  consommation_eau: string;
-  consommation_elec: string;
+  index_eau_debut: string | null;
+  index_eau_fin: string | null;
+  tarif_eau: string;
+  conso_eau: number;
+  montant_eau: number;
+  index_elec_debut: string | null;
+  index_elec_fin: string | null;
+  tarif_elec: string;
+  conso_elec: number;
+  montant_elec: number;
+  montant_total: number;
+  statut: "brouillon" | "envoye" | "paye";
+  statut_display: string;
   date_saisie: string;
 }
 
-interface CalcResult {
-  consommation_eau: number;
-  consommation_elec: number;
-  tarif_eau: number;
-  tarif_elec: number;
-  montant_eau: number;
-  montant_elec: number;
-  total_charges: number;
-}
-
+// ── Constantes ────────────────────────────────────────────────
 const MOIS_FR = [
   "",
   "Janvier",
@@ -79,7 +92,36 @@ const MOIS_FR = [
 ];
 const now = new Date();
 
-// ── Step indicator ─────────────────────────────────────────
+const STATUT = {
+  brouillon: {
+    bg: "#F1F5F9",
+    col: "#64748B",
+    border: "#E2E8F0",
+    ico: <IconClock size={11} />,
+    lbl: "Brouillon",
+  },
+  envoye: {
+    bg: "#EFF6FF",
+    col: "#2563EB",
+    border: "#BFDBFE",
+    ico: <IconSend size={11} />,
+    lbl: "Envoyé",
+  },
+  paye: {
+    bg: "#ECFDF5",
+    col: "#059669",
+    border: "#A7F3D0",
+    ico: <IconCheck size={11} />,
+    lbl: "Payé",
+  },
+};
+
+// ── Helpers ───────────────────────────────────────────────────
+const toFloat = (v: string) => parseFloat(v) || 0;
+const calcConso = (debut: string, fin: string) =>
+  Math.max(0, toFloat(fin) - toFloat(debut));
+
+// ── Step indicator ────────────────────────────────────────────
 function Steps({ current }: { current: number }) {
   const steps = ["Structure", "Bien", "Index"];
   return (
@@ -127,36 +169,242 @@ function Steps({ current }: { current: number }) {
   );
 }
 
-// ── Composant GroupesReleves ───────────────────────────────
+// ── Badge statut ──────────────────────────────────────────────
+function BadgeStatut({ statut }: { statut: Releve["statut"] }) {
+  const s = STATUT[statut];
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+      style={{
+        background: s.bg,
+        color: s.col,
+        border: `1px solid ${s.border}`,
+      }}
+    >
+      {s.ico}
+      {s.lbl}
+    </span>
+  );
+}
+
+// ── Carte relevé ──────────────────────────────────────────────
+function CarteReleve({
+  r,
+  onEnvoyer,
+  onWhatsApp,
+}: {
+  r: Releve;
+  onEnvoyer: (id: number) => void;
+  onWhatsApp: (r: Releve) => void;
+}) {
+  const [sending, setSending] = useState(false);
+
+  const handleEnvoyer = async () => {
+    setSending(true);
+    await onEnvoyer(r.id);
+    setSending(false);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl overflow-hidden"
+      style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+    >
+      {/* En-tête carte */}
+      <div className="flex items-start justify-between px-4 pt-4 pb-3 gap-2">
+        <div className="min-w-0">
+          <div
+            className="text-sm font-bold truncate"
+            style={{ color: "#0F172A" }}
+          >
+            {r.bien_titre}
+          </div>
+          <div
+            className="flex items-center gap-1.5 mt-0.5"
+            style={{ color: "#94A3B8" }}
+          >
+            <IconCalendar size={11} />
+            <span className="text-xs">
+              {MOIS_FR[r.mois]} {r.annee}
+            </span>
+          </div>
+          {r.locataire_nom && (
+            <div
+              className="flex items-center gap-1.5 mt-0.5"
+              style={{ color: "#64748B" }}
+            >
+              <IconUser size={11} />
+              <span className="text-xs font-medium">{r.locataire_nom}</span>
+            </div>
+          )}
+        </div>
+        <BadgeStatut statut={r.statut} />
+      </div>
+
+      {/* Index + consommation */}
+      <div className="grid grid-cols-2 gap-2 px-4 pb-3">
+        {/* Eau */}
+        <div className="rounded-xl p-2.5" style={{ background: "#F0F9FF" }}>
+          <div className="flex items-center gap-1 mb-1.5">
+            <IconDroplet size={11} style={{ color: "#0EA5E9" }} />
+            <span className="text-xs font-bold" style={{ color: "#0284C7" }}>
+              EAU
+            </span>
+          </div>
+          {r.index_eau_debut && r.index_eau_fin ? (
+            <>
+              <div
+                className="text-sm font-extrabold"
+                style={{ color: "#0EA5E9" }}
+              >
+                {r.conso_eau.toFixed(2)} m³
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: "#7DD3FC" }}>
+                {toFloat(r.index_eau_debut).toFixed(1)} →{" "}
+                {toFloat(r.index_eau_fin).toFixed(1)}
+              </div>
+              {r.montant_eau > 0 && (
+                <div
+                  className="text-xs font-bold mt-1"
+                  style={{ color: "#0284C7" }}
+                >
+                  {r.montant_eau.toLocaleString("fr-FR")} XAF
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-xs" style={{ color: "#BAE6FD" }}>
+              Non renseigné
+            </div>
+          )}
+        </div>
+
+        {/* Élec */}
+        <div className="rounded-xl p-2.5" style={{ background: "#FFFBEB" }}>
+          <div className="flex items-center gap-1 mb-1.5">
+            <IconBolt size={11} style={{ color: "#F59E0B" }} />
+            <span className="text-xs font-bold" style={{ color: "#D97706" }}>
+              ÉLEC
+            </span>
+          </div>
+          {r.index_elec_debut && r.index_elec_fin ? (
+            <>
+              <div
+                className="text-sm font-extrabold"
+                style={{ color: "#F59E0B" }}
+              >
+                {r.conso_elec.toFixed(2)} kWh
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: "#FCD34D" }}>
+                {toFloat(r.index_elec_debut).toFixed(1)} →{" "}
+                {toFloat(r.index_elec_fin).toFixed(1)}
+              </div>
+              {r.montant_elec > 0 && (
+                <div
+                  className="text-xs font-bold mt-1"
+                  style={{ color: "#D97706" }}
+                >
+                  {r.montant_elec.toLocaleString("fr-FR")} XAF
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-xs" style={{ color: "#FDE68A" }}>
+              Non renseigné
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Total */}
+      {r.montant_total > 0 && (
+        <div
+          className="mx-4 mb-3 px-3 py-2 rounded-xl flex items-center justify-between"
+          style={{ background: "#ECFDF5", border: "1px solid #A7F3D0" }}
+        >
+          <span className="text-xs font-semibold" style={{ color: "#059669" }}>
+            Total charges
+          </span>
+          <span className="text-sm font-bold" style={{ color: "#059669" }}>
+            {r.montant_total.toLocaleString("fr-FR")} XAF
+          </span>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="px-4 pb-4 flex gap-2">
+        {r.statut === "brouillon" && (
+          <button
+            onClick={handleEnvoyer}
+            disabled={sending}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold"
+            style={{
+              background: "#EFF6FF",
+              color: "#2563EB",
+              border: "1px solid #BFDBFE",
+              cursor: "pointer",
+            }}
+          >
+            {sending ? (
+              <IconLoader2
+                size={12}
+                style={{ animation: "spin 1s linear infinite" }}
+              />
+            ) : (
+              <IconSend size={12} />
+            )}
+            Envoyer au locataire
+          </button>
+        )}
+        <button
+          onClick={() => onWhatsApp(r)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold"
+          style={{
+            background: "#DCFCE7",
+            color: "#16A34A",
+            border: "1px solid #A7F3D0",
+            cursor: "pointer",
+          }}
+        >
+          <IconBrandWhatsapp size={12} />
+          WhatsApp
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── GroupesReleves ────────────────────────────────────────────
 function GroupesReleves({
   releves,
   allBiens,
   structures,
+  onEnvoyer,
   onWhatsApp,
 }: {
-  releves: IndexConsommation[];
+  releves: Releve[];
   allBiens: Bien[];
   structures: Structure[];
-  onWhatsApp: (r: IndexConsommation) => void;
+  onEnvoyer: (id: number) => void;
+  onWhatsApp: (r: Releve) => void;
 }) {
   const [ouvert, setOuvert] = useState<number | "isole" | null>(null);
 
-  const getStructureId = (bienId: number): number | null => {
-    const bien = allBiens.find((b) => b.id === bienId);
-    return bien?.structure_id ?? null;
-  };
+  const getBienStructureId = (bienId: number) =>
+    allBiens.find((b) => b.id === bienId)?.structure_id ?? null;
 
-  // Grouper les relevés par structure
   const groupes: {
     key: number | "isole";
     label: string;
     adresse: string;
-    releves: IndexConsommation[];
+    releves: Releve[];
     isStructure: boolean;
   }[] = [];
 
   structures.forEach((s) => {
-    const rel = releves.filter((r) => getStructureId(r.bien.id) === s.id);
+    const rel = releves.filter((r) => getBienStructureId(r.bien) === s.id);
     if (rel.length > 0)
       groupes.push({
         key: s.id,
@@ -166,8 +414,7 @@ function GroupesReleves({
         isStructure: true,
       });
   });
-
-  const isoles = releves.filter((r) => getStructureId(r.bien.id) === null);
+  const isoles = releves.filter((r) => getBienStructureId(r.bien) === null);
   if (isoles.length > 0)
     groupes.push({
       key: "isole",
@@ -183,9 +430,14 @@ function GroupesReleves({
         {releves.length} relevé{releves.length > 1 ? "s" : ""} ·{" "}
         {groupes.length} groupe{groupes.length > 1 ? "s" : ""}
       </p>
-
       {groupes.map((groupe) => {
         const isOpen = ouvert === groupe.key;
+        const nbEnvoyes = groupe.releves.filter(
+          (r) => r.statut === "envoye",
+        ).length;
+        const nbBrouillons = groupe.releves.filter(
+          (r) => r.statut === "brouillon",
+        ).length;
         return (
           <motion.div
             key={String(groupe.key)}
@@ -193,7 +445,6 @@ function GroupesReleves({
             className="bg-white rounded-2xl overflow-hidden"
             style={{ border: "1px solid #E2E8F0" }}
           >
-            {/* Header accordéon */}
             <button
               onClick={() => setOuvert(isOpen ? null : groupe.key)}
               className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors"
@@ -227,157 +478,51 @@ function GroupesReleves({
                 >
                   {groupe.adresse}
                 </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {nbBrouillons > 0 && (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                      style={{ background: "#F1F5F9", color: "#64748B" }}
+                    >
+                      {nbBrouillons} brouillon{nbBrouillons > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {nbEnvoyes > 0 && (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                      style={{ background: "#EFF6FF", color: "#2563EB" }}
+                    >
+                      {nbEnvoyes} envoyé{nbEnvoyes > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <span
-                  className="text-xs font-bold px-2.5 py-1 rounded-full"
-                  style={{
-                    background: isOpen ? "#DBEAFE" : "#F1F5F9",
-                    color: isOpen ? "#2563EB" : "#64748B",
-                  }}
-                >
-                  {groupe.releves.length} relevé
-                  {groupe.releves.length > 1 ? "s" : ""}
-                </span>
-                <motion.div
-                  animate={{ rotate: isOpen ? 90 : 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <IconChevronRight size={16} style={{ color: "#CBD5E1" }} />
-                </motion.div>
-              </div>
+              <motion.div
+                animate={{ rotate: isOpen ? 90 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <IconChevronRight size={16} style={{ color: "#CBD5E1" }} />
+              </motion.div>
             </button>
 
-            {/* Relevés */}
             <AnimatePresence initial={false}>
               {isOpen && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  transition={{ duration: 0.25 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-4 pb-4 pt-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {groupe.releves.map((r, i) => (
-                        <motion.div
-                          key={r.id}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          className="rounded-2xl p-4"
-                          style={{
-                            background: "#F8FAFC",
-                            border: "1px solid #E2E8F0",
-                          }}
-                        >
-                          <div className="flex items-start justify-between mb-3 gap-2">
-                            <div className="min-w-0">
-                              <div
-                                className="text-sm font-bold truncate"
-                                style={{ color: "#0F172A" }}
-                              >
-                                {r.bien.titre}
-                              </div>
-                              <div
-                                className="flex items-center gap-1.5 mt-0.5"
-                                style={{ color: "#94A3B8" }}
-                              >
-                                <IconCalendar size={11} />
-                                <span className="text-xs">
-                                  {MOIS_FR[r.mois]} {r.annee}
-                                </span>
-                              </div>
-                            </div>
-                            <span
-                              className="flex-shrink-0 text-xs px-2 py-1 rounded-full font-bold"
-                              style={{
-                                background: "#F0F9FF",
-                                color: "#0284C7",
-                                border: "1px solid #BAE6FD",
-                              }}
-                            >
-                              #{r.id}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 mb-3">
-                            <div
-                              className="rounded-xl p-2.5"
-                              style={{ background: "#F0F9FF" }}
-                            >
-                              <div className="flex items-center gap-1 mb-1">
-                                <IconDroplet
-                                  size={11}
-                                  style={{ color: "#0EA5E9" }}
-                                />
-                                <span
-                                  className="text-xs font-bold"
-                                  style={{ color: "#0284C7" }}
-                                >
-                                  EAU
-                                </span>
-                              </div>
-                              <div
-                                className="text-sm font-extrabold"
-                                style={{ color: "#0EA5E9" }}
-                              >
-                                {parseFloat(r.consommation_eau).toFixed(1)} m³
-                              </div>
-                              <div
-                                className="text-xs"
-                                style={{ color: "#7DD3FC" }}
-                              >
-                                Index : {parseFloat(r.index_eau).toFixed(1)}
-                              </div>
-                            </div>
-                            <div
-                              className="rounded-xl p-2.5"
-                              style={{ background: "#FFFBEB" }}
-                            >
-                              <div className="flex items-center gap-1 mb-1">
-                                <IconBolt
-                                  size={11}
-                                  style={{ color: "#F59E0B" }}
-                                />
-                                <span
-                                  className="text-xs font-bold"
-                                  style={{ color: "#D97706" }}
-                                >
-                                  ÉLEC
-                                </span>
-                              </div>
-                              <div
-                                className="text-sm font-extrabold"
-                                style={{ color: "#F59E0B" }}
-                              >
-                                {parseFloat(r.consommation_elec).toFixed(1)} kWh
-                              </div>
-                              <div
-                                className="text-xs"
-                                style={{ color: "#FCD34D" }}
-                              >
-                                Index : {parseFloat(r.index_elec).toFixed(1)}
-                              </div>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => onWhatsApp(r)}
-                            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold"
-                            style={{
-                              background: "#DCFCE7",
-                              color: "#16A34A",
-                              border: "1px solid #A7F3D0",
-                            }}
-                          >
-                            <IconBrandWhatsapp size={13} />
-                            Envoyer par WhatsApp
-                          </button>
-                        </motion.div>
-                      ))}
-                    </div>
+                  <div className="px-4 pb-4 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {groupe.releves.map((r) => (
+                      <CarteReleve
+                        key={r.id}
+                        r={r}
+                        onEnvoyer={onEnvoyer}
+                        onWhatsApp={onWhatsApp}
+                      />
+                    ))}
                   </div>
                 </motion.div>
               )}
@@ -389,36 +534,49 @@ function GroupesReleves({
   );
 }
 
-// ── Page principale ────────────────────────────────────────
+// ── Page principale ───────────────────────────────────────────
 export default function RelevesPage() {
   const { user } = useAuth();
   const [structures, setStructures] = useState<Structure[]>([]);
   const [allBiens, setAllBiens] = useState<Bien[]>([]);
-  const [releves, setReleves] = useState<IndexConsommation[]>([]);
+  const [contrats, setContrats] = useState<Contrat[]>([]);
+  const [releves, setReleves] = useState<Releve[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
-  const [calcLoading, setCalcLoading] = useState(false);
+  const [tarifLoading, setTarifLoading] = useState(false);
+  const [tarifs, setTarifs] = useState<{
+    tarif_eau: number;
+    tarif_elec: number;
+  } | null>(null);
 
   const [step, setStep] = useState(0);
   const [selectedStructure, setSelectedStructure] = useState<Structure | null>(
     null,
   );
   const [selectedBien, setSelectedBien] = useState<Bien | null>(null);
+  const [selectedContrat, setSelectedContrat] = useState<Contrat | null>(null);
   const [isSansStructure, setIsSansStructure] = useState(false);
 
   const [form, setForm] = useState({
     mois: now.getMonth() + 1,
     annee: now.getFullYear(),
-    index_eau: "",
-    index_elec: "",
-    consommation_eau: "",
-    consommation_elec: "",
+    index_eau_debut: "",
+    index_eau_fin: "",
+    index_elec_debut: "",
+    index_elec_fin: "",
+    envoyer_maintenant: false,
   });
 
-  const setF = (k: string, v: string | number) =>
+  const setF = (k: string, v: string | number | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  // Calculs en temps réel
+  const conso_eau = calcConso(form.index_eau_debut, form.index_eau_fin);
+  const conso_elec = calcConso(form.index_elec_debut, form.index_elec_fin);
+  const montant_eau = tarifs ? Math.round(conso_eau * tarifs.tarif_eau) : 0;
+  const montant_elec = tarifs ? Math.round(conso_elec * tarifs.tarif_elec) : 0;
+  const montant_total = montant_eau + montant_elec;
 
   useEffect(() => {
     load();
@@ -427,13 +585,15 @@ export default function RelevesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [structRes, biensRes, relevesRes] = await Promise.all([
+      const [structRes, biensRes, contratsRes, relevesRes] = await Promise.all([
         api.get("/structures/"),
         api.get("/biens/"),
-        api.get("/index/"),
+        api.get("/contrats/"),
+        api.get("/releves/"),
       ]);
       setStructures(structRes.data.results ?? structRes.data);
       setAllBiens(biensRes.data.results ?? biensRes.data);
+      setContrats(contratsRes.data.results ?? contratsRes.data);
       setReleves(relevesRes.data.results ?? relevesRes.data);
     } catch {
       toast.error("Erreur de chargement");
@@ -443,41 +603,71 @@ export default function RelevesPage() {
   };
 
   const biensFiltres = isSansStructure
-    ? allBiens.filter((b) => !b.structure_id)
+    ? allBiens.filter((b) => !b.structure_id && b.statut === "occupe")
     : selectedStructure
-      ? allBiens.filter((b) => b.structure_id === selectedStructure.id)
+      ? allBiens.filter(
+          (b) =>
+            b.structure_id === selectedStructure.id && b.statut === "occupe",
+        )
       : [];
 
-  const calculerCharges = async () => {
-    if (!selectedBien) return;
-    setCalcLoading(true);
+  const selectionnerBien = async (b: Bien) => {
+    setSelectedBien(b);
+    // Trouver le contrat actif pour ce bien
+    const contrat =
+      contrats.find((c) => c.bien === b.id && c.statut === "actif") ?? null;
+    setSelectedContrat(contrat);
+    // Charger les tarifs
+    setTarifLoading(true);
     try {
       const res = await api.get(
-        `/index/${selectedBien.id}/calcul/?mois=${form.mois}&annee=${form.annee}`,
+        `/index/${b.id}/calcul/?mois=${form.mois}&annee=${form.annee}`,
       );
-      setCalcResult(res.data);
+      if (res.data.tarif_eau !== undefined) {
+        setTarifs({
+          tarif_eau: res.data.tarif_eau,
+          tarif_elec: res.data.tarif_elec,
+        });
+      }
     } catch {
-      toast.error("Aucun relevé trouvé ou tarifs non configurés.");
-      setCalcResult(null);
+      setTarifs(null);
     } finally {
-      setCalcLoading(false);
+      setTarifLoading(false);
+      setStep(2);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!selectedBien) return;
+  const handleSubmit = async (envoyer = false) => {
+    if (!selectedBien || !selectedContrat) {
+      toast.error("Aucun contrat actif pour ce bien.");
+      return;
+    }
     setSaving(true);
     try {
-      await api.post("/index/", {
+      await api.post("/releves/", {
+        contrat: selectedContrat.id,
         bien: selectedBien.id,
         mois: form.mois,
         annee: form.annee,
-        index_eau: parseFloat(form.index_eau) || 0,
-        index_elec: parseFloat(form.index_elec) || 0,
-        consommation_eau: parseFloat(form.consommation_eau) || 0,
-        consommation_elec: parseFloat(form.consommation_elec) || 0,
+        index_eau_debut: form.index_eau_debut
+          ? parseFloat(form.index_eau_debut)
+          : null,
+        index_eau_fin: form.index_eau_fin
+          ? parseFloat(form.index_eau_fin)
+          : null,
+        index_elec_debut: form.index_elec_debut
+          ? parseFloat(form.index_elec_debut)
+          : null,
+        index_elec_fin: form.index_elec_fin
+          ? parseFloat(form.index_elec_fin)
+          : null,
+        statut: envoyer ? "envoye" : "brouillon",
       });
-      toast.success("Relevé enregistré !");
+      toast.success(
+        envoyer
+          ? `Relevé envoyé à ${selectedContrat.locataire.nom_complet} !`
+          : "Relevé enregistré en brouillon.",
+      );
       resetForm();
       load();
     } catch (err: unknown) {
@@ -495,30 +685,59 @@ export default function RelevesPage() {
     setStep(0);
     setSelectedStructure(null);
     setSelectedBien(null);
+    setSelectedContrat(null);
     setIsSansStructure(false);
-    setCalcResult(null);
+    setTarifs(null);
     setForm({
       mois: now.getMonth() + 1,
       annee: now.getFullYear(),
-      index_eau: "",
-      index_elec: "",
-      consommation_eau: "",
-      consommation_elec: "",
+      index_eau_debut: "",
+      index_eau_fin: "",
+      index_elec_debut: "",
+      index_elec_fin: "",
+      envoyer_maintenant: false,
     });
     setShowForm(false);
   };
 
-  const partagerWhatsApp = (releve: IndexConsommation) => {
-    const texte = encodeURIComponent(
-      `Bonjour,\n\nVoici votre relevé de consommation pour *${releve.bien.titre}* — ${MOIS_FR[releve.mois]} ${releve.annee} :\n\n` +
-        `💧 *Eau* : ${parseFloat(releve.consommation_eau).toFixed(1)} m³\n` +
-        `⚡ *Électricité* : ${parseFloat(releve.consommation_elec).toFixed(1)} kWh\n\n` +
-        `Merci de contacter votre bailleur pour le montant des charges.\n\n— Plateforme LocCam`,
-    );
-    window.open(`https://wa.me/?text=${texte}`, "_blank");
+  const envoyerReleve = async (id: number) => {
+    try {
+      await api.patch(`/releves/${id}/`, { statut: "envoye" });
+      toast.success("Relevé envoyé au locataire !");
+      load();
+    } catch {
+      toast.error("Erreur lors de l'envoi.");
+    }
+  };
+
+  const partagerWhatsApp = (r: Releve) => {
+    let msg = `Bonjour ${r.locataire_nom || ""},\n\n`;
+    msg += `Voici votre relevé de consommation pour *${r.bien_titre}* — ${MOIS_FR[r.mois]} ${r.annee} :\n\n`;
+    if (r.conso_eau > 0)
+      msg += `💧 *Eau* : ${r.conso_eau.toFixed(2)} m³ → *${r.montant_eau.toLocaleString("fr-FR")} XAF*\n`;
+    if (r.conso_elec > 0)
+      msg += `⚡ *Électricité* : ${r.conso_elec.toFixed(2)} kWh → *${r.montant_elec.toLocaleString("fr-FR")} XAF*\n`;
+    if (r.montant_total > 0)
+      msg += `\n💰 *Total charges : ${r.montant_total.toLocaleString("fr-FR")} XAF*\n`;
+    msg += `\nPayez vos charges directement sur LocCam.\n— Votre bailleur`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   if (!user) return null;
+
+  const inputStyle = (color: string) => ({
+    width: "100%",
+    height: "42px",
+    padding: "0 12px",
+    borderRadius: "10px",
+    border: `1.5px solid ${color}20`,
+    fontSize: "13px",
+    outline: "none",
+    background: `${color}08`,
+    fontFamily: "inherit",
+    color: "#0F172A",
+    boxSizing: "border-box" as const,
+  });
 
   return (
     <>
@@ -575,7 +794,11 @@ export default function RelevesPage() {
             <button
               onClick={load}
               className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }}
+              style={{
+                background: "#F1F5F9",
+                border: "1px solid #E2E8F0",
+                cursor: "pointer",
+              }}
             >
               <IconRefresh
                 size={15}
@@ -593,6 +816,8 @@ export default function RelevesPage() {
               style={{
                 background: "linear-gradient(135deg,#0EA5E9,#0284C7)",
                 boxShadow: "0 2px 8px rgba(14,165,233,.35)",
+                border: "none",
+                cursor: "pointer",
               }}
             >
               <IconPlus size={15} />
@@ -602,7 +827,7 @@ export default function RelevesPage() {
         </header>
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 space-y-5">
-          {/* Drawer formulaire */}
+          {/* ── Drawer formulaire ── */}
           <AnimatePresence>
             {showForm && (
               <>
@@ -622,15 +847,16 @@ export default function RelevesPage() {
                   animate={{ x: 0 }}
                   exit={{ x: "100%" }}
                   transition={{ type: "spring", damping: 28, stiffness: 280 }}
-                  className="fixed right-0 top-0 bottom-0 z-50 overflow-y-auto"
+                  className="fixed right-0 top-0 bottom-0 z-50 flex flex-col"
                   style={{
                     width: "min(480px,100vw)",
                     background: "#fff",
                     boxShadow: "-8px 0 40px rgba(0,0,0,.15)",
                   }}
                 >
+                  {/* En-tête drawer */}
                   <div
-                    className="flex items-center justify-between px-6 py-5 sticky top-0 bg-white z-10"
+                    className="flex items-center justify-between px-6 py-5 flex-shrink-0"
                     style={{ borderBottom: "1px solid #F1F5F9" }}
                   >
                     <div>
@@ -644,22 +870,27 @@ export default function RelevesPage() {
                         className="text-xs mt-0.5"
                         style={{ color: "#94A3B8" }}
                       >
-                        Saisie des index mensuels
+                        Saisie des index eau & électricité
                       </p>
                     </div>
                     <button
                       onClick={resetForm}
                       className="w-9 h-9 rounded-xl flex items-center justify-center"
-                      style={{ background: "#F1F5F9" }}
+                      style={{
+                        background: "#F1F5F9",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
                     >
                       <IconX size={16} style={{ color: "#64748B" }} />
                     </button>
                   </div>
 
-                  <div className="px-6 py-5">
+                  {/* Corps scrollable */}
+                  <div className="flex-1 overflow-y-auto px-6 py-5">
                     <Steps current={step} />
 
-                    {/* Étape 0 : Structure */}
+                    {/* ── Étape 0 : Structure ── */}
                     {step === 0 && (
                       <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -684,6 +915,7 @@ export default function RelevesPage() {
                               style={{
                                 background: "#F8FAFC",
                                 border: "1.5px solid #E2E8F0",
+                                cursor: "pointer",
                               }}
                             >
                               <div
@@ -725,6 +957,7 @@ export default function RelevesPage() {
                             style={{
                               background: "#F8FAFC",
                               border: "1.5px dashed #CBD5E1",
+                              cursor: "pointer",
                             }}
                           >
                             <div
@@ -769,15 +1002,14 @@ export default function RelevesPage() {
                               style={{ color: "#D97706", flexShrink: 0 }}
                             />
                             <p className="text-xs" style={{ color: "#92400E" }}>
-                              Aucune structure. Vous pouvez sélectionner un bien
-                              isolé.
+                              Aucune structure. Sélectionnez un bien isolé.
                             </p>
                           </div>
                         )}
                       </motion.div>
                     )}
 
-                    {/* Étape 1 : Bien */}
+                    {/* ── Étape 1 : Bien ── */}
                     {step === 1 && (
                       <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -787,7 +1019,12 @@ export default function RelevesPage() {
                           <button
                             onClick={() => setStep(0)}
                             className="flex items-center gap-1 text-xs font-semibold"
-                            style={{ color: "#7C3AED" }}
+                            style={{
+                              color: "#7C3AED",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
                           >
                             <IconArrowLeft size={13} /> Retour
                           </button>
@@ -802,23 +1039,12 @@ export default function RelevesPage() {
                               {selectedStructure.nom}
                             </span>
                           )}
-                          {isSansStructure && (
-                            <span
-                              className="text-xs px-2 py-1 rounded-lg font-semibold"
-                              style={{
-                                background: "#F1F5F9",
-                                color: "#64748B",
-                              }}
-                            >
-                              Biens isolés
-                            </span>
-                          )}
                         </div>
                         <p
                           className="text-xs font-bold uppercase tracking-wider mb-3"
                           style={{ color: "#94A3B8" }}
                         >
-                          Sélectionnez le bien
+                          Sélectionnez le bien occupé
                         </p>
                         {biensFiltres.length === 0 ? (
                           <div className="flex flex-col items-center py-10 text-center">
@@ -830,78 +1056,81 @@ export default function RelevesPage() {
                               className="text-sm font-medium"
                               style={{ color: "#64748B" }}
                             >
-                              Aucun bien dans cette sélection
+                              Aucun bien occupé
+                            </p>
+                            <p
+                              className="text-xs mt-1"
+                              style={{ color: "#94A3B8" }}
+                            >
+                              Seuls les biens occupés peuvent avoir un relevé
                             </p>
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            {biensFiltres.map((b) => (
-                              <button
-                                key={b.id}
-                                onClick={() => {
-                                  setSelectedBien(b);
-                                  setStep(2);
-                                }}
-                                className="w-full flex items-center gap-3 p-4 rounded-2xl text-left"
-                                style={{
-                                  background: "#F8FAFC",
-                                  border: "1.5px solid #E2E8F0",
-                                }}
-                              >
-                                <div
-                                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                            {biensFiltres.map((b) => {
+                              const contrat = contrats.find(
+                                (c) => c.bien === b.id && c.statut === "actif",
+                              );
+                              return (
+                                <button
+                                  key={b.id}
+                                  onClick={() => selectionnerBien(b)}
+                                  className="w-full flex items-center gap-3 p-4 rounded-2xl text-left"
                                   style={{
-                                    background: "#ECFDF5",
-                                    color: "#059669",
+                                    background: "#F8FAFC",
+                                    border: "1.5px solid #E2E8F0",
+                                    cursor: "pointer",
                                   }}
                                 >
-                                  <IconHome2 size={18} />
-                                </div>
-                                <div className="flex-1 min-w-0">
                                   <div
-                                    className="text-sm font-bold truncate"
-                                    style={{ color: "#0F172A" }}
+                                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                                    style={{
+                                      background: "#ECFDF5",
+                                      color: "#059669",
+                                    }}
                                   >
-                                    {b.titre}
+                                    <IconHome2 size={18} />
                                   </div>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    <span
-                                      className="text-xs"
-                                      style={{ color: "#94A3B8" }}
+                                  <div className="flex-1 min-w-0">
+                                    <div
+                                      className="text-sm font-bold truncate"
+                                      style={{ color: "#0F172A" }}
                                     >
-                                      {b.adresse}
-                                    </span>
-                                    <span
-                                      className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
-                                      style={{
-                                        background:
-                                          b.statut === "occupe"
-                                            ? "#ECFDF5"
-                                            : "#F1F5F9",
-                                        color:
-                                          b.statut === "occupe"
-                                            ? "#059669"
-                                            : "#94A3B8",
-                                      }}
-                                    >
-                                      {b.statut === "occupe"
-                                        ? "Occupé"
-                                        : "Libre"}
-                                    </span>
+                                      {b.titre}
+                                    </div>
+                                    {contrat && (
+                                      <div
+                                        className="flex items-center gap-1 mt-0.5"
+                                        style={{ color: "#64748B" }}
+                                      >
+                                        <IconUser size={11} />
+                                        <span className="text-xs">
+                                          {contrat.locataire.nom_complet}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {!contrat && (
+                                      <span
+                                        className="text-xs"
+                                        style={{ color: "#F59E0B" }}
+                                      >
+                                        Aucun contrat actif
+                                      </span>
+                                    )}
                                   </div>
-                                </div>
-                                <IconChevronRight
-                                  size={16}
-                                  style={{ color: "#CBD5E1" }}
-                                />
-                              </button>
-                            ))}
+                                  <IconChevronRight
+                                    size={16}
+                                    style={{ color: "#CBD5E1" }}
+                                  />
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </motion.div>
                     )}
 
-                    {/* Étape 2 : Index */}
+                    {/* ── Étape 2 : Index ── */}
                     {step === 2 && selectedBien && (
                       <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -911,7 +1140,12 @@ export default function RelevesPage() {
                           <button
                             onClick={() => setStep(1)}
                             className="flex items-center gap-1 text-xs font-semibold"
-                            style={{ color: "#7C3AED" }}
+                            style={{
+                              color: "#7C3AED",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
                           >
                             <IconArrowLeft size={13} /> Retour
                           </button>
@@ -923,9 +1157,57 @@ export default function RelevesPage() {
                           </span>
                         </div>
 
+                        {/* Locataire info */}
+                        {selectedContrat && (
+                          <div
+                            className="flex items-center gap-2 p-3 rounded-xl mb-4"
+                            style={{
+                              background: "#EFF6FF",
+                              border: "1px solid #BFDBFE",
+                            }}
+                          >
+                            <IconUser
+                              size={14}
+                              style={{ color: "#2563EB", flexShrink: 0 }}
+                            />
+                            <div>
+                              <div
+                                className="text-xs font-bold"
+                                style={{ color: "#1D4ED8" }}
+                              >
+                                {selectedContrat.locataire.nom_complet}
+                              </div>
+                              <div
+                                className="text-xs"
+                                style={{ color: "#93C5FD" }}
+                              >
+                                {selectedContrat.locataire.telephone}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {!selectedContrat && (
+                          <div
+                            className="flex items-center gap-2 p-3 rounded-xl mb-4"
+                            style={{
+                              background: "#FFFBEB",
+                              border: "1px solid #FDE68A",
+                            }}
+                          >
+                            <IconAlertCircle
+                              size={14}
+                              style={{ color: "#D97706", flexShrink: 0 }}
+                            />
+                            <p className="text-xs" style={{ color: "#92400E" }}>
+                              Aucun contrat actif — le relevé sera sauvegardé en
+                              brouillon.
+                            </p>
+                          </div>
+                        )}
+
                         {/* Période */}
                         <p
-                          className="text-xs font-bold uppercase tracking-wider mb-3"
+                          className="text-xs font-bold uppercase tracking-wider mb-2"
                           style={{ color: "#94A3B8" }}
                         >
                           Période
@@ -944,15 +1226,8 @@ export default function RelevesPage() {
                                 setF("mois", parseInt(e.target.value))
                               }
                               style={{
-                                width: "100%",
-                                height: "42px",
-                                padding: "0 12px",
-                                borderRadius: "10px",
-                                border: "1.5px solid #E2E8F0",
-                                fontSize: "13px",
-                                outline: "none",
-                                background: "#fff",
-                                fontFamily: "inherit",
+                                ...inputStyle("#64748B"),
+                                cursor: "pointer",
                               }}
                             >
                               {MOIS_FR.slice(1).map((m, i) => (
@@ -977,277 +1252,310 @@ export default function RelevesPage() {
                               }
                               min={2020}
                               max={2100}
-                              style={{
-                                width: "100%",
-                                height: "42px",
-                                padding: "0 12px",
-                                borderRadius: "10px",
-                                border: "1.5px solid #E2E8F0",
-                                fontSize: "13px",
-                                outline: "none",
-                                background: "#fff",
-                                fontFamily: "inherit",
-                              }}
+                              style={inputStyle("#64748B")}
                             />
                           </div>
                         </div>
 
-                        {/* Index */}
-                        <p
-                          className="text-xs font-bold uppercase tracking-wider mb-3"
-                          style={{ color: "#94A3B8" }}
-                        >
-                          Index relevés
-                        </p>
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          {[
-                            {
-                              k: "index_eau",
-                              ico: <IconDroplet size={13} />,
-                              lbl: "Index eau (m³)",
-                              col: "#0EA5E9",
-                              bg: "#F0F9FF",
-                            },
-                            {
-                              k: "index_elec",
-                              ico: <IconBolt size={13} />,
-                              lbl: "Index élec (kWh)",
-                              col: "#F59E0B",
-                              bg: "#FFFBEB",
-                            },
-                          ].map((f) => (
-                            <div key={f.k}>
-                              <label
-                                className="flex items-center gap-1.5 text-xs font-semibold mb-1.5"
-                                style={{ color: "#374151" }}
-                              >
-                                <span style={{ color: f.col }}>{f.ico}</span>
-                                {f.lbl}
-                              </label>
-                              <input
-                                type="number"
-                                step="0.001"
-                                min="0"
-                                value={form[f.k as keyof typeof form]}
-                                onChange={(e) => setF(f.k, e.target.value)}
-                                placeholder="0.000"
-                                style={{
-                                  width: "100%",
-                                  height: "42px",
-                                  padding: "0 12px",
-                                  borderRadius: "10px",
-                                  border: `1.5px solid ${f.bg}`,
-                                  fontSize: "13px",
-                                  outline: "none",
-                                  background: f.bg,
-                                  fontFamily: "inherit",
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Consommation */}
-                        <p
-                          className="text-xs font-bold uppercase tracking-wider mb-3"
-                          style={{ color: "#94A3B8" }}
-                        >
-                          Consommation calculée
-                        </p>
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          {[
-                            {
-                              k: "consommation_eau",
-                              ico: <IconDroplet size={13} />,
-                              lbl: "Conso eau (m³)",
-                              col: "#0EA5E9",
-                              bg: "#F0F9FF",
-                            },
-                            {
-                              k: "consommation_elec",
-                              ico: <IconBolt size={13} />,
-                              lbl: "Conso élec (kWh)",
-                              col: "#F59E0B",
-                              bg: "#FFFBEB",
-                            },
-                          ].map((f) => (
-                            <div key={f.k}>
-                              <label
-                                className="flex items-center gap-1.5 text-xs font-semibold mb-1.5"
-                                style={{ color: "#374151" }}
-                              >
-                                <span style={{ color: f.col }}>{f.ico}</span>
-                                {f.lbl}
-                              </label>
-                              <input
-                                type="number"
-                                step="0.001"
-                                min="0"
-                                value={form[f.k as keyof typeof form]}
-                                onChange={(e) => setF(f.k, e.target.value)}
-                                placeholder="0.000"
-                                style={{
-                                  width: "100%",
-                                  height: "42px",
-                                  padding: "0 12px",
-                                  borderRadius: "10px",
-                                  border: `1.5px solid ${f.bg}`,
-                                  fontSize: "13px",
-                                  outline: "none",
-                                  background: f.bg,
-                                  fontFamily: "inherit",
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Calcul charges */}
-                        <button
-                          onClick={calculerCharges}
-                          disabled={calcLoading}
-                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold mb-4"
+                        {/* Eau */}
+                        <div
+                          className="p-4 rounded-2xl mb-4"
                           style={{
                             background: "#F0F9FF",
-                            border: "1.5px solid #BAE6FD",
-                            color: "#0284C7",
+                            border: "1px solid #BAE6FD",
                           }}
                         >
-                          {calcLoading ? (
-                            <IconLoader2
-                              size={15}
-                              style={{ animation: "spin 1s linear infinite" }}
+                          <div className="flex items-center gap-2 mb-3">
+                            <IconDroplet
+                              size={16}
+                              style={{ color: "#0EA5E9" }}
                             />
-                          ) : (
-                            <IconCalculator size={15} />
-                          )}
-                          Calculer les charges
-                        </button>
-
-                        <AnimatePresence>
-                          {calcResult && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="mb-4 p-4 rounded-2xl overflow-hidden"
+                            <span
+                              className="text-sm font-bold"
+                              style={{ color: "#0284C7" }}
+                            >
+                              Eau
+                            </span>
+                            {tarifLoading && (
+                              <span
+                                className="text-xs"
+                                style={{ color: "#7DD3FC" }}
+                              >
+                                Chargement tarifs...
+                              </span>
+                            )}
+                            {tarifs && (
+                              <span
+                                className="text-xs ml-auto"
+                                style={{ color: "#7DD3FC" }}
+                              >
+                                {tarifs.tarif_eau} XAF/m³
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { k: "index_eau_debut", lbl: "Index début (m³)" },
+                              { k: "index_eau_fin", lbl: "Index fin (m³)" },
+                            ].map((f) => (
+                              <div key={f.k}>
+                                <label
+                                  className="block text-xs font-semibold mb-1.5"
+                                  style={{ color: "#0284C7" }}
+                                >
+                                  {f.lbl}
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  min="0"
+                                  value={
+                                    form[f.k as keyof typeof form] as string
+                                  }
+                                  onChange={(e) => setF(f.k, e.target.value)}
+                                  placeholder="0.000"
+                                  style={{
+                                    ...inputStyle("#0EA5E9"),
+                                    background: "rgba(14,165,233,.06)",
+                                    border: "1.5px solid rgba(14,165,233,.2)",
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          {conso_eau > 0 && (
+                            <div
+                              className="flex items-center justify-between mt-2 pt-2"
                               style={{
-                                background: "#F0FDF4",
-                                border: "1px solid #A7F3D0",
+                                borderTop: "1px solid rgba(14,165,233,.15)",
                               }}
                             >
-                              <p
-                                className="text-xs font-bold mb-3"
+                              <span
+                                className="text-xs"
+                                style={{ color: "#0EA5E9" }}
+                              >
+                                Conso : {conso_eau.toFixed(2)} m³
+                              </span>
+                              {montant_eau > 0 && (
+                                <span
+                                  className="text-xs font-bold"
+                                  style={{ color: "#0284C7" }}
+                                >
+                                  {montant_eau.toLocaleString("fr-FR")} XAF
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Élec */}
+                        <div
+                          className="p-4 rounded-2xl mb-4"
+                          style={{
+                            background: "#FFFBEB",
+                            border: "1px solid #FDE68A",
+                          }}
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <IconBolt size={16} style={{ color: "#F59E0B" }} />
+                            <span
+                              className="text-sm font-bold"
+                              style={{ color: "#D97706" }}
+                            >
+                              Électricité
+                            </span>
+                            {tarifs && (
+                              <span
+                                className="text-xs ml-auto"
+                                style={{ color: "#FCD34D" }}
+                              >
+                                {tarifs.tarif_elec} XAF/kWh
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              {
+                                k: "index_elec_debut",
+                                lbl: "Index début (kWh)",
+                              },
+                              { k: "index_elec_fin", lbl: "Index fin (kWh)" },
+                            ].map((f) => (
+                              <div key={f.k}>
+                                <label
+                                  className="block text-xs font-semibold mb-1.5"
+                                  style={{ color: "#D97706" }}
+                                >
+                                  {f.lbl}
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  min="0"
+                                  value={
+                                    form[f.k as keyof typeof form] as string
+                                  }
+                                  onChange={(e) => setF(f.k, e.target.value)}
+                                  placeholder="0.000"
+                                  style={{
+                                    ...inputStyle("#F59E0B"),
+                                    background: "rgba(245,158,11,.06)",
+                                    border: "1.5px solid rgba(245,158,11,.2)",
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          {conso_elec > 0 && (
+                            <div
+                              className="flex items-center justify-between mt-2 pt-2"
+                              style={{
+                                borderTop: "1px solid rgba(245,158,11,.15)",
+                              }}
+                            >
+                              <span
+                                className="text-xs"
+                                style={{ color: "#F59E0B" }}
+                              >
+                                Conso : {conso_elec.toFixed(2)} kWh
+                              </span>
+                              {montant_elec > 0 && (
+                                <span
+                                  className="text-xs font-bold"
+                                  style={{ color: "#D97706" }}
+                                >
+                                  {montant_elec.toLocaleString("fr-FR")} XAF
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Total preview */}
+                        {montant_total > 0 && (
+                          <div
+                            className="flex items-center justify-between p-3 rounded-xl mb-4"
+                            style={{
+                              background: "#ECFDF5",
+                              border: "1px solid #A7F3D0",
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <IconCurrencyDollar
+                                size={16}
+                                style={{ color: "#059669" }}
+                              />
+                              <span
+                                className="text-sm font-bold"
                                 style={{ color: "#059669" }}
                               >
-                                Estimation des charges
-                              </p>
-                              <div className="grid grid-cols-3 gap-2">
-                                {[
-                                  {
-                                    l: "Eau",
-                                    v: calcResult.montant_eau,
-                                    ico: <IconDroplet size={13} />,
-                                    c: "#0EA5E9",
-                                    detail: `${calcResult.consommation_eau} m³`,
-                                  },
-                                  {
-                                    l: "Électricité",
-                                    v: calcResult.montant_elec,
-                                    ico: <IconBolt size={13} />,
-                                    c: "#F59E0B",
-                                    detail: `${calcResult.consommation_elec} kWh`,
-                                  },
-                                  {
-                                    l: "Total",
-                                    v: calcResult.total_charges,
-                                    ico: <IconCalculator size={13} />,
-                                    c: "#059669",
-                                    detail: "Eau + Élec",
-                                  },
-                                ].map((item) => (
-                                  <div
-                                    key={item.l}
-                                    className="bg-white rounded-xl p-3 text-center"
-                                    style={{ border: "1px solid #E2E8F0" }}
-                                  >
-                                    <span style={{ color: item.c }}>
-                                      {item.ico}
-                                    </span>
-                                    <div
-                                      className="text-xs font-semibold mt-1 mb-1"
-                                      style={{ color: "#64748B" }}
-                                    >
-                                      {item.l}
-                                    </div>
-                                    <div
-                                      className="text-sm font-black"
-                                      style={{ color: item.c }}
-                                    >
-                                      {item.v.toLocaleString("fr-FR")}
-                                      <span className="text-xs font-normal">
-                                        {" "}
-                                        XAF
-                                      </span>
-                                    </div>
-                                    <div
-                                      className="text-xs mt-0.5"
-                                      style={{ color: "#94A3B8" }}
-                                    >
-                                      {item.detail}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                                Total charges
+                              </span>
+                            </div>
+                            <span
+                              className="text-lg font-black"
+                              style={{ color: "#059669" }}
+                            >
+                              {montant_total.toLocaleString("fr-FR")} XAF
+                            </span>
+                          </div>
+                        )}
+
+                        {!tarifs && !tarifLoading && (
+                          <div
+                            className="flex items-center gap-2 p-3 rounded-xl mb-4"
+                            style={{
+                              background: "#FFFBEB",
+                              border: "1px solid #FDE68A",
+                            }}
+                          >
+                            <IconAlertCircle
+                              size={13}
+                              style={{ color: "#D97706", flexShrink: 0 }}
+                            />
+                            <p className="text-xs" style={{ color: "#92400E" }}>
+                              Tarifs non configurés — les montants seront
+                              calculés après enregistrement.
+                            </p>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </div>
 
-                  {/* Footer */}
+                  {/* Pied du drawer */}
                   {step === 2 && (
                     <div
-                      className="sticky bottom-0 bg-white px-6 py-4 flex gap-3"
+                      className="flex-shrink-0 px-6 py-4 flex flex-col gap-2"
                       style={{
                         borderTop: "1px solid #F1F5F9",
                         boxShadow: "0 -4px 16px rgba(0,0,0,.06)",
                       }}
                     >
-                      <button
-                        onClick={resetForm}
-                        className="flex-1 py-3 rounded-xl text-sm font-semibold"
-                        style={{ background: "#F1F5F9", color: "#64748B" }}
-                      >
-                        Annuler
-                      </button>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white"
-                        style={{
-                          background: "linear-gradient(135deg,#0EA5E9,#0284C7)",
-                          boxShadow: "0 2px 10px rgba(14,165,233,.3)",
-                        }}
-                      >
-                        {saving ? (
-                          <>
+                      {selectedContrat && (
+                        <motion.button
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() => handleSubmit(true)}
+                          disabled={saving}
+                          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold text-white"
+                          style={{
+                            background:
+                              "linear-gradient(135deg,#2563EB,#1D4ED8)",
+                            boxShadow: "0 2px 10px rgba(37,99,235,.3)",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {saving ? (
                             <IconLoader2
                               size={15}
                               style={{ animation: "spin 1s linear infinite" }}
                             />
-                            Enregistrement...
-                          </>
-                        ) : (
-                          <>
+                          ) : (
+                            <IconSend size={15} />
+                          )}
+                          Enregistrer et envoyer au locataire
+                        </motion.button>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={resetForm}
+                          className="flex-1 py-3 rounded-xl text-sm font-semibold"
+                          style={{
+                            background: "#F1F5F9",
+                            color: "#64748B",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Annuler
+                        </button>
+                        <motion.button
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() => handleSubmit(false)}
+                          disabled={saving}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white"
+                          style={{
+                            background:
+                              "linear-gradient(135deg,#0EA5E9,#0284C7)",
+                            boxShadow: "0 2px 10px rgba(14,165,233,.3)",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {saving ? (
+                            <IconLoader2
+                              size={15}
+                              style={{ animation: "spin 1s linear infinite" }}
+                            />
+                          ) : (
                             <IconCheck size={15} />
-                            Enregistrer le relevé
-                          </>
-                        )}
-                      </motion.button>
+                          )}
+                          Brouillon
+                        </motion.button>
+                      </div>
                     </div>
                   )}
                 </motion.div>
@@ -1255,7 +1563,7 @@ export default function RelevesPage() {
             )}
           </AnimatePresence>
 
-          {/* Liste par structure */}
+          {/* Liste */}
           {loading ? (
             <div className="space-y-3">
               {Array(3)
@@ -1300,10 +1608,11 @@ export default function RelevesPage() {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white"
                 style={{
                   background: "linear-gradient(135deg,#0EA5E9,#0284C7)",
+                  border: "none",
+                  cursor: "pointer",
                 }}
               >
-                <IconPlus size={14} />
-                Premier relevé
+                <IconPlus size={14} /> Premier relevé
               </motion.button>
             </div>
           ) : (
@@ -1311,6 +1620,7 @@ export default function RelevesPage() {
               releves={releves}
               allBiens={allBiens}
               structures={structures}
+              onEnvoyer={envoyerReleve}
               onWhatsApp={partagerWhatsApp}
             />
           )}
