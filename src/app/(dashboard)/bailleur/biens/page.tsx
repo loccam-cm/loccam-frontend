@@ -9,6 +9,7 @@ import { Bien, PaginatedResponse } from "@/types";
 import UploadFichier from "@/components/UploadFichier";
 import BienGallerieManager from "@/components/biens/BienGallerieManager";
 import { useSearchParams } from "next/navigation";
+import PlanGate from '@/components/plan/PlanGate';
 import {
   IconHome2,
   IconPlus,
@@ -450,21 +451,25 @@ function BiensPageContent() {
                   }}
                 />
               </button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={openAdd}
-                className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-bold text-white"
-                style={{
-                  background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
-                  boxShadow: "0 2px 8px rgba(37,99,235,.35)",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                <IconPlus size={15} />
-                <span className="hidden sm:inline">Ajouter un bien</span>
-              </motion.button>
+
+              <PlanGate nbBiens={biens.length}>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={openAdd}
+                    className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-bold text-white"
+                    style={{
+                      background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
+                      boxShadow: "0 2px 8px rgba(37,99,235,.35)",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <IconPlus size={15} />
+                    <span className="hidden sm:inline">Ajouter un bien</span>
+                  </motion.button>
+              </PlanGate>
+              
             </div>
           </header>
 
