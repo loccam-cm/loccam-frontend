@@ -811,21 +811,25 @@ export default function RelevesPage() {
                 }}
               />
             </button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-3 sm:px-4 h-9 rounded-xl text-xs sm:text-sm font-bold text-white"
-              style={{
-                background: "linear-gradient(135deg,#0EA5E9,#0284C7)",
-                boxShadow: "0 2px 8px rgba(14,165,233,.35)",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              <IconPlus size={15} />
-              <span className="hidden sm:inline">Nouveau relevé</span>
-            </motion.button>
+
+            <PlanGate fonctionnalite="releves">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowForm(true)}
+                  className="flex items-center gap-2 px-3 sm:px-4 h-9 rounded-xl text-xs sm:text-sm font-bold text-white"
+                  style={{
+                    background: "linear-gradient(135deg,#0EA5E9,#0284C7)",
+                    boxShadow: "0 2px 8px rgba(14,165,233,.35)",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <IconPlus size={15} />
+                  <span className="hidden sm:inline">Nouveau relevé</span>
+                </motion.button>
+            </PlanGate>
+            
           </div>
         </header>
 
