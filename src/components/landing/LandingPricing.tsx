@@ -2,87 +2,87 @@
 
 import { useRef, useState } from 'react'
 import { motion, useInView } from 'framer-motion'
-import { IconCheck, IconChevronLeft, IconChevronRight, IconX, IconInfinity } from '@tabler/icons-react'
+import { IconCheck, IconChevronLeft, IconChevronRight, IconX } from '@tabler/icons-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 
-// ── Plans alignés sur LIMITES_PLAN du backend ────────────────
+// ── Plans alignés sur LIMITES_PLAN du backend ─────────────────
 const PLANS = [
   {
-    id: 'gratuit',
-    label: 'Gratuit',
-    badge: null,
+    id          : 'gratuit',
+    label       : 'Gratuit',
+    badge       : null,
     prix_mensuel: 0,
-    prix_annuel: 0,
-    popular: false,
-    couleur: '#64748B',
-    description: 'Pour débuter avec un seul bien',
-    features: [
-      { lbl: '1 bien géré',           ok: true  },
-      { lbl: 'Contrat de bail PDF',    ok: true  },
-      { lbl: 'Messagerie basique',     ok: true  },
-      { lbl: 'Paiement cash uniquement', ok: true },
-      { lbl: 'Mobile Money',           ok: false },
+    prix_annuel : 0,
+    popular     : false,
+    couleur     : '#64748B',
+    description : 'Pour débuter avec un seul bien',
+    features    : [
+      { lbl: '1 bien géré',              ok: true  },
+      { lbl: 'Contrat de bail PDF',       ok: true  },
+      { lbl: 'Messagerie basique',        ok: true  },
+      { lbl: 'Paiement cash uniquement',  ok: true  },
+      { lbl: 'Mobile Money',              ok: false },
       { lbl: 'Relevés eau & électricité', ok: false },
-      { lbl: 'Quittances PDF auto',    ok: false },
-      { lbl: 'Analytique',             ok: false },
-      { lbl: 'Signalements',           ok: false },
+      { lbl: 'Quittances PDF auto',       ok: false },
+      { lbl: 'Analytique',                ok: false },
+      { lbl: 'Signalements',              ok: false },
     ],
-    cta: 'Commencer gratuitement',
-    ctaHref: '/register',
+    cta        : 'Commencer gratuitement',
+    ctaHref    : '/register',
+    ctaLoggedIn: '/bailleur',
   },
   {
-    id: 'pro',
-    label: 'Pro',
-    badge: 'Le plus populaire',
+    id          : 'pro',
+    label       : 'Pro',
+    badge       : 'Le plus populaire',
     prix_mensuel: 5_000,
-    prix_annuel: 50_000,
-    popular: true,
-    couleur: '#2563EB',
-    description: "Pour les bailleurs jusqu'à 15 biens",
-    features: [
-      { lbl: "Jusqu'à 15 biens",          ok: true },
-      { lbl: 'Contrat de bail PDF',        ok: true },
-      { lbl: 'Messagerie complète',        ok: true },
-      { lbl: 'Mobile Money (Orange / MTN)',ok: true },
-      { lbl: 'Relevés eau & électricité',  ok: true },
-      { lbl: 'Quittances PDF auto',        ok: true },
-      { lbl: 'Analytique & rapports',      ok: true },
-      { lbl: 'Signalements & suivi',       ok: true },
-      { lbl: 'Multi-structures',           ok: false },
-      { lbl: 'Export comptable',           ok: false },
+    prix_annuel : 50_000,
+    popular     : true,
+    couleur     : '#2563EB',
+    description : "Pour les bailleurs jusqu'à 15 biens",
+    features    : [
+      { lbl: "Jusqu'à 15 biens",           ok: true  },
+      { lbl: 'Contrat de bail PDF',         ok: true  },
+      { lbl: 'Messagerie complète',         ok: true  },
+      { lbl: 'Mobile Money (Orange / MTN)', ok: true  },
+      { lbl: 'Relevés eau & électricité',   ok: true  },
+      { lbl: 'Quittances PDF auto',         ok: true  },
+      { lbl: 'Analytique & rapports',       ok: true  },
+      { lbl: 'Signalements & suivi',        ok: true  },
+      { lbl: 'Multi-structures',            ok: false },
+      { lbl: 'Export comptable',            ok: false },
     ],
-    cta: 'Essayer 30 jours',
-    ctaHref: '/register?plan=pro',
+    cta        : 'Essayer 30 jours',
+    ctaHref    : '/register?plan=pro',
+    ctaLoggedIn: '/bailleur/abonnement?plan=pro',   // ← connecté → direct
   },
   {
-    id: 'business',
-    label: 'Business',
-    badge: null,
+    id          : 'business',
+    label       : 'Business',
+    badge       : null,
     prix_mensuel: 15_000,
-    prix_annuel: 150_000,
-    popular: false,
-    couleur: '#7C3AED',
-    description: 'Pour les grands propriétaires et agences',
-    features: [
-      { lbl: 'Biens illimités',            ok: true },
-      { lbl: 'Tout le plan Pro inclus',    ok: true },
-      { lbl: 'Multi-structures',           ok: true },
-      { lbl: 'Export comptable',           ok: true },
-      { lbl: 'Accès API',                  ok: true },
-      { lbl: 'Support prioritaire 24h',    ok: true },
-      { lbl: 'Account manager dédié',      ok: true },
+    prix_annuel : 150_000,
+    popular     : false,
+    couleur     : '#7C3AED',
+    description : 'Pour les grands propriétaires et agences',
+    features    : [
+      { lbl: 'Biens illimités',          ok: true },
+      { lbl: 'Tout le plan Pro inclus',  ok: true },
+      { lbl: 'Multi-structures',         ok: true },
+      { lbl: 'Export comptable',         ok: true },
+      { lbl: 'Accès API',                ok: true },
+      { lbl: 'Support prioritaire 24h',  ok: true },
+      { lbl: 'Account manager dédié',    ok: true },
     ],
-    cta: 'Contacter l\'équipe',
-    ctaHref: '/contact',
+    cta        : "Contacter l'équipe",
+    ctaHref    : '/contact',
+    ctaLoggedIn: '/bailleur/abonnement?plan=business', // ← connecté → direct
   },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────
-function fmt(n: number) {
-  if (n === 0) return 'Gratuit'
-  return n.toLocaleString('fr-FR')
-}
-
 function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const ref    = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
@@ -99,8 +99,12 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
 // ── Carte plan ────────────────────────────────────────────────
 function PlanCard({
   p, annuel, inCarousel = false,
+  onCta,
 }: {
-  p: typeof PLANS[0]; annuel: boolean; inCarousel?: boolean
+  p           : typeof PLANS[0]
+  annuel      : boolean
+  inCarousel? : boolean
+  onCta       : (plan: typeof PLANS[0]) => void
 }) {
   const prix = annuel ? p.prix_annuel : p.prix_mensuel
   const eco  = annuel && p.prix_mensuel > 0
@@ -109,17 +113,17 @@ function PlanCard({
 
   return (
     <div style={{
-      background    : p.popular ? 'linear-gradient(160deg,#0D1B2E,#1E3A5F)' : '#fff',
-      border        : p.popular ? '1.5px solid rgba(59,130,246,.4)' : p.id === 'business' ? '1.5px solid rgba(124,58,237,.25)' : '1px solid #E2E8F0',
-      borderRadius  : '20px',
-      padding       : '28px 24px',
-      display       : 'flex',
-      flexDirection : 'column' as const,
-      position      : 'relative' as const,
-      transform     : !inCarousel && p.popular ? 'translateY(-10px)' : 'none',
-      boxShadow     : p.popular ? '0 0 50px rgba(37,99,235,.18),0 16px 48px rgba(0,0,0,.2)' : p.id === 'business' ? '0 4px 20px rgba(124,58,237,.08)' : 'none',
-      transition    : 'all .25s ease',
-      height        : '100%',
+      background   : p.popular ? 'linear-gradient(160deg,#0D1B2E,#1E3A5F)' : '#fff',
+      border       : p.popular ? '1.5px solid rgba(59,130,246,.4)' : p.id === 'business' ? '1.5px solid rgba(124,58,237,.25)' : '1px solid #E2E8F0',
+      borderRadius : '20px',
+      padding      : '28px 24px',
+      display      : 'flex',
+      flexDirection: 'column' as const,
+      position     : 'relative' as const,
+      transform    : !inCarousel && p.popular ? 'translateY(-10px)' : 'none',
+      boxShadow    : p.popular ? '0 0 50px rgba(37,99,235,.18),0 16px 48px rgba(0,0,0,.2)' : p.id === 'business' ? '0 4px 20px rgba(124,58,237,.08)' : 'none',
+      transition   : 'all .25s ease',
+      height       : '100%',
     }}>
 
       {/* Badge */}
@@ -195,27 +199,35 @@ function PlanCard({
       </div>
 
       {/* CTA */}
-      <Link href={p.ctaHref} style={{
-        display: 'block', textAlign: 'center', padding: '13px',
-        borderRadius: '12px', fontSize: '14px', fontWeight: 700,
-        textDecoration: 'none', transition: 'all .2s',
-        background: p.popular
-          ? 'linear-gradient(135deg,#2563EB,#1D4ED8)'
-          : p.id === 'business'
-            ? 'linear-gradient(135deg,#7C3AED,#6D28D9)'
-            : 'transparent',
-        color: p.popular || p.id === 'business' ? '#fff' : '#64748B',
-        border: p.popular || p.id === 'business' ? 'none' : '1.5px solid #E2E8F0',
-        boxShadow: p.popular ? '0 4px 16px rgba(37,99,235,.4)' : p.id === 'business' ? '0 4px 16px rgba(124,58,237,.3)' : 'none',
-      }}>
+      <button
+        onClick={() => onCta(p)}
+        style={{
+          display   : 'block', width: '100%', textAlign: 'center',
+          padding   : '13px', borderRadius: '12px',
+          fontSize  : '14px', fontWeight: 700,
+          cursor    : 'pointer', transition: 'all .2s',
+          background: p.popular
+            ? 'linear-gradient(135deg,#2563EB,#1D4ED8)'
+            : p.id === 'business'
+              ? 'linear-gradient(135deg,#7C3AED,#6D28D9)'
+              : 'transparent',
+          color : p.popular || p.id === 'business' ? '#fff' : '#64748B',
+          border: p.popular || p.id === 'business' ? 'none' : '1.5px solid #E2E8F0',
+          boxShadow: p.popular ? '0 4px 16px rgba(37,99,235,.4)' : p.id === 'business' ? '0 4px 16px rgba(124,58,237,.3)' : 'none',
+        }}>
         {p.cta}
-      </Link>
+      </button>
     </div>
   )
 }
 
 // ── Carrousel mobile ──────────────────────────────────────────
-function PricingCarousel({ annuel }: { annuel: boolean }) {
+function PricingCarousel({
+  annuel, onCta,
+}: {
+  annuel : boolean
+  onCta  : (plan: typeof PLANS[0]) => void
+}) {
   const [active, setActive] = useState(1)
   const startX = useRef(0)
 
@@ -256,7 +268,7 @@ function PricingCarousel({ annuel }: { annuel: boolean }) {
           transition={{ duration: .35, ease: [0.22, 1, 0.36, 1] }}>
           {PLANS.map(p => (
             <div key={p.label} style={{ width: '100%', flexShrink: 0, padding: '20px 4px 4px' }}>
-              <PlanCard p={p} annuel={annuel} inCarousel/>
+              <PlanCard p={p} annuel={annuel} inCarousel onCta={onCta}/>
             </div>
           ))}
         </motion.div>
@@ -272,6 +284,29 @@ function PricingCarousel({ annuel }: { annuel: boolean }) {
 // ── Section principale ────────────────────────────────────────
 export default function LandingPricing() {
   const [annuel, setAnnuel] = useState(false)
+  const router = useRouter()
+
+  // ── Lecture de l'état de connexion ────────────────────────
+  let isLoggedIn = false
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { user } = useAuth()
+    isLoggedIn = !!user
+  } catch {
+    // useAuth non disponible hors du provider → landing publique
+    isLoggedIn = false
+  }
+
+  // ── Handler CTA intelligent ───────────────────────────────
+  const handleCta = (plan: typeof PLANS[0]) => {
+    if (isLoggedIn) {
+      // Bailleur connecté → page abonnement du dashboard
+      router.push(plan.ctaLoggedIn)
+    } else {
+      // Visiteur → inscription (avec plan pré-sélectionné)
+      router.push(plan.ctaHref)
+    }
+  }
 
   return (
     <section id="tarifs" style={{ background: '#F8FAFC', padding: '96px 24px', borderTop: '1px solid #E2E8F0' }}>
@@ -315,14 +350,14 @@ export default function LandingPricing() {
         <div className="pricing-desktop" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', alignItems:'start' }}>
           {PLANS.map((p, i) => (
             <Reveal key={p.id} delay={i * 0.1}>
-              <PlanCard p={p} annuel={annuel}/>
+              <PlanCard p={p} annuel={annuel} onCta={handleCta}/>
             </Reveal>
           ))}
         </div>
 
         {/* Mobile — carrousel */}
         <div className="pricing-mobile" style={{ display:'none' }}>
-          <PricingCarousel annuel={annuel}/>
+          <PricingCarousel annuel={annuel} onCta={handleCta}/>
         </div>
 
         {/* Comparaison rapide */}
@@ -344,14 +379,14 @@ export default function LandingPricing() {
               </thead>
               <tbody>
                 {[
-                  { lbl: 'Nombre de biens', vals: ['1', '15', '∞'] },
-                  { lbl: 'Mobile Money',     vals: [false, true, true] },
-                  { lbl: 'Relevés eau/élec', vals: [false, true, true] },
-                  { lbl: 'Quittances PDF',   vals: [false, true, true] },
-                  { lbl: 'Analytique',        vals: [false, true, true] },
-                  { lbl: 'Signalements',     vals: [false, true, true] },
-                  { lbl: 'Multi-structures', vals: [false, false, true] },
-                  { lbl: 'Export comptable', vals: [false, false, true] },
+                  { lbl: 'Nombre de biens',  vals: ['1', '15', '∞']           },
+                  { lbl: 'Mobile Money',      vals: [false, true,  true]        },
+                  { lbl: 'Relevés eau/élec',  vals: [false, true,  true]        },
+                  { lbl: 'Quittances PDF',    vals: [false, true,  true]        },
+                  { lbl: 'Analytique',         vals: [false, true,  true]        },
+                  { lbl: 'Signalements',      vals: [false, true,  true]        },
+                  { lbl: 'Multi-structures',  vals: [false, false, true]        },
+                  { lbl: 'Export comptable',  vals: [false, false, true]        },
                 ].map((row, ri) => (
                   <tr key={row.lbl} style={{ background: ri % 2 === 0 ? '#F8FAFC' : '#fff' }}>
                     <td style={{ padding:'10px 12px', color:'#475569', borderRadius:'8px 0 0 8px' }}>{row.lbl}</td>
