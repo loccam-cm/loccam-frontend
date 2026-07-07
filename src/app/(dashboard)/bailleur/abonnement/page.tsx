@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'   // ← useRef ajouté
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -10,10 +10,9 @@ import { invalidatePlanCache } from '@/hooks/usePlan'
 import {
   IconArrowLeft, IconCheck, IconX, IconCrown, IconRocket,
   IconBuildingStore, IconLoader2, IconRefresh, IconAlertTriangle,
-  IconCircleCheck, IconCalendar, IconStar, IconArrowDown,   // ← IconArrowDown ajouté
+  IconCircleCheck, IconCalendar, IconStar, IconArrowDown,
 } from '@tabler/icons-react'
 
-// ── Types ──────────────────────────────────────────────────────
 type Plan    = 'gratuit' | 'pro' | 'business'
 type Periode = 'mensuel' | 'annuel'
 
@@ -33,7 +32,6 @@ interface AbonnementData {
   tarifs         : Record<string, Record<string, number>>
 }
 
-// ── Config des plans ───────────────────────────────────────────
 const FEATURES: { key: string; label: string }[] = [
   { key: 'nb_biens',     label: 'Biens gérés'                 },
   { key: 'mobile_money', label: 'Paiement Mobile Money'       },
@@ -88,31 +86,32 @@ function FeatureIcon({ val }: { val: boolean | string | number }) {
 }
 
 // ════════════════════════════════════════════════════════════════
-export default function AbonnementPage() {
+// Composant interne — useSearchParams() doit être dans Suspense
+// ════════════════════════════════════════════════════════════════
+function AbonnementContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
-  const plansRef     = useRef<HTMLDivElement>(null)   // ← ref section cartes
+  const plansRef     = useRef<HTMLDivElement>(null)
 
-  const [abo,        setAbo]       = useState<AbonnementData | null>(null)
-  const [loading,    setLoading]   = useState(true)
-  const [periode,    setPeriode]   = useState<Periode>('mensuel')
-  const [paying,     setPaying]    = useState<Plan | null>(null)
-  const [cancelling, setCancelling]= useState(false)
-  const [planSugge,  setPlanSugge] = useState<Plan | null>(null)  // ← plan suggéré depuis URL
+  const [abo,        setAbo]        = useState<AbonnementData | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [periode,    setPeriode]    = useState<Periode>('mensuel')
+  const [paying,     setPaying]     = useState<Plan | null>(null)
+  const [cancelling, setCancelling] = useState(false)
+  const [planSugge,  setPlanSugge]  = useState<Plan | null>(null)
 
-  // ── 1. Lecture ?plan= depuis la landing ou LandingPricing ────
+  // Lecture ?plan= depuis la landing
   useEffect(() => {
     const planParam = searchParams.get('plan') as Plan | null
     if (planParam && ['pro','business'].includes(planParam)) {
       setPlanSugge(planParam)
-      // Scroll vers les cartes après chargement
       setTimeout(() => {
         plansRef.current?.scrollIntoView({ behavior:'smooth', block:'start' })
       }, 600)
     }
   }, [searchParams])
 
-  // ── 2. Lecture retour PayDunya (?succes=1 / ?annule=1) ───────
+  // Retour PayDunya (?succes=1 / ?annule=1)
   useEffect(() => {
     const succes = searchParams.get('succes')
     const annule = searchParams.get('annule')
@@ -142,13 +141,11 @@ export default function AbonnementPage() {
 
   useEffect(() => { load() }, [load])
 
-  // ── Souscrire ────────────────────────────────────────────────
   const souscrire = async (plan: 'pro' | 'business') => {
     setPaying(plan)
     try {
       const res  = await api.post('/abonnements/souscrire/', { plan, periode })
       const data = res.data
-
       if (data.mode === 'test') {
         invalidatePlanCache()
         toast.success(`✅ Plan ${plan} activé (mode test)`)
@@ -156,7 +153,6 @@ export default function AbonnementPage() {
         load()
         return
       }
-
       if (data.paydunya_url) {
         window.location.href = data.paydunya_url
       } else {
@@ -169,7 +165,6 @@ export default function AbonnementPage() {
     }
   }
 
-  // ── Annuler ──────────────────────────────────────────────────
   const annuler = async () => {
     if (!confirm("Confirmer l'annulation ? Votre accès reste actif jusqu'à la fin de la période.")) return
     setCancelling(true)
@@ -214,7 +209,7 @@ export default function AbonnementPage() {
 
       <div style={{ minHeight:'100vh', background:'#F1F5F9', fontFamily:"'DM Sans','Helvetica Neue',sans-serif" }}>
 
-        {/* ── HEADER ── */}
+        {/* HEADER */}
         <header style={{ position:'sticky', top:0, zIndex:30, background:'#fff', borderBottom:'1px solid #E2E8F0', boxShadow:'0 1px 3px rgba(0,0,0,.04)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'0 24px', height:'56px' }}>
             <Link href="/bailleur" style={{ display:'flex', alignItems:'center', gap:'6px', color:'#64748B', textDecoration:'none', fontSize:'14px', fontWeight:500 }}>
@@ -232,7 +227,7 @@ export default function AbonnementPage() {
 
         <div style={{ maxWidth:'860px', margin:'0 auto', padding:'24px 16px', display:'flex', flexDirection:'column', gap:'20px' }}>
 
-          {/* ── BANDEAU PLAN SUGGÉRÉ (vient de la landing) ── */}
+          {/* BANDEAU PLAN SUGGÉRÉ */}
           {planSugge && !loading && planActuel !== planSugge && (
             <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
               style={{
@@ -244,12 +239,8 @@ export default function AbonnementPage() {
               <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
                 {PLAN_META[planSugge].icon}
                 <div>
-                  <div style={{ fontSize:'13px', fontWeight:700 }}>
-                    Plan {PLAN_META[planSugge].label} sélectionné
-                  </div>
-                  <div style={{ fontSize:'12px', opacity:.8 }}>
-                    Choisissez votre période ci-dessous et souscrivez
-                  </div>
+                  <div style={{ fontSize:'13px', fontWeight:700 }}>Plan {PLAN_META[planSugge].label} sélectionné</div>
+                  <div style={{ fontSize:'12px', opacity:.8 }}>Choisissez votre période ci-dessous et souscrivez</div>
                 </div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
@@ -262,7 +253,7 @@ export default function AbonnementPage() {
             </motion.div>
           )}
 
-          {/* ── PLAN ACTUEL ── */}
+          {/* PLAN ACTUEL */}
           {!loading && abo && (
             <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}>
               <div style={{
@@ -311,7 +302,7 @@ export default function AbonnementPage() {
             </motion.div>
           )}
 
-          {/* ── TOGGLE MENSUEL / ANNUEL ── */}
+          {/* TOGGLE MENSUEL / ANNUEL */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}>
             {(['mensuel','annuel'] as Periode[]).map(p => (
               <button key={p} onClick={() => setPeriode(p)}
@@ -332,31 +323,33 @@ export default function AbonnementPage() {
             ))}
           </div>
 
-          {/* ── CARTES DES PLANS ── */}
-          <div ref={plansRef}   
-               style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'16px' }}>
+          {/* CARTES DES PLANS */}
+          <div
+            ref={plansRef}
+            style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'16px' }}>
             {(['gratuit','pro','business'] as Plan[]).map((plan, i) => {
               const meta      = PLAN_META[plan]
               const estActuel = planActuel === plan
-              const estSugge  = planSugge  === plan   // ← plan suggéré
+              const estSugge  = planSugge  === plan
               const prixVal   = plan === 'gratuit' ? 0 : tarif(plan as 'pro'|'business')
               const isLoading = paying === plan
 
               return (
-                <motion.div key={plan}
-                  className={`plan-card${estSugge ? ' plan-sugge' : ''}`} 
-                  initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+                <motion.div
+                  key={plan}
+                  className={`plan-card${estSugge ? ' plan-sugge' : ''}`}
+                  initial={{ opacity:0, y:16 }}
+                  animate={{ opacity:1, y:0 }}
                   transition={{ delay: i * 0.07 }}
                   style={{
                     background  : meta.recommande ? '#F0FDF4' : '#fff',
                     border      : estSugge
-                      ? `2px solid ${meta.couleur}`   // ← bordure colorée si suggéré
+                      ? `2px solid ${meta.couleur}`
                       : `${meta.recommande ? 2 : 1}px solid ${meta.border}`,
                     borderRadius:'16px', padding:'20px', position:'relative',
-                    boxShadow   : estSugge ? `0 0 0 4px ${meta.couleur}22` : 'none',  // ← halo
+                    boxShadow   : estSugge ? `0 0 0 4px ${meta.couleur}22` : 'none',
                   }}>
 
-                  {/* Badge "Recommandé" ou "Suggéré" */}
                   {(meta.recommande || estSugge) && (
                     <div style={{
                       position:'absolute', top:'-12px', left:'50%', transform:'translateX(-50%)',
@@ -364,11 +357,10 @@ export default function AbonnementPage() {
                       color:'#fff', fontSize:'11px', fontWeight:700,
                       padding:'3px 12px', borderRadius:'100px', whiteSpace:'nowrap',
                     }}>
-                      {estSugge ? `✦ Plan recommandé pour vous` : 'Recommandé'}
+                      {estSugge ? '✦ Plan recommandé pour vous' : 'Recommandé'}
                     </div>
                   )}
 
-                  {/* En-tête */}
                   <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px' }}>
                     <div style={{ width:'36px', height:'36px', borderRadius:'10px', background:meta.bg, color:meta.couleur, display:'flex', alignItems:'center', justifyContent:'center' }}>
                       {meta.icon}
@@ -376,7 +368,6 @@ export default function AbonnementPage() {
                     <span style={{ fontSize:'16px', fontWeight:700, color:'#0F172A' }}>{meta.label}</span>
                   </div>
 
-                  {/* Prix */}
                   <div style={{ marginBottom:'16px' }}>
                     <span style={{ fontSize:'28px', fontWeight:800, color:meta.couleur }}>
                       {prixVal.toLocaleString('fr-FR')}
@@ -391,7 +382,6 @@ export default function AbonnementPage() {
                     )}
                   </div>
 
-                  {/* Features */}
                   <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'20px' }}>
                     {FEATURES.map(f => (
                       <div key={f.key} style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'12px', color:'#475569' }}>
@@ -401,7 +391,6 @@ export default function AbonnementPage() {
                     ))}
                   </div>
 
-                  {/* CTA */}
                   {estActuel ? (
                     <div style={{ padding:'10px', borderRadius:'12px', textAlign:'center', fontSize:'13px', fontWeight:700, background:meta.bg, color:meta.couleur, border:`1px solid ${meta.border}` }}>
                       <IconCircleCheck size={14} style={{ display:'inline', marginRight:'6px' }}/>
@@ -435,7 +424,7 @@ export default function AbonnementPage() {
             })}
           </div>
 
-          {/* ── TABLEAU COMPARATIF ── */}
+          {/* TABLEAU COMPARATIF */}
           <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:.25 }}
             style={{ background:'#fff', borderRadius:'16px', border:'1px solid #E2E8F0', overflow:'hidden' }}>
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #F1F5F9' }}>
@@ -469,7 +458,7 @@ export default function AbonnementPage() {
             </div>
           </motion.div>
 
-          {/* ── ANNULER ── */}
+          {/* ANNULER */}
           {planActuel !== 'gratuit' && abo?.statut === 'actif' && (
             <div style={{ textAlign:'center', paddingBottom:'8px' }}>
               <button onClick={annuler} disabled={cancelling}
@@ -488,5 +477,18 @@ export default function AbonnementPage() {
         </div>
       </div>
     </>
+  )
+}
+
+// ── Export avec Suspense (obligatoire pour useSearchParams) ────
+export default function AbonnementPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight:'100vh', background:'#F1F5F9', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <div style={{ fontSize:'14px', color:'#94A3B8' }}>Chargement...</div>
+      </div>
+    }>
+      <AbonnementContent />
+    </Suspense>
   )
 }
