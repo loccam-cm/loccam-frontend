@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import PlanGate from '@/components/plan/PlanGate';
 import {
   IconDroplet,
   IconBolt,
