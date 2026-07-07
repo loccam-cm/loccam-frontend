@@ -18,6 +18,7 @@ import {
   IconChartBar,
   IconAlertCircle,
   IconUser,
+  IconCrown,
 } from "@tabler/icons-react";
 
 interface Props {
@@ -115,6 +116,11 @@ export function BailleurSidebar({
     {
       label: t("compte.titre"),
       items: [
+        {
+          icon: <IconCrown size={16} />,
+          label: t("nav.abonnement"),
+          href: "/bailleur/abonnement",
+        },
         {
           icon: <IconSettings size={16} />,
           label: t("nav.parametres"),
