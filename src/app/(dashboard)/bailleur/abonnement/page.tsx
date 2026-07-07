@@ -333,7 +333,7 @@ export default function AbonnementPage() {
           </div>
 
           {/* ── CARTES DES PLANS ── */}
-          <div ref={plansRef}   {/* ← ref sur la section */}
+          <div ref={plansRef}   
                style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'16px' }}>
             {(['gratuit','pro','business'] as Plan[]).map((plan, i) => {
               const meta      = PLAN_META[plan]

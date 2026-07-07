@@ -291,7 +291,7 @@ export default function BailleurSignalementsPage() {
 
   const planOk = peut('signalements')     // true si Pro ou Business
 
-  useEffect(() => { if (planOk) load() else setLoading(false) }, [planOk])
+  useEffect(() => { if (planOk) { load() } else { setLoading(false) } }, [planOk])
 
   const load = async () => {
     setLoading(true)

@@ -14,7 +14,7 @@ const DESCRIPTIONS: Record<Fonctionnalite, { titre: string; sub: string; ico: st
   mobile_money : { titre: 'Paiements Mobile Money',       sub: 'Acceptez Orange Money et MTN Money directement sur LocCam.',     ico: '📱' },
   releves      : { titre: 'Relevés eau & électricité',    sub: 'Saisissez les index mensuels et générez des factures automatiques.', ico: '💧' },
   quittances   : { titre: 'Quittances PDF automatiques',  sub: 'Chaque paiement confirmé génère une quittance PDF téléchargeable.', ico: '📄' },
-  analytique   : { titre: 'Analytique & rapports',        sub: 'Suivez vos revenus, taux d'occupation et impayés en temps réel.',   ico: '📊' },
+  analytique   : { titre: 'Analytique & rapports',        sub: "Suivez vos revenus, taux d'occupation et impayés en temps réel.",   ico: '📊' },
   signalements : { titre: 'Signalements techniques',      sub: 'Vos locataires signalent les problèmes, vous les gérez en ligne.',  ico: '🔧' },
   structures   : { titre: 'Multi-structures',             sub: 'Gérez plusieurs immeubles, résidences et cités depuis un seul compte.', ico: '🏢' },
   export       : { titre: 'Export comptable',             sub: 'Exportez vos données en CSV/Excel pour votre comptabilité.',        ico: '📥' },
