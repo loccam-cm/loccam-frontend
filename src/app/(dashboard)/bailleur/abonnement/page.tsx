@@ -344,7 +344,7 @@ export default function AbonnementPage() {
 
               return (
                 <motion.div key={plan}
-                  className={`plan-card${estSugge ? ' plan-sugge' : ''}`}  {/* ← animation pulse */}
+                  className={`plan-card${estSugge ? ' plan-sugge' : ''}`} 
                   initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
                   transition={{ delay: i * 0.07 }}
                   style={{

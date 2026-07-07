@@ -63,7 +63,7 @@ export default function ModalUpgrade({
           <motion.div
             initial={{ opacity: 0, scale: .94, y: 20 }}
             animate={{ opacity: 1, scale: 1,   y: 0  }}
-            exit   {{ opacity: 0, scale: .94, y: 20  }}
+            exit={{ opacity: 0, scale: .94, y: 20 }}
             transition={{ duration: .25, ease: [0.22, 1, 0.36, 1] }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{ pointerEvents: 'none' }}>
