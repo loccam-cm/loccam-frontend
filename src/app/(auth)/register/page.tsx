@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import RegisterLeftPanel from './components/LeftPanel'
 import RegisterForm from './components/RegisterForm'
 
@@ -6,7 +7,9 @@ export default function RegisterPage() {
     <>
       <div className="rg-root">
         <RegisterLeftPanel />
-        <RegisterForm />
+        <Suspense fallback={<div style={{ width:'40%', background:'#fff' }}/>}>
+          <RegisterForm />
+        </Suspense>
       </div>
 
       <style>{`
