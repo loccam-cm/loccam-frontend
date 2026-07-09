@@ -11,7 +11,7 @@ import {
   IconBuilding, IconUser, IconMail, IconLock, IconPhone,
   IconMapPin, IconRocket, IconCalendar,
   IconUsers, IconArrowRight, IconIdBadge, IconShieldCheck,
-  IconUpload, IconCheck, IconX, IconCrown,
+  IconUpload, IconCheck, IconX, IconCrown, IconLoader2,
 } from '@tabler/icons-react'
 
 const VILLES = [
@@ -19,22 +19,21 @@ const VILLES = [
   'Maroua', 'Ngaoundéré', 'Bertoua', 'Ebolowa', 'Buea', 'Autre',
 ]
 
-// ── Config plans pour la bannière ──────────────────────────────
 const PLAN_CONFIG = {
   pro: {
-    label    : 'Pro — 5 000 XAF/mois',
+    label    : 'Pro',
     gradient : 'linear-gradient(135deg,#047857,#059669)',
     icon     : <IconRocket size={16}/>,
+    prix     : { mensuel: 5000,  annuel: 50000  },
   },
   business: {
-    label    : 'Business — 15 000 XAF/mois',
+    label    : 'Business',
     gradient : 'linear-gradient(135deg,#6D28D9,#7C3AED)',
     icon     : <IconCrown size={16}/>,
+    prix     : { mensuel: 15000, annuel: 150000 },
   },
 }
 
-// ════════════════════════════════════════════════════════════════
-// Composant interne — useSearchParams() doit être dans Suspense
 // ════════════════════════════════════════════════════════════════
 function RegisterFormContent() {
   const router       = useRouter()
@@ -42,9 +41,12 @@ function RegisterFormContent() {
   const planParam    = searchParams.get('plan') as 'pro' | 'business' | null
 
   const fileRef = useRef<HTMLInputElement>(null)
+
   const [loading,    setLoading]    = useState(false)
+  const [loadingMsg, setLoadingMsg] = useState('Création en cours...')
   const [cniFile,    setCniFile]    = useState<File | null>(null)
   const [cniPreview, setCniPreview] = useState<string>('')
+  const [periode,    setPeriode]    = useState<'mensuel' | 'annuel'>('mensuel')
   const [form, setForm] = useState({
     prenom: '', nom: '', email: '',
     telephone: '', ville: '', password: '',
@@ -58,7 +60,6 @@ function RegisterFormContent() {
     : form.password.length < 6  ? 1
     : form.password.length < 10 ? 2 : 3
 
-  // ── Sélection fichier CNI ──────────────────────────────────
   const handleCniSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -75,46 +76,81 @@ function RegisterFormContent() {
 
   const removeCni = () => { setCniFile(null); setCniPreview('') }
 
-  // ── Soumission ─────────────────────────────────────────────
+  // ── Prix affiché ─────────────────────────────────────────────
+  const prixAffiche = planParam
+    ? `${PLAN_CONFIG[planParam].prix[periode].toLocaleString('fr-FR')} XAF/${periode === 'mensuel' ? 'mois' : 'an'}`
+    : null
+
+  // ── Soumission ───────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setLoadingMsg('Création du compte...')
+
     try {
-      // 1. Créer le compte
+      // ── 1. Créer le compte ───────────────────────────────────
       const res = await api.post<AuthResponse>('/auth/inscription/', {
         ...form, role: 'bailleur', langue: 'fr', password2: form.password,
       })
-      localStorage.setItem('access_token',  res.data.access_token)
-      localStorage.setItem('refresh_token', res.data.refresh_token)
-      localStorage.setItem('user',          JSON.stringify(res.data.user))
+      const { access_token, refresh_token, user } = res.data
+      localStorage.setItem('access_token',  access_token)
+      localStorage.setItem('refresh_token', refresh_token)
+      localStorage.setItem('user',          JSON.stringify(user))
 
-      // 2. Uploader la CNI si sélectionnée
+      // ── 2. Upload CNI si sélectionnée ────────────────────────
       if (cniFile) {
+        setLoadingMsg('Upload de la CNI...')
         try {
           const formData = new FormData()
-          formData.append('fichier',        cniFile)
-          formData.append('type_document',  'cni')
+          formData.append('fichier',       cniFile)
+          formData.append('type_document', 'cni')
           await api.post('/upload/', formData, {
             headers: {
               'Content-Type' : 'multipart/form-data',
-              'Authorization': `Bearer ${res.data.access_token}`,
+              'Authorization': `Bearer ${access_token}`,
             },
           })
-          toast.success('Bienvenue sur LocCam ! CNI uploadée avec succès.')
         } catch (err: unknown) {
-          const e      = err as { response?: { data?: { error?: string }; status?: number } }
-          const msg    = e.response?.data?.error ?? 'Erreur inconnue'
-          const status = e.response?.status ?? 0
-          console.error('Upload CNI error:', status, msg)
-          toast.success('Bienvenue sur LocCam !')
-          toast.error(`CNI non uploadée (${status}) : ${msg}`)
+          const e = err as { response?: { data?: { error?: string }; status?: number } }
+          console.error('Upload CNI error:', e.response?.status, e.response?.data?.error)
         }
-      } else {
-        toast.success('Bienvenue sur LocCam !')
       }
 
-      // 3. Redirect → page abonnement si plan sélectionné, sinon dashboard
-      router.push(planParam ? `/bailleur/abonnement?plan=${planParam}` : '/bailleur')
+      // ── 3. Paiement automatique si plan sélectionné ──────────
+      if (planParam && ['pro', 'business'].includes(planParam)) {
+        setLoadingMsg('Redirection vers le paiement...')
+        try {
+          const payRes = await api.post(
+            '/abonnements/souscrire/',
+            { plan: planParam, periode },
+            { headers: { Authorization: `Bearer ${access_token}` } }
+          )
+          const data = payRes.data
+
+          // Mode test → activer directement
+          if (data.mode === 'test') {
+            toast.success(`🎉 Compte créé et plan ${PLAN_CONFIG[planParam].label} activé !`)
+            router.push('/bailleur')
+            return
+          }
+
+          // Redirect PayDunya
+          if (data.paydunya_url) {
+            toast.success('Compte créé ! Redirection vers le paiement...')
+            window.location.href = data.paydunya_url
+            return
+          }
+        } catch {
+          toast.success('Compte créé !')
+          toast.error('Erreur paiement — souscrivez depuis votre dashboard.')
+          router.push(`/bailleur/abonnement?plan=${planParam}`)
+          return
+        }
+      }
+
+      // ── 4. Sans plan → dashboard normal ─────────────────────
+      toast.success('Bienvenue sur LocCam !')
+      router.push('/bailleur')
 
     } catch (err: unknown) {
       const error = err as { response?: { data?: Record<string, string[]> } }
@@ -124,6 +160,7 @@ function RegisterFormContent() {
       toast.error(String(msg))
     } finally {
       setLoading(false)
+      setLoadingMsg('Création en cours...')
     }
   }
 
@@ -133,7 +170,7 @@ function RegisterFormContent() {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="rg-form-header">
         <Link href="/landing" className="rg-logo">
           <div className="rg-logo-icon"><IconBuilding size={15} color="white"/></div>
@@ -152,7 +189,7 @@ function RegisterFormContent() {
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* Body */}
       <div className="rg-form-body">
         <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
           transition={{ delay:0.3, duration:0.55 }}>
@@ -163,25 +200,52 @@ function RegisterFormContent() {
           </p>
         </motion.div>
 
-        {/* ── Bannière plan sélectionné depuis la landing ── */}
+        {/* ── Bannière plan sélectionné ── */}
         {planParam && PLAN_CONFIG[planParam] && (
           <motion.div
             initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
             transition={{ delay:0.25 }}
             style={{
-              display       : 'flex', alignItems:'center', gap:'12px',
-              padding       : '12px 14px', borderRadius:'12px', marginBottom:'14px',
-              background    : PLAN_CONFIG[planParam].gradient,
-              color         : '#fff',
+              borderRadius:'12px', marginBottom:'14px',
+              background: PLAN_CONFIG[planParam].gradient,
+              overflow:'hidden',
             }}>
-            {PLAN_CONFIG[planParam].icon}
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:'12px', fontWeight:700 }}>
-                Plan {PLAN_CONFIG[planParam].label} sélectionné
+            {/* Infos plan */}
+            <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 14px', color:'#fff' }}>
+              {PLAN_CONFIG[planParam].icon}
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:'13px', fontWeight:700 }}>
+                  Plan {PLAN_CONFIG[planParam].label} — {prixAffiche}
+                </div>
+                <div style={{ fontSize:'11px', opacity:.8 }}>
+                  Paiement Mobile Money déclenché automatiquement après inscription
+                </div>
               </div>
-              <div style={{ fontSize:'11px', opacity:.8 }}>
-                Sera activé après la création de votre compte
-              </div>
+            </div>
+
+            {/* Toggle mensuel / annuel */}
+            <div style={{ display:'flex', borderTop:'1px solid rgba(255,255,255,.15)', background:'rgba(0,0,0,.15)' }}>
+              {(['mensuel','annuel'] as const).map(p => (
+                <button key={p} type="button" onClick={() => setPeriode(p)}
+                  style={{
+                    flex:1, padding:'8px', border:'none', cursor:'pointer',
+                    background: periode === p ? 'rgba(255,255,255,.2)' : 'transparent',
+                    color:'#fff', fontSize:'12px', fontWeight: periode === p ? 700 : 500,
+                    display:'flex', alignItems:'center', justifyContent:'center', gap:'6px',
+                    borderRight: p === 'mensuel' ? '1px solid rgba(255,255,255,.15)' : 'none',
+                    transition:'background .15s',
+                  }}>
+                  {p === 'mensuel'
+                    ? `Mensuel — ${PLAN_CONFIG[planParam].prix.mensuel.toLocaleString('fr-FR')} XAF`
+                    : <>Annuel — {PLAN_CONFIG[planParam].prix.annuel.toLocaleString('fr-FR')} XAF
+                      <span style={{ fontSize:'10px', background:'rgba(255,255,255,.25)', padding:'1px 6px', borderRadius:'100px' }}>
+                        2 mois offerts
+                      </span>
+                    </>
+                  }
+                  {periode === p && <IconCheck size={12}/>}
+                </button>
+              ))}
             </div>
           </motion.div>
         )}
@@ -205,7 +269,7 @@ function RegisterFormContent() {
           <IconArrowRight size={15} style={{ color:'#94A3B8' }}/>
         </motion.button>
 
-        {/* ── Formulaire ── */}
+        {/* Formulaire */}
         <motion.form onSubmit={handleSubmit} className="rg-form"
           initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
           transition={{ delay:0.46, duration:0.55 }}>
@@ -314,15 +378,13 @@ function RegisterFormContent() {
             </AnimatePresence>
           </div>
 
-          {/* ── CNI ── */}
+          {/* CNI */}
           <div className="rg-field">
             <label className="rg-label">
               Carte Nationale d&apos;Identité
               <span className="rg-optional"> (pour publier des biens)</span>
             </label>
             <div style={{ border:'2px solid #E2E8F0', borderRadius:'14px', overflow:'hidden', background:'#FAFAFA' }}>
-
-              {/* Header CNI */}
               <div style={{ background:'linear-gradient(135deg,#1A3C5E,#2563EB)', padding:'12px 14px', display:'flex', alignItems:'center', gap:'10px' }}>
                 <div style={{ width:'38px', height:'38px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                   <IconIdBadge size={20} color="white"/>
@@ -336,7 +398,6 @@ function RegisterFormContent() {
                 </div>
               </div>
 
-              {/* Mockup recto/verso */}
               {!cniFile && (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', padding:'12px' }}>
                   {['Recto','Verso'].map(side => (
@@ -349,7 +410,6 @@ function RegisterFormContent() {
                 </div>
               )}
 
-              {/* Preview CNI */}
               {cniFile && (
                 <div style={{ padding:'12px' }}>
                   <motion.div initial={{ opacity:0, scale:0.97 }} animate={{ opacity:1, scale:1 }}
@@ -377,10 +437,9 @@ function RegisterFormContent() {
                 </div>
               )}
 
-              {/* Bouton choisir */}
               <div style={{ padding:'0 12px 12px' }}>
                 <button type="button" onClick={() => fileRef.current?.click()}
-                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'7px', padding:'9px', borderRadius:'10px', background: cniFile ? '#F0FDF4' : '#F1F5F9', border:`1.5px solid ${cniFile ? '#A7F3D0' : '#E2E8F0'}`, fontSize:'12px', fontWeight:700, color: cniFile ? '#059669' : '#1A3C5E', cursor:'pointer', transition:'all 0.15s' }}>
+                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'7px', padding:'9px', borderRadius:'10px', background: cniFile ? '#F0FDF4' : '#F1F5F9', border:`1.5px solid ${cniFile ? '#A7F3D0' : '#E2E8F0'}`, fontSize:'12px', fontWeight:700, color: cniFile ? '#059669' : '#1A3C5E', cursor:'pointer' }}>
                   <IconUpload size={13}/>
                   {cniFile ? 'Changer le fichier' : 'Choisir ma CNI'}
                 </button>
@@ -390,7 +449,6 @@ function RegisterFormContent() {
                   style={{ display:'none' }}/>
               </div>
 
-              {/* Footer CNI */}
               <div style={{ borderTop:'1px solid #E2E8F0', padding:'8px 14px', display:'flex', alignItems:'center', gap:'7px', background:'#F8FAFC' }}>
                 <IconLock size={11} style={{ color:'#7C3AED', flexShrink:0 }}/>
                 <span style={{ fontSize:'10px', color:'#94A3B8' }}>
@@ -420,26 +478,33 @@ function RegisterFormContent() {
                 <motion.div key="loading"
                   initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
                   className="rg-submit-content">
-                  <div className="rg-spinner"/>
-                  {cniFile ? 'Création + upload CNI...' : 'Création en cours...'}
+                  <IconLoader2 size={15} style={{ animation:'spin .7s linear infinite' }}/>
+                  {loadingMsg}
                 </motion.div>
               ) : (
                 <motion.div key="idle"
                   initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
                   className="rg-submit-content">
-                  <IconRocket size={15}/>
                   {planParam
-                    ? `Créer mon compte & passer au ${planParam === 'pro' ? 'Pro' : 'Business'}`
-                    : 'Créer mon compte bailleur'
+                    ? <>{PLAN_CONFIG[planParam].icon} Créer mon compte & payer {prixAffiche}</>
+                    : <><IconRocket size={15}/> Créer mon compte bailleur</>
                   }
                 </motion.div>
               )}
             </AnimatePresence>
           </motion.button>
+
+          {/* Note PayDunya si plan */}
+          {planParam && (
+            <p style={{ textAlign:'center', fontSize:'11px', color:'#94A3B8', marginTop:'-4px' }}>
+              Paiement sécurisé via PayDunya · Orange Money / MTN Money · Sans engagement
+            </p>
+          )}
+
         </motion.form>
       </div>
 
-      {/* ── Footer ── */}
+      {/* Footer */}
       <div className="rg-form-footer">
         {['Se connecter', 'Voir nos offres', 'Aide'].map(l => (
           <a key={l} href="#" className="rg-footer-link">{l}</a>
@@ -449,7 +514,7 @@ function RegisterFormContent() {
   )
 }
 
-// ── Export avec Suspense (obligatoire pour useSearchParams) ────
+// ── Export avec Suspense ───────────────────────────────────────
 export default function RegisterForm() {
   return (
     <Suspense fallback={
