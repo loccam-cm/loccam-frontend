@@ -11,8 +11,10 @@ import {
   IconArrowLeft, IconCheck, IconX, IconCrown, IconRocket,
   IconBuildingStore, IconLoader2, IconRefresh, IconAlertTriangle,
   IconCircleCheck, IconCalendar, IconStar, IconArrowDown,
+  IconCircleX, IconAlertCircle,
 } from '@tabler/icons-react'
 
+// ── Types ──────────────────────────────────────────────────────
 type Plan    = 'gratuit' | 'pro' | 'business'
 type Periode = 'mensuel' | 'annuel'
 
@@ -32,6 +34,7 @@ interface AbonnementData {
   tarifs         : Record<string, Record<string, number>>
 }
 
+// ── Config des plans ───────────────────────────────────────────
 const FEATURES: { key: string; label: string }[] = [
   { key: 'nb_biens',     label: 'Biens gérés'                 },
   { key: 'mobile_money', label: 'Paiement Mobile Money'       },
@@ -75,7 +78,7 @@ function featureVal(plan: Plan, key: string): boolean | string | number {
     if (key === 'nb_biens') return 15
     return key !== 'structures' && key !== 'export'
   }
-  if (key === 'nb_biens') return 'Illimité'
+  if (key === 'nb_biens') return 'Illimite'
   return true
 }
 
@@ -86,8 +89,6 @@ function FeatureIcon({ val }: { val: boolean | string | number }) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// Composant interne — useSearchParams() doit être dans Suspense
-// ════════════════════════════════════════════════════════════════
 function AbonnementContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
@@ -95,36 +96,11 @@ function AbonnementContent() {
 
   const [abo,        setAbo]        = useState<AbonnementData | null>(null)
   const [loading,    setLoading]    = useState(true)
+  const [verifying,  setVerifying]  = useState(false)
   const [periode,    setPeriode]    = useState<Periode>('mensuel')
   const [paying,     setPaying]     = useState<Plan | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [planSugge,  setPlanSugge]  = useState<Plan | null>(null)
-
-  // Lecture ?plan= depuis la landing
-  useEffect(() => {
-    const planParam = searchParams.get('plan') as Plan | null
-    if (planParam && ['pro','business'].includes(planParam)) {
-      setPlanSugge(planParam)
-      setTimeout(() => {
-        plansRef.current?.scrollIntoView({ behavior:'smooth', block:'start' })
-      }, 600)
-    }
-  }, [searchParams])
-
-  // Retour PayDunya (?succes=1 / ?annule=1)
-  useEffect(() => {
-    const succes = searchParams.get('succes')
-    const annule = searchParams.get('annule')
-    if (succes === '1') {
-      invalidatePlanCache()
-      toast.success('🎉 Abonnement activé avec succès !')
-      router.replace('/bailleur/abonnement')
-    }
-    if (annule === '1') {
-      toast.error('Paiement annulé.')
-      router.replace('/bailleur/abonnement')
-    }
-  }, [searchParams, router])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -139,38 +115,83 @@ function AbonnementContent() {
     }
   }, [])
 
+  // ── Lecture ?plan= depuis la landing ──────────────────────
+  useEffect(() => {
+    const planParam = searchParams.get('plan') as Plan | null
+    if (planParam && ['pro','business'].includes(planParam)) {
+      setPlanSugge(planParam)
+      setTimeout(() => {
+        plansRef.current?.scrollIntoView({ behavior:'smooth', block:'start' })
+      }, 600)
+    }
+  }, [searchParams])
+
+  // ── Retour PayDunya ────────────────────────────────────────
+  useEffect(() => {
+    const succes = searchParams.get('succes')
+    const annule = searchParams.get('annule')
+
+    if (succes === '1') {
+      setVerifying(true)
+      // Appel /verifier/ pour activer si webhook non recu
+      api.post('/abonnements/verifier/')
+        .then(() => {
+          invalidatePlanCache()
+          toast.success('Abonnement active avec succes !')
+          router.replace('/bailleur/abonnement')
+          load()
+        })
+        .catch(() => {
+          invalidatePlanCache()
+          toast.success('Paiement recu — activation en cours.')
+          router.replace('/bailleur/abonnement')
+          load()
+        })
+        .finally(() => setVerifying(false))
+    }
+
+    if (annule === '1') {
+      toast.error('Paiement annule.')
+      router.replace('/bailleur/abonnement')
+    }
+  }, [searchParams, router, load])
+
   useEffect(() => { load() }, [load])
 
+  // ── Souscrire ────────────────────────────────────────────────
   const souscrire = async (plan: 'pro' | 'business') => {
     setPaying(plan)
     try {
       const res  = await api.post('/abonnements/souscrire/', { plan, periode })
       const data = res.data
+
       if (data.mode === 'test') {
         invalidatePlanCache()
-        toast.success(`✅ Plan ${plan} activé (mode test)`)
+        toast.success(`Plan ${plan} active en mode test`)
         setPlanSugge(null)
         load()
         return
       }
+
       if (data.paydunya_url) {
         window.location.href = data.paydunya_url
       } else {
         toast.error('URL de paiement manquante.')
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || err?.response?.data?.message || 'Erreur réseau.')
+      toast.error(err?.response?.data?.error || err?.response?.data?.message || 'Erreur reseau.')
     } finally {
       setPaying(null)
     }
   }
 
+  // ── Annuler ──────────────────────────────────────────────────
   const annuler = async () => {
-    if (!confirm("Confirmer l'annulation ? Votre accès reste actif jusqu'à la fin de la période.")) return
+    if (!confirm("Confirmer l'annulation ? Votre acces reste actif jusqu'a la fin de la periode.")) return
     setCancelling(true)
     try {
       const res = await api.post('/abonnements/annuler/')
-      toast.success(res.data.message || 'Abonnement annulé.')
+      toast.success(res.data.message || 'Abonnement annule.')
       invalidatePlanCache()
       load()
     } catch (err: any) {
@@ -196,6 +217,19 @@ function AbonnementContent() {
   }
 
   const planActuel = abo?.plan ?? 'gratuit'
+
+  // ── Bandeau statut (en attente) ──────────────────────────────
+  const showAttente = abo?.statut === 'attente' && abo?.plan !== 'gratuit'
+
+  if (verifying) {
+    return (
+      <div style={{ minHeight:'100vh', background:'#F1F5F9', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'16px' }}>
+        <IconLoader2 size={32} style={{ color:'#059669', animation:'spin 1s linear infinite' }}/>
+        <div style={{ fontSize:'14px', color:'#64748B', fontWeight:600 }}>Verification du paiement en cours...</div>
+        <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -227,7 +261,35 @@ function AbonnementContent() {
 
         <div style={{ maxWidth:'860px', margin:'0 auto', padding:'24px 16px', display:'flex', flexDirection:'column', gap:'20px' }}>
 
-          {/* BANDEAU PLAN SUGGÉRÉ */}
+          {/* BANDEAU EN ATTENTE DE PAIEMENT */}
+          {showAttente && (
+            <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
+              style={{ background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:'14px', padding:'14px 18px', display:'flex', alignItems:'center', gap:'12px' }}>
+              <IconAlertCircle size={20} style={{ color:'#D97706', flexShrink:0 }}/>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:'13px', fontWeight:700, color:'#92400E' }}>
+                  Paiement en attente de confirmation
+                </div>
+                <div style={{ fontSize:'12px', color:'#B45309', marginTop:'2px' }}>
+                  Votre paiement est en cours de traitement. Cliquez sur "Verifier" si vous avez effectue le paiement.
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setVerifying(true)
+                  api.post('/abonnements/verifier/')
+                    .then(() => { invalidatePlanCache(); load() })
+                    .catch(() => load())
+                    .finally(() => setVerifying(false))
+                }}
+                style={{ padding:'8px 16px', borderRadius:'10px', background:'#D97706', color:'#fff', border:'none', cursor:'pointer', fontSize:'12px', fontWeight:700, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:'6px' }}>
+                <IconCircleCheck size={14}/>
+                Verifier
+              </button>
+            </motion.div>
+          )}
+
+          {/* BANDEAU PLAN SUGGERE */}
           {planSugge && !loading && planActuel !== planSugge && (
             <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
               style={{
@@ -239,15 +301,15 @@ function AbonnementContent() {
               <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
                 {PLAN_META[planSugge].icon}
                 <div>
-                  <div style={{ fontSize:'13px', fontWeight:700 }}>Plan {PLAN_META[planSugge].label} sélectionné</div>
-                  <div style={{ fontSize:'12px', opacity:.8 }}>Choisissez votre période ci-dessous et souscrivez</div>
+                  <div style={{ fontSize:'13px', fontWeight:700 }}>Plan {PLAN_META[planSugge].label} selectionne</div>
+                  <div style={{ fontSize:'12px', opacity:.8 }}>Choisissez votre periode ci-dessous et souscrivez</div>
                 </div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                 <IconArrowDown size={16} style={{ opacity:.8 }}/>
                 <button onClick={() => setPlanSugge(null)}
-                  style={{ background:'rgba(255,255,255,.2)', border:'none', color:'#fff', width:'24px', height:'24px', borderRadius:'6px', cursor:'pointer', fontSize:'14px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  ×
+                  style={{ background:'rgba(255,255,255,.2)', border:'none', color:'#fff', width:'24px', height:'24px', borderRadius:'6px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <IconX size={13}/>
                 </button>
               </div>
             </motion.div>
@@ -270,9 +332,11 @@ function AbonnementContent() {
                     <div>
                       <div style={{ fontSize:'12px', opacity:.7, marginBottom:'2px' }}>Plan actuel</div>
                       <div style={{ fontSize:'20px', fontWeight:800 }}>{abo.plan_display}</div>
-                      <div style={{ fontSize:'12px', opacity:.7 }}>
-                        Statut : {abo.statut_display}
-                        {abo.est_actif && <IconCircleCheck size={12} style={{ marginLeft:'4px', display:'inline' }}/>}
+                      <div style={{ fontSize:'12px', opacity:.7, display:'flex', alignItems:'center', gap:'6px' }}>
+                        {abo.est_actif
+                          ? <><IconCircleCheck size={12}/> Actif</>
+                          : <><IconCircleX    size={12}/> {abo.statut_display}</>
+                        }
                       </div>
                     </div>
                   </div>
@@ -292,10 +356,12 @@ function AbonnementContent() {
                     </div>
                   )}
                 </div>
+
+                {/* Alerte expiration < 7 jours */}
                 {abo.jours_restants !== null && abo.jours_restants <= 7 && planActuel !== 'gratuit' && (
                   <div style={{ marginTop:'12px', display:'flex', alignItems:'center', gap:'8px', background:'rgba(255,255,255,.2)', borderRadius:'10px', padding:'10px 14px', fontSize:'13px', fontWeight:600 }}>
                     <IconAlertTriangle size={15}/>
-                    Abonnement expirant dans {abo.jours_restants} jour{abo.jours_restants !== 1 ? 's':''} — Renouvelez dès maintenant
+                    Abonnement expirant dans {abo.jours_restants} jour{abo.jours_restants !== 1 ? 's':''} — Renouvelez des maintenant
                   </div>
                 )}
               </div>
@@ -324,9 +390,8 @@ function AbonnementContent() {
           </div>
 
           {/* CARTES DES PLANS */}
-          <div
-            ref={plansRef}
-            style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'16px' }}>
+          <div ref={plansRef}
+               style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'16px' }}>
             {(['gratuit','pro','business'] as Plan[]).map((plan, i) => {
               const meta      = PLAN_META[plan]
               const estActuel = planActuel === plan
@@ -357,7 +422,7 @@ function AbonnementContent() {
                       color:'#fff', fontSize:'11px', fontWeight:700,
                       padding:'3px 12px', borderRadius:'100px', whiteSpace:'nowrap',
                     }}>
-                      {estSugge ? '✦ Plan recommandé pour vous' : 'Recommandé'}
+                      {estSugge ? 'Plan recommande pour vous' : 'Recommande'}
                     </div>
                   )}
 
@@ -377,7 +442,7 @@ function AbonnementContent() {
                     </span>
                     {plan !== 'gratuit' && periode === 'annuel' && (
                       <div style={{ fontSize:'11px', color:'#059669', fontWeight:600, marginTop:'2px' }}>
-                        Économisez {economie(plan as 'pro'|'business')}%
+                        Economisez {economie(plan as 'pro'|'business')}%
                       </div>
                     )}
                   </div>
@@ -392,8 +457,8 @@ function AbonnementContent() {
                   </div>
 
                   {estActuel ? (
-                    <div style={{ padding:'10px', borderRadius:'12px', textAlign:'center', fontSize:'13px', fontWeight:700, background:meta.bg, color:meta.couleur, border:`1px solid ${meta.border}` }}>
-                      <IconCircleCheck size={14} style={{ display:'inline', marginRight:'6px' }}/>
+                    <div style={{ padding:'10px', borderRadius:'12px', textAlign:'center', fontSize:'13px', fontWeight:700, background:meta.bg, color:meta.couleur, border:`1px solid ${meta.border}`, display:'flex', alignItems:'center', justifyContent:'center', gap:'6px' }}>
+                      <IconCircleCheck size={14}/>
                       Plan actuel
                     </div>
                   ) : plan === 'gratuit' ? (
@@ -428,13 +493,13 @@ function AbonnementContent() {
           <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:.25 }}
             style={{ background:'#fff', borderRadius:'16px', border:'1px solid #E2E8F0', overflow:'hidden' }}>
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #F1F5F9' }}>
-              <div style={{ fontSize:'13px', fontWeight:700, color:'#0F172A' }}>Comparaison détaillée des plans</div>
+              <div style={{ fontSize:'13px', fontWeight:700, color:'#0F172A' }}>Comparaison detaillee des plans</div>
             </div>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead>
                   <tr style={{ background:'#F8FAFC' }}>
-                    <th style={{ padding:'10px 20px', textAlign:'left', fontSize:'11px', fontWeight:700, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'.05em' }}>Fonctionnalité</th>
+                    <th style={{ padding:'10px 20px', textAlign:'left', fontSize:'11px', fontWeight:700, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'.05em' }}>Fonctionnalite</th>
                     {(['gratuit','pro','business'] as Plan[]).map(p => (
                       <th key={p} style={{ padding:'10px 16px', textAlign:'center', fontSize:'12px', fontWeight:700, color: PLAN_META[p].couleur }}>
                         {PLAN_META[p].label}
@@ -462,14 +527,14 @@ function AbonnementContent() {
           {planActuel !== 'gratuit' && abo?.statut === 'actif' && (
             <div style={{ textAlign:'center', paddingBottom:'8px' }}>
               <button onClick={annuler} disabled={cancelling}
-                style={{ background:'none', border:'1px solid #FEE2E2', color:'#DC2626', padding:'8px 20px', borderRadius:'10px', fontSize:'12px', fontWeight:600, cursor: cancelling ? 'not-allowed' : 'pointer' }}>
+                style={{ background:'none', border:'1px solid #FEE2E2', color:'#DC2626', padding:'8px 20px', borderRadius:'10px', fontSize:'12px', fontWeight:600, cursor: cancelling ? 'not-allowed' : 'pointer', display:'inline-flex', alignItems:'center', gap:'6px' }}>
                 {cancelling
-                  ? <><IconLoader2 size={12} style={{ animation:'spin 1s linear infinite', display:'inline', marginRight:'6px' }}/>Annulation...</>
-                  : 'Annuler mon abonnement'
+                  ? <><IconLoader2 size={12} style={{ animation:'spin 1s linear infinite' }}/>Annulation...</>
+                  : <><IconCircleX size={12}/>Annuler mon abonnement</>
                 }
               </button>
               <p style={{ fontSize:'12px', color:'#94A3B8', marginTop:'6px' }}>
-                L'accès reste actif jusqu'au {abo.date_fin ? new Date(abo.date_fin).toLocaleDateString('fr-FR') : '—'}
+                L'acces reste actif jusqu'au {abo.date_fin ? new Date(abo.date_fin).toLocaleDateString('fr-FR') : '—'}
               </p>
             </div>
           )}
@@ -480,12 +545,13 @@ function AbonnementContent() {
   )
 }
 
-// ── Export avec Suspense (obligatoire pour useSearchParams) ────
+// ── Export avec Suspense ───────────────────────────────────────
 export default function AbonnementPage() {
   return (
     <Suspense fallback={
       <div style={{ minHeight:'100vh', background:'#F1F5F9', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ fontSize:'14px', color:'#94A3B8' }}>Chargement...</div>
+        <IconLoader2 size={24} style={{ color:'#059669', animation:'spin 1s linear infinite' }}/>
+        <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
       </div>
     }>
       <AbonnementContent />
