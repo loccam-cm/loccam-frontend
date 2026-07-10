@@ -11,6 +11,7 @@ import { BailleurSuiviParc }        from '@/components/dashboard/bailleur/Baille
 import { BailleurAnalytique }       from '@/components/dashboard/bailleur/BailleurAnalytique'
 import { BailleurPaiementsRecents } from '@/components/dashboard/bailleur/BailleurPaiementsRecents'
 import { BailleurPanneauDroit }     from '@/components/dashboard/bailleur/BailleurPanneauDroit'
+import ImpaiesSection               from '@/components/dashboard/bailleur/ImpaiesSection'
 
 export default function BailleurDashboardPage() {
   const { user, deconnexion } = useAuth()
@@ -87,6 +88,12 @@ export default function BailleurDashboardPage() {
               <div className="flex-1 p-4 sm:p-5 min-w-0 overflow-y-auto">
                 <BailleurHero prenom={user.prenom} nom={user.nom} stats={stats} loading={loading} />
                 <BailleurKPIs stats={stats} loading={loading} />
+
+                {/* Section impayés — charge /paiements/impayes/ elle-même */}
+                <div className="mb-5">
+                  <ImpaiesSection />
+                </div>
+
                 <BailleurSuiviParc stats={stats} loading={loading} />
                 <BailleurAnalytique />
                 <BailleurPaiementsRecents paiements={paiements} loading={loading} />
