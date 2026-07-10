@@ -10,6 +10,7 @@ import LandingPricing from '@/components/landing/LandingPricing'
 import LandingFAQ from '@/components/landing/LandingFAQ'
 import LandingCTA from '@/components/landing/LandingCTA'
 import LandingFooter from '@/components/landing/LandingFooter'
+import BackToTop from '@/components/landing/BackToTop'
 
 export default function LandingPage() {
   return (
@@ -24,6 +25,7 @@ export default function LandingPage() {
       <LandingFAQ />
       <LandingCTA />
       <LandingFooter />
+      <BackToTop />
     </div>
   )
 }
