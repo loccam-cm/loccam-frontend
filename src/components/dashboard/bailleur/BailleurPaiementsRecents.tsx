@@ -1,15 +1,19 @@
 ﻿"use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/hooks/useT";
 import { Skeleton } from "@/components/dashboard/shared/Skeleton";
 import { Paiement } from "@/types";
+import api from "@/lib/api";
 import {
   IconCreditCard,
   IconCheck,
   IconAlertTriangle,
   IconClock,
   IconChevronRight,
+  IconHome2,
+  IconCircleCheck,
 } from "@tabler/icons-react";
 
 interface Props {
@@ -17,11 +21,194 @@ interface Props {
   loading: boolean;
 }
 
+// ── Type impayé (format retourné par /paiements/impayes/) ──────
+interface Impaye {
+  contrat_id: number;
+  locataire: { id: number; nom_complet: string; email: string; telephone: string };
+  bien: { id: number; titre: string; adresse: string };
+  loyer_mensuel: number;
+  mois: number;
+  annee: number;
+  jours_retard: number;
+  paiement_id: number | null;
+  statut: "non_initie" | "en_attente" | "echoue";
+}
+
+const MOIS = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+];
+
 export function BailleurPaiementsRecents({ paiements, loading }: Props) {
   const t = useT();
 
+  // ── État impayés ─────────────────────────────────────────────
+  const [impayes, setImpayes] = useState<Impaye[]>([]);
+  const [loadingImp, setLoadingImp] = useState(true);
+
+  useEffect(() => {
+    let annule = false;
+    (async () => {
+      setLoadingImp(true);
+      try {
+        const res = await api.get("/paiements/impayes/");
+        const data = Array.isArray(res.data) ? res.data : res.data.results ?? [];
+        if (!annule) setImpayes(data);
+      } catch {
+        if (!annule) setImpayes([]);
+      } finally {
+        if (!annule) setLoadingImp(false);
+      }
+    })();
+    return () => { annule = true; };
+  }, []);
+
   return (
     <>
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* SECTION IMPAYÉS                                          */}
+      {/* ══════════════════════════════════════════════════════ */}
+      {!loadingImp && impayes.length > 0 && (
+        <>
+          <div className="flex items-center justify-between mb-3 fade-up-4">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: "#FEF2F2" }}
+              >
+                <IconAlertTriangle size={15} style={{ color: "#DC2626" }} />
+              </div>
+              <div
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: "#DC2626" }}
+              >
+                Impayés en cours ({impayes.length})
+              </div>
+            </div>
+            <Link
+              href="/bailleur/impayes"
+              className="flex items-center gap-1 text-xs font-semibold"
+              style={{ color: "#DC2626", textDecoration: "none" }}
+            >
+              {t("common.voir_tout")} <IconChevronRight size={12} />
+            </Link>
+          </div>
+
+          <div className="flex flex-col gap-2 mb-5 fade-up-4">
+            {impayes.map((imp) => {
+              const av = imp.locataire.nom_complet
+                .split(" ")
+                .map((w) => w[0])
+                .slice(0, 2)
+                .join("");
+              const statutBg = imp.statut === "en_attente" ? "#FFFBEB" : "#FEF2F2";
+              const statutCol = imp.statut === "en_attente" ? "#D97706" : "#DC2626";
+              const statutLbl =
+                imp.statut === "en_attente"
+                  ? t("dashboard.en_attente")
+                  : imp.statut === "echoue"
+                    ? t("dashboard.en_retard")
+                    : "Non initié";
+
+              return (
+                <div
+                  key={imp.contrat_id}
+                  className="bg-white rounded-xl px-4 py-3.5 flex items-center gap-3"
+                  style={{
+                    border: "1px solid #FECACA",
+                    boxShadow: "0 1px 3px rgba(220,38,38,.05)",
+                  }}
+                >
+                  {/* Avatar */}
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg,#DC2626,#B91C1C)" }}
+                  >
+                    {av}
+                  </div>
+
+                  {/* Infos */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span
+                        className="text-sm font-semibold truncate"
+                        style={{ color: "#0F172A" }}
+                      >
+                        {imp.locataire.nom_complet}
+                      </span>
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: statutBg, color: statutCol }}
+                      >
+                        {statutLbl}
+                      </span>
+                      {imp.jours_retard > 0 && (
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1"
+                          style={{ background: "#FEF2F2", color: "#DC2626" }}
+                        >
+                          <IconClock size={10} />
+                          {imp.jours_retard}j
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span
+                        className="text-xs flex items-center gap-1"
+                        style={{ color: "#64748B" }}
+                      >
+                        <IconHome2 size={11} />
+                        {imp.bien.titre}
+                      </span>
+                      <span
+                        className="text-xs flex items-center gap-1"
+                        style={{ color: "#64748B" }}
+                      >
+                        <IconClock size={11} />
+                        {MOIS[imp.mois - 1]} {imp.annee}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Montant + relance */}
+                  <div className="text-right flex-shrink-0">
+                    <div
+                      className="text-sm font-bold mb-0.5"
+                      style={{ color: "#DC2626" }}
+                    >
+                      {imp.loyer_mensuel.toLocaleString("fr-FR")} XAF
+                    </div>
+                    <Link
+                      href={`/bailleur/impayes?contrat=${imp.contrat_id}`}
+                      className="text-xs font-semibold flex items-center gap-0.5 justify-end"
+                      style={{ color: "#DC2626", textDecoration: "none" }}
+                    >
+                      Relancer <IconChevronRight size={11} />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Bandeau vert si aucun impayé */}
+      {!loadingImp && impayes.length === 0 && (
+        <div
+          className="rounded-xl px-4 py-3 flex items-center gap-3 mb-5 fade-up-4"
+          style={{ background: "#F0FDF4", border: "1px solid #A7F3D0" }}
+        >
+          <IconCircleCheck size={18} style={{ color: "#059669", flexShrink: 0 }} />
+          <div className="text-sm font-medium" style={{ color: "#065F46" }}>
+            Aucun impayé en cours — tous vos locataires sont à jour
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* SECTION PAIEMENTS RÉCENTS (inchangée)                    */}
+      {/* ══════════════════════════════════════════════════════ */}
       <div className="flex items-center justify-between mb-3 fade-up-5">
         <div
           className="text-xs font-bold uppercase tracking-widest"
