@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import LanguageSwitch from './LanguageSwitch'
+// import LanguageSwitch from './LanguageSwitch'
 import { motion, AnimatePresence } from "framer-motion";
 import { IconBuilding, IconX, IconMenu2 } from "@tabler/icons-react";
 
@@ -65,7 +65,7 @@ export default function LandingNav() {
 
           {/* CTA */}
           <div className="nav-actions">
-            <LanguageSwitch />
+            {/* <LanguageSwitch /> */}
             <Link href="/login" className="nav-btn-ghost">
               Se connecter
             </Link>
