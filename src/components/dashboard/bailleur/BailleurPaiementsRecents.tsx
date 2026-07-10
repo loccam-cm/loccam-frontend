@@ -1,190 +1,200 @@
-﻿"use client";
+﻿/**
+ * ImpaiesSection — Section impayés du dashboard bailleur
+ * Intégration : importer et placer dans bailleur/page.tsx
+ *
+ * Usage :
+ *   import ImpaiesSection from '@/components/dashboard/bailleur/ImpaiesSection'
+ *   <ImpaiesSection />
+ */
+'use client'
 
-import Link from "next/link";
-import { useT } from "@/hooks/useT";
-import { Skeleton } from "@/components/dashboard/shared/Skeleton";
-import { Paiement } from "@/types";
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import api from '@/lib/api'
 import {
-  IconCreditCard,
-  IconCheck,
-  IconAlertTriangle,
-  IconClock,
-  IconChevronRight,
-} from "@tabler/icons-react";
+  IconAlertTriangle, IconHome2, IconUser,
+  IconClock, IconChevronRight, IconRefresh,
+  IconCircleCheck, IconLoader2,
+} from '@tabler/icons-react'
 
-interface Props {
-  paiements: Paiement[];
-  loading: boolean;
+// ── Types ──────────────────────────────────────────────────────
+interface Impaye {
+  contrat_id    : number
+  locataire     : { id: number; nom_complet: string; email: string; telephone: string }
+  bien          : { id: number; titre: string; adresse: string }
+  loyer_mensuel : number
+  mois          : number
+  annee         : number
+  jours_retard  : number
+  paiement_id   : number | null
+  statut        : 'non_initie' | 'en_attente' | 'echoue'
 }
 
-export function BailleurPaiementsRecents({ paiements, loading }: Props) {
-  const t = useT();
+const MOIS = [
+  'Janvier','Février','Mars','Avril','Mai','Juin',
+  'Juillet','Août','Septembre','Octobre','Novembre','Décembre',
+]
+
+const STATUT_CONFIG = {
+  non_initie : { label:'Non initié',   bg:'#FEF2F2', col:'#DC2626', border:'#FECACA' },
+  en_attente : { label:'En attente',   bg:'#FFFBEB', col:'#D97706', border:'#FDE68A' },
+  echoue     : { label:'Échoué',       bg:'#FEF2F2', col:'#DC2626', border:'#FECACA' },
+}
+
+// ════════════════════════════════════════════════════════════════
+export default function ImpaiesSection() {
+  const [impayes, setImpayes] = useState<Impaye[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/paiements/impayes/')
+      // Support tableau direct ou { results: [...] }
+      const data = Array.isArray(res.data) ? res.data : res.data.results ?? []
+      setImpayes(data)
+    } catch {
+      setImpayes([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  // ── Rien à afficher ──────────────────────────────────────────
+  if (!loading && impayes.length === 0) {
+    return (
+      <div style={{
+        background:'#F0FDF4', border:'1px solid #A7F3D0',
+        borderRadius:'16px', padding:'20px',
+        display:'flex', alignItems:'center', gap:'12px',
+      }}>
+        <div style={{ width:'40px', height:'40px', borderRadius:'12px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <IconCircleCheck size={20} style={{ color:'#059669' }}/>
+        </div>
+        <div>
+          <div style={{ fontSize:'14px', fontWeight:700, color:'#065F46' }}>
+            Aucun impayé en cours
+          </div>
+          <div style={{ fontSize:'12px', color:'#059669', marginTop:'2px' }}>
+            Tous vos locataires sont à jour pour le mois de {MOIS[new Date().getMonth()]}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-3 fade-up-5">
-        <div
-          className="text-xs font-bold uppercase tracking-widest"
-          style={{ color: "#94A3B8" }}
-        >
-          {t("dashboard.paiements_recents")}
-        </div>
-        <Link
-          href="/bailleur/paiements"
-          className="flex items-center gap-1 text-xs font-semibold"
-          style={{ color: "#2563EB", textDecoration: "none" }}
-        >
-          {t("common.voir_tout")} <IconChevronRight size={12} />
-        </Link>
-      </div>
-
-      <div
-        className="bg-white rounded-2xl overflow-hidden mb-5 fade-up-6"
-        style={{
-          border: "1px solid #E2E8F0",
-          boxShadow: "0 1px 3px rgba(0,0,0,.04)",
-        }}
-      >
-        <div
-          className="hidden sm:grid grid-cols-5 px-5 py-3"
-          style={{ background: "#F8FAFC", borderBottom: "1px solid #F1F5F9" }}
-        >
-          {[
-            t("dashboard.locataire_col"),
-            t("dashboard.periode_col"),
-            t("dashboard.moyen_col"),
-            t("dashboard.montant_col"),
-            t("dashboard.statut_col"),
-          ].map((h) => (
-            <div
-              key={h}
-              className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: "#94A3B8" }}
-            >
-              {h}
+    <div>
+      {/* En-tête section */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+          <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#FEF2F2', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <IconAlertTriangle size={16} style={{ color:'#DC2626' }}/>
+          </div>
+          <div>
+            <div style={{ fontSize:'14px', fontWeight:700, color:'#0F172A' }}>
+              Impayés en cours
             </div>
-          ))}
-        </div>
-
-        {loading ? (
-          Array(3)
-            .fill(0)
-            .map((_, i) => (
-              <div
-                key={i}
-                className="flex gap-4 px-5 py-4"
-                style={{ borderBottom: "1px solid #F8FAFC" }}
-              >
-                <Skeleton className="w-9 h-9 rounded-full flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-3 w-32" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </div>
-            ))
-        ) : paiements.length === 0 ? (
-          <div className="px-5 py-10 text-center">
-            <IconCreditCard
-              size={32}
-              style={{ color: "#CBD5E1", margin: "0 auto 8px" }}
-            />
-            <div className="text-sm font-medium" style={{ color: "#64748B" }}>
-              {t("dashboard.aucun_paiement")}
-            </div>
-            <div className="text-xs mt-1" style={{ color: "#94A3B8" }}>
-              {t("dashboard.aucun_paiement_desc")}
+            <div style={{ fontSize:'12px', color:'#94A3B8' }}>
+              {loading ? '...' : `${impayes.length} locataire${impayes.length > 1 ? 's' : ''} en retard`}
             </div>
           </div>
-        ) : (
-          paiements.map((p) => {
-            const loc = p.contrat?.locataire;
-            const av =
-              loc?.prenom?.[0] && loc?.nom?.[0]
-                ? `${loc.prenom[0]}${loc.nom[0]}`
-                : "?";
-            const isConfirme = p.statut === "confirme";
-            const isRetard = p.statut === "echoue" || p.est_en_retard;
-            const col = isConfirme
-              ? "#059669"
-              : isRetard
-                ? "#DC2626"
-                : "#D97706";
-            const bg = isConfirme
-              ? "#ECFDF5"
-              : isRetard
-                ? "#FEF2F2"
-                : "#FFFBEB";
-            const lbl = isConfirme
-              ? t("dashboard.confirme")
-              : isRetard
-                ? t("dashboard.en_retard")
-                : t("dashboard.en_attente");
-            return (
-              <div
-                key={p.id}
-                className="row-hover grid grid-cols-5 px-4 sm:px-5 py-3 sm:py-3.5 items-center cursor-pointer"
-                style={{ borderBottom: "1px solid #F8FAFC" }}
-              >
-                <div className="flex items-center gap-2 sm:gap-3 col-span-2 sm:col-span-1">
-                  <div
-                    className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
-                    style={{
-                      background: "linear-gradient(135deg,#2563EB,#7C3AED)",
-                    }}
-                  >
-                    {av}
-                  </div>
-                  <div className="hidden sm:block min-w-0">
-                    <div
-                      className="text-sm font-semibold truncate"
-                      style={{ color: "#0F172A" }}
-                    >
-                      {loc?.nom_complet ?? "Locataire"}
-                    </div>
-                    <div
-                      className="text-xs truncate"
-                      style={{ color: "#94A3B8" }}
-                    >
-                      {p.contrat?.bien?.titre ?? "Bien"}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  className="text-xs sm:text-sm"
-                  style={{ color: "#64748B" }}
-                >
-                  {String(p.mois).padStart(2, "0")}/{p.annee}
-                </div>
-                <div className="hidden sm:block">
-                  <span
-                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                    style={{ background: "#FFFBEB", color: "#D97706" }}
-                  >
-                    {p.moyen_display ?? p.moyen_paiement}
-                  </span>
-                </div>
-                <div
-                  className="text-xs sm:text-sm font-bold"
-                  style={{ color: col }}
-                >
-                  {p.montant_total.toLocaleString("fr-FR")} XAF
-                </div>
-                <div>
-                  <span
-                    className="text-xs font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"
-                    style={{ background: bg, color: col }}
-                  >
-                    {isConfirme && <IconCheck size={10} />}
-                    {isRetard && <IconAlertTriangle size={10} />}
-                    {!isConfirme && !isRetard && <IconClock size={10} />}
-                    <span className="hidden sm:inline">{lbl}</span>
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+          <button onClick={load}
+            style={{ width:'32px', height:'32px', borderRadius:'8px', background:'#F1F5F9', border:'1px solid #E2E8F0', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <IconRefresh size={14} style={{ color:'#64748B', animation: loading ? 'spin 1s linear infinite':'none' }}/>
+          </button>
+          <Link href="/bailleur/impayes"
+            style={{ display:'flex', alignItems:'center', gap:'4px', fontSize:'12px', fontWeight:600, color:'#DC2626', textDecoration:'none' }}>
+            Voir tout <IconChevronRight size={13}/>
+          </Link>
+        </div>
       </div>
-    </>
-  );
+
+      {/* Liste */}
+      {loading ? (
+        <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+          {[1,2].map(i => (
+            <div key={i} style={{ height:'72px', borderRadius:'12px', background:'linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%)', backgroundSize:'200% 100%', animation:'shimmer 1.5s infinite' }}/>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+          {impayes.map((imp, i) => {
+            const statut = STATUT_CONFIG[imp.statut] ?? STATUT_CONFIG.non_initie
+            return (
+              <motion.div key={imp.contrat_id}
+                initial={{ opacity:0, y:8 }}
+                animate={{ opacity:1, y:0 }}
+                transition={{ delay: i * 0.05 }}
+                style={{
+                  background:'#fff',
+                  border:`1px solid ${statut.border}`,
+                  borderRadius:'12px',
+                  padding:'14px 16px',
+                  display:'flex',
+                  alignItems:'center',
+                  gap:'12px',
+                }}>
+
+                {/* Icone statut */}
+                <div style={{ width:'40px', height:'40px', borderRadius:'10px', background:statut.bg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <IconAlertTriangle size={18} style={{ color:statut.col }}/>
+                </div>
+
+                {/* Infos */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'4px', flexWrap:'wrap' }}>
+                    <span style={{ fontSize:'13px', fontWeight:700, color:'#0F172A' }}>
+                      {imp.locataire.nom_complet}
+                    </span>
+                    <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'100px', background:statut.bg, color:statut.col }}>
+                      {statut.label}
+                    </span>
+                    {imp.jours_retard > 0 && (
+                      <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'100px', background:'#FEF2F2', color:'#DC2626', display:'flex', alignItems:'center', gap:'3px' }}>
+                        <IconClock size={10}/>
+                        {imp.jours_retard} jour{imp.jours_retard > 1 ? 's':''} de retard
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
+                    <span style={{ fontSize:'12px', color:'#64748B', display:'flex', alignItems:'center', gap:'4px' }}>
+                      <IconHome2 size={11}/>
+                      {imp.bien.titre}
+                    </span>
+                    <span style={{ fontSize:'12px', color:'#64748B', display:'flex', alignItems:'center', gap:'4px' }}>
+                      <IconClock size={11}/>
+                      {MOIS[imp.mois - 1]} {imp.annee}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Montant + action */}
+                <div style={{ textAlign:'right', flexShrink:0 }}>
+                  <div style={{ fontSize:'14px', fontWeight:800, color:'#DC2626', marginBottom:'4px' }}>
+                    {imp.loyer_mensuel.toLocaleString('fr-FR')} XAF
+                  </div>
+                  <Link
+                    href={`/bailleur/impayes?contrat=${imp.contrat_id}`}
+                    style={{ fontSize:'11px', fontWeight:600, color:'#DC2626', textDecoration:'none', display:'flex', alignItems:'center', gap:'3px', justifyContent:'flex-end' }}>
+                    Relancer <IconChevronRight size={11}/>
+                  </Link>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin    { to { transform:rotate(360deg) } }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+      `}</style>
+    </div>
+  )
 }

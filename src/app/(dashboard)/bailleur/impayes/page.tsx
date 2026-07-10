@@ -358,7 +358,7 @@ export default function ImpayesPage() {
     "tous",
   );
 
-  // ✅ Initialisation côté client uniquement
+  // Initialisation côté client uniquement
   const [mois, setMois] = useState<number>(() => new Date().getMonth() + 1);
   const [annee, setAnnee] = useState<number>(() => new Date().getFullYear());
 
@@ -414,7 +414,7 @@ export default function ImpayesPage() {
     montant: impayes.reduce((a, i) => a + i.loyer_mensuel, 0),
   };
 
-  // ✅ Boutons toujours relatifs à aujourd'hui
+  //  Boutons toujours relatifs à aujourd'hui
   const boutonsMois = [-2, -1, 0].map((offset) => {
     const today = new Date();
     const d = new Date(today.getFullYear(), today.getMonth() + offset);
