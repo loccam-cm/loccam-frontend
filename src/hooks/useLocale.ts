@@ -2,23 +2,50 @@ import { useEffect, useState } from 'react'
 import api from '@/lib/api'
 
 export function useLocale() {
-  const [locale, setLocale] = useState<'fr' | 'en'>('fr')
+  const [locale, setLocaleState] = useState<'fr' | 'en'>('fr')
 
   useEffect(() => {
-    // Lire depuis le cookie
-    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('locale='))
-    if (cookie) setLocale(cookie.split('=')[1] as 'fr' | 'en')
+    // Lire la langue depuis le cookie au montage
+    const cookie = document.cookie
+      .split(';')
+      .find(c => c.trim().startsWith('locale='))
+    if (cookie) {
+      const val = cookie.split('=')[1]?.trim()
+      if (val === 'fr' || val === 'en') setLocaleState(val)
+    }
   }, [])
 
+  /**
+   * Change la langue.
+   * - Écrit toujours le cookie + recharge (marche sur la landing publique)
+   * - Sauvegarde en base UNIQUEMENT si l'utilisateur est connecté
+   *   (l'échec 401 sur la landing est ignoré silencieusement)
+   */
   const changerLangue = async (nouvelle: 'fr' | 'en') => {
-    // 1. Sauvegarder en base
-    await api.patch('/auth/preferences/', { langue: nouvelle })
-    // 2. Mettre à jour le cookie
+    // 1. Cookie (toujours, fonctionne sans connexion)
     document.cookie = `locale=${nouvelle};path=/;max-age=31536000`
-    setLocale(nouvelle)
-    // 3. Recharger la page pour appliquer les traductions
+
+    // 2. Sauvegarde en base — best effort, seulement si connecté
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('access_token')
+        : null
+    if (token) {
+      try {
+        await api.patch('/auth/preferences/', { langue: nouvelle })
+      } catch {
+        // Visiteur non connecté ou erreur réseau → on ignore,
+        // le cookie suffit pour la landing
+      }
+    }
+
+    // 3. Appliquer
+    setLocaleState(nouvelle)
     window.location.reload()
   }
 
-  return { locale, changerLangue }
+  // Alias setLocale pour compatibilité avec LanguageSwitch
+  const setLocale = changerLangue
+
+  return { locale, changerLangue, setLocale }
 }
