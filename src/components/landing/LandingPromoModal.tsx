@@ -3,10 +3,14 @@
 /**
  * LandingPromoModal — Modal promotionnel de la landing
  *
- * Déclenchement intelligent :
- *   - après 12 s sur la page, OU après 45 % de scroll (le premier atteint)
- *   - une seule fois par session (sessionStorage)
- * Fermeture : bouton X, clic overlay, touche Échap
+ * Déclenchement : après 12 s OU 45 % de scroll (le premier atteint),
+ * une seule fois par session (sessionStorage).
+ * Fermeture : X, clic overlay, touche Échap.
+ *
+ * Responsive :
+ *   - Desktop / tablette : carte centrée (max 420px)
+ *   - Mobile (≤ 640px)   : bottom-sheet collé en bas, pleine largeur
+ *   - Hauteur limitée + scroll interne si écran court
  *
  * Intégration : <LandingPromoModal /> en fin de landing/page.tsx
  */
@@ -17,8 +21,8 @@ import { useRouter } from 'next/navigation'
 import { IconX, IconRocket, IconCheck, IconClock } from '@tabler/icons-react'
 
 const STORAGE_KEY    = 'loccam_promo_vu'
-const DELAY_MS       = 12_000   // 12 secondes
-const SCROLL_TRIGGER = 0.45     // 45 % de la page
+const DELAY_MS       = 12_000
+const SCROLL_TRIGGER = 0.45
 
 const AVANTAGES = [
   "Jusqu'à 15 biens gérés",
@@ -31,7 +35,7 @@ export default function LandingPromoModal() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
-  // ── Déclenchement : délai OU scroll, une fois par session ──
+  /* ── Déclenchement : délai OU scroll, une fois par session ── */
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (sessionStorage.getItem(STORAGE_KEY)) return
@@ -44,7 +48,6 @@ export default function LandingPromoModal() {
       setOpen(true)
       cleanup()
     }
-
     const timer = setTimeout(show, DELAY_MS)
     const onScroll = () => {
       const h = document.documentElement.scrollHeight - window.innerHeight
@@ -54,25 +57,26 @@ export default function LandingPromoModal() {
       clearTimeout(timer)
       window.removeEventListener('scroll', onScroll)
     }
-
     window.addEventListener('scroll', onScroll, { passive: true })
     return cleanup
   }, [])
 
-  // ── Fermeture par Échap ─────────────────────────────────────
+  /* ── Échap + blocage du scroll de fond quand ouvert ── */
   const close = useCallback(() => setOpen(false), [])
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
   }, [open, close])
 
-  const goRegister = () => {
-    close()
-    router.push('/register?plan=pro')
-  }
-  const goTarifs = () => {
+  const goRegister = () => { close(); router.push('/register?plan=pro') }
+  const goTarifs   = () => {
     close()
     document.getElementById('tarifs')?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -87,123 +91,179 @@ export default function LandingPromoModal() {
             onClick={close}
             style={{
               position: 'fixed', inset: 0, zIndex: 200,
-              background: 'rgba(3,7,15,0.72)', backdropFilter: 'blur(8px)',
+              background: 'rgba(3,7,15,0.72)',
+              backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
             }}
           />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 16 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              position: 'fixed', zIndex: 201,
-              top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-              width: 'calc(100% - 32px)', maxWidth: '420px',
-              pointerEvents: 'auto',
-            }}>
-            <div style={{
-              background: 'linear-gradient(165deg,#0D1B2E 0%,#0A1525 100%)',
-              border: '1px solid rgba(96,165,250,0.25)',
-              borderRadius: '22px',
-              boxShadow: '0 0 60px rgba(37,99,235,0.25), 0 24px 80px rgba(0,0,0,0.5)',
-              overflow: 'hidden',
-            }}>
+          {/* Wrapper centreur — c'est LUI qui positionne, pas de transform manuel */}
+          <div className="lpm-wrap" onClick={close}>
+            <motion.div
+              className="lpm-card"
+              onClick={e => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 30 }}
+              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}>
 
               {/* Bouton fermer */}
-              <button onClick={close} aria-label="Fermer"
-                style={{
-                  position: 'absolute', top: '14px', right: '14px', zIndex: 2,
-                  width: '32px', height: '32px', borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
+              <button onClick={close} aria-label="Fermer" className="lpm-close">
                 <IconX size={15} style={{ color: 'rgba(248,250,252,0.7)' }}/>
               </button>
 
-              <div style={{ padding: '28px 24px 24px' }}>
+              <div className="lpm-body">
 
                 {/* Badge essai */}
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  padding: '5px 12px', borderRadius: '100px', marginBottom: '16px',
-                  background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(52,211,153,0.3)',
-                }}>
-                  <IconClock size={12} style={{ color: '#34D399' }}/>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#34D399', letterSpacing: '0.05em' }}>
-                    ESSAI 30 JOURS · SANS ENGAGEMENT
-                  </span>
+                <div className="lpm-badge">
+                  <IconClock size={12} style={{ color: '#34D399', flexShrink: 0 }}/>
+                  <span>ESSAI 30 JOURS · SANS ENGAGEMENT</span>
                 </div>
 
                 {/* Titre */}
-                <h3 style={{
-                  fontFamily: 'var(--font-display, sans-serif)',
-                  fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.2,
-                  color: '#F8FAFC', marginBottom: '8px', letterSpacing: '-0.3px',
-                }}>
+                <h3 className="lpm-title">
                   Testez LocCam Pro,{' '}
-                  <span style={{
-                    background: 'linear-gradient(135deg,#60A5FA,#34D399)',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                  }}>
-                    gratuitement
-                  </span>
+                  <span className="lpm-gradient">gratuitement</span>
                 </h3>
-                <p style={{ fontSize: '13px', color: 'rgba(248,250,252,0.55)', lineHeight: 1.6, marginBottom: '18px' }}>
+                <p className="lpm-desc">
                   Gérez vos loyers par Mobile Money et suivez vos impayés
                   automatiquement — dès aujourd&apos;hui.
                 </p>
 
                 {/* Avantages */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', marginBottom: '22px' }}>
+                <div className="lpm-list">
                   {AVANTAGES.map(a => (
-                    <div key={a} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{
-                        width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
-                        background: 'rgba(52,211,153,0.15)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
+                    <div key={a} className="lpm-item">
+                      <div className="lpm-check">
                         <IconCheck size={11} style={{ color: '#34D399' }}/>
                       </div>
-                      <span style={{ fontSize: '13px', color: 'rgba(248,250,252,0.85)' }}>{a}</span>
+                      <span>{a}</span>
                     </div>
                   ))}
                 </div>
 
                 {/* Prix */}
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '18px' }}>
-                  <span style={{ fontSize: '1.7rem', fontWeight: 800, color: '#34D399' }}>5 000</span>
-                  <span style={{ fontSize: '13px', color: 'rgba(248,250,252,0.5)' }}>XAF / mois après l&apos;essai</span>
+                <div className="lpm-price">
+                  <span className="lpm-price-val">5 000</span>
+                  <span className="lpm-price-sub">XAF / mois après l&apos;essai</span>
                 </div>
 
                 {/* CTA principal */}
-                <button onClick={goRegister}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    width: '100%', padding: '14px', borderRadius: '14px', border: 'none',
-                    background: 'linear-gradient(135deg,#2563EB,#1D4ED8)',
-                    boxShadow: '0 6px 20px rgba(37,99,235,0.4)',
-                    fontSize: '14px', fontWeight: 700, color: '#fff', cursor: 'pointer',
-                  }}>
+                <button onClick={goRegister} className="lpm-cta">
                   <IconRocket size={16}/>
                   Démarrer mon essai Pro
                 </button>
 
                 {/* CTA secondaire */}
-                <button onClick={goTarifs}
-                  style={{
-                    display: 'block', width: '100%', marginTop: '10px',
-                    padding: '10px', borderRadius: '12px',
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    fontSize: '12.5px', fontWeight: 600, color: 'rgba(248,250,252,0.5)',
-                  }}>
+                <button onClick={goTarifs} className="lpm-cta-ghost">
                   Comparer tous les plans
                 </button>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
+
+          <style>{`
+            /* ═══ MOBILE FIRST — bottom-sheet ═══ */
+            .lpm-wrap {
+              position: fixed; inset: 0; z-index: 201;
+              display: flex; justify-content: center;
+              align-items: flex-end;            /* collé en bas sur mobile */
+              padding: 0;
+            }
+            .lpm-card {
+              width: 100%;
+              max-width: 100%;
+              max-height: calc(100dvh - 48px);  /* jamais plus haut que l'écran */
+              overflow-y: auto;
+              background: linear-gradient(165deg, #0D1B2E 0%, #0A1525 100%);
+              border: 1px solid rgba(96,165,250,0.25);
+              border-bottom: none;
+              border-radius: 22px 22px 0 0;     /* bottom-sheet */
+              box-shadow: 0 -12px 60px rgba(37,99,235,0.2), 0 -8px 40px rgba(0,0,0,0.5);
+              position: relative;
+              -webkit-overflow-scrolling: touch;
+            }
+            .lpm-body { padding: 24px 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
+
+            .lpm-close {
+              position: absolute; top: 12px; right: 12px; z-index: 2;
+              width: 32px; height: 32px; border-radius: 10px;
+              background: rgba(255,255,255,0.08); border: none; cursor: pointer;
+              display: flex; align-items: center; justify-content: center;
+            }
+
+            .lpm-badge {
+              display: inline-flex; align-items: center; gap: 6px;
+              padding: 5px 12px; border-radius: 100px; margin-bottom: 14px;
+              background: rgba(16,185,129,0.12);
+              border: 1px solid rgba(52,211,153,0.3);
+            }
+            .lpm-badge span {
+              font-size: 10px; font-weight: 700; color: #34D399; letter-spacing: 0.05em;
+            }
+
+            .lpm-title {
+              font-family: var(--font-display, sans-serif);
+              font-size: 1.3rem; font-weight: 800; line-height: 1.2;
+              color: #F8FAFC; margin-bottom: 8px; letter-spacing: -0.3px;
+              padding-right: 36px;              /* évite le bouton X */
+            }
+            .lpm-gradient {
+              background: linear-gradient(135deg, #60A5FA, #34D399);
+              -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+              background-clip: text;
+            }
+            .lpm-desc {
+              font-size: 12.5px; color: rgba(248,250,252,0.55);
+              line-height: 1.55; margin-bottom: 16px;
+            }
+
+            .lpm-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+            .lpm-item { display: flex; align-items: center; gap: 10px; }
+            .lpm-item span { font-size: 13px; color: rgba(248,250,252,0.85); }
+            .lpm-check {
+              width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+              background: rgba(52,211,153,0.15);
+              display: flex; align-items: center; justify-content: center;
+            }
+
+            .lpm-price { display: flex; align-items: baseline; gap: 6px; margin-bottom: 16px; }
+            .lpm-price-val { font-size: 1.55rem; font-weight: 800; color: #34D399; }
+            .lpm-price-sub { font-size: 12px; color: rgba(248,250,252,0.5); }
+
+            .lpm-cta {
+              display: flex; align-items: center; justify-content: center; gap: 8px;
+              width: 100%; padding: 14px; border-radius: 14px; border: none;
+              background: linear-gradient(135deg, #2563EB, #1D4ED8);
+              box-shadow: 0 6px 20px rgba(37,99,235,0.4);
+              font-size: 14px; font-weight: 700; color: #fff; cursor: pointer;
+            }
+            .lpm-cta-ghost {
+              display: block; width: 100%; margin-top: 8px; padding: 10px;
+              border-radius: 12px; background: transparent; border: none; cursor: pointer;
+              font-size: 12.5px; font-weight: 600; color: rgba(248,250,252,0.5);
+            }
+
+            /* ═══ ≥ 640px — carte centrée desktop/tablette ═══ */
+            @media (min-width: 640px) {
+              .lpm-wrap {
+                align-items: center;            /* centrage vertical */
+                padding: 24px;
+              }
+              .lpm-card {
+                max-width: 420px;
+                max-height: calc(100dvh - 64px);
+                border-radius: 22px;            /* coins complets */
+                border-bottom: 1px solid rgba(96,165,250,0.25);
+                box-shadow: 0 0 60px rgba(37,99,235,0.25), 0 24px 80px rgba(0,0,0,0.5);
+              }
+              .lpm-body { padding: 28px 24px 24px; }
+              .lpm-title { font-size: 1.5rem; }
+              .lpm-desc { font-size: 13px; margin-bottom: 18px; }
+              .lpm-badge span { font-size: 11px; }
+              .lpm-price-val { font-size: 1.7rem; }
+              .lpm-list { gap: 9px; margin-bottom: 22px; }
+            }
+          `}</style>
         </>
       )}
     </AnimatePresence>
