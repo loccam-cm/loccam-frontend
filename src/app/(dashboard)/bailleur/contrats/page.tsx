@@ -39,9 +39,17 @@ interface FormData {
   date_fin: string;
   loyer_mensuel: string;
   caution: string;
+  periodicite: string;
   jour_echeance: string;
   notes: string;
 }
+
+const PERIODICITE_OPTIONS: { value: string; label: string; mois: number }[] = [
+  { value: "mensuel", label: "Mensuel", mois: 1 },
+  { value: "trimestriel", label: "Trimestriel (3 mois)", mois: 3 },
+  { value: "semestriel", label: "Semestriel (6 mois)", mois: 6 },
+  { value: "annuel", label: "Annuel", mois: 12 },
+];
 
 interface LocataireOption {
   id: number;
@@ -183,6 +191,7 @@ export default function ContratsPage() {
     date_fin: "",
     loyer_mensuel: "",
     caution: "",
+    periodicite: "mensuel",
     jour_echeance: "5",
     notes: "",
   };
@@ -248,6 +257,7 @@ export default function ContratsPage() {
       date_fin: c.date_fin ?? "",
       loyer_mensuel: c.loyer_mensuel?.toString() ?? "",
       caution: c.caution?.toString() ?? "",
+      periodicite: (c as any).periodicite ?? "mensuel",
       jour_echeance: (c as any).jour_echeance?.toString() ?? "5",
       notes: (c as any).notes ?? "",
     });
@@ -277,6 +287,7 @@ export default function ContratsPage() {
         date_fin: form.date_fin || null,
         loyer_mensuel: Number(form.loyer_mensuel),
         caution: form.caution ? Number(form.caution) : null,
+        periodicite: form.periodicite,
         jour_echeance: Number(form.jour_echeance),
         notes: form.notes,
       };
@@ -1141,6 +1152,42 @@ export default function ContratsPage() {
                           className="ifield"
                         />
                       </div>
+                    </div>
+                    <div className="mt-3">
+                      <label
+                        className="block text-xs font-semibold mb-1.5"
+                        style={{ color: "#374151" }}
+                      >
+                        Périodicité de paiement
+                      </label>
+                      <select
+                        value={form.periodicite}
+                        onChange={(e) => set("periodicite", e.target.value)}
+                        className="sfield"
+                      >
+                        {PERIODICITE_OPTIONS.map((p) => (
+                          <option key={p.value} value={p.value}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                      {form.loyer_mensuel && !isNaN(Number(form.loyer_mensuel)) && (
+                        <p
+                          className="text-xs mt-1.5"
+                          style={{ color: "#64748B" }}
+                        >
+                          Montant dû par période :{" "}
+                          <strong style={{ color: "#374151" }}>
+                            {(
+                              Number(form.loyer_mensuel) *
+                              (PERIODICITE_OPTIONS.find(
+                                (p) => p.value === form.periodicite
+                              )?.mois ?? 1)
+                            ).toLocaleString("fr-FR")}{" "}
+                            XAF
+                          </strong>
+                        </p>
+                      )}
                     </div>
                     <div className="mt-3">
                       <label

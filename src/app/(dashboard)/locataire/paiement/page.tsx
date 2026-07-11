@@ -212,7 +212,10 @@ export default function PaiementPage() {
   };
 
   // ── Calculs ───────────────────────────────────────────────
-  const loyer = contrat?.loyer_mensuel ?? 0;
+  // montant_periode = loyer_mensuel × multiplicateur de périodicité
+  // (ex : contrat trimestriel → 3x le loyer mensuel). Fallback sur
+  // loyer_mensuel si le backend ne renvoie pas encore ce champ.
+  const loyer = contrat?.montant_periode ?? contrat?.loyer_mensuel ?? 0;
   const montantLoyer = inclureLoyer ? loyer : 0;
   const montantCharges = inclureCharges && releve ? releve.montant_total : 0;
   const montantEau = inclureCharges && releve ? releve.montant_eau : 0;
@@ -525,7 +528,7 @@ export default function PaiementPage() {
                           className="text-xs mt-0.5"
                           style={{ color: "#94A3B8" }}
                         >
-                          Loyer mensuel — {moisCourant}
+                          Loyer {contrat?.periodicite_display?.toLowerCase() ?? "mensuel"} — {moisCourant}
                         </div>
                       </div>
                       <Toggle value={inclureLoyer} onChange={setInclureLoyer} />
