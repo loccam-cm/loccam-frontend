@@ -3,16 +3,16 @@
 /**
  * LandingPromoModal — Modal promotionnel de la landing
  *
- * Déclenchement : après 12 s OU 45 % de scroll (le premier atteint),
- * une seule fois par session (sessionStorage).
- * Fermeture : X, clic overlay, touche Échap.
+ * Déclenchement : après 12 s OU 45 % de scroll (le premier atteint).
+ * Mémorisation  : localStorage avec expiration — une fois vu, le modal
+ *                 ne réapparaît pas pendant EXPIRE_JOURS jours,
+ *                 même après fermeture du navigateur.
+ * Test rapide   : ajouter ?promo=1 à l'URL force l'affichage immédiat.
+ * Fermeture     : X, clic overlay, touche Échap.
  *
  * Responsive :
  *   - Desktop / tablette : carte centrée (max 420px)
  *   - Mobile (≤ 640px)   : bottom-sheet collé en bas, pleine largeur
- *   - Hauteur limitée + scroll interne si écran court
- *
- * Intégration : <LandingPromoModal /> en fin de landing/page.tsx
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation'
 import { IconX, IconRocket, IconCheck, IconClock } from '@tabler/icons-react'
 
 const STORAGE_KEY    = 'loccam_promo_vu'
+const EXPIRE_JOURS   = 7        // ← ne pas re-montrer pendant 7 jours
 const DELAY_MS       = 12_000
 const SCROLL_TRIGGER = 0.45
 
@@ -31,20 +32,49 @@ const AVANTAGES = [
   'Suivi des impayés en temps réel',
 ]
 
+/* ── Helpers localStorage avec expiration ── */
+function dejaVu(): boolean {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return false
+    const ts = parseInt(raw, 10)
+    if (isNaN(ts)) return false
+    const ageMs = Date.now() - ts
+    if (ageMs > EXPIRE_JOURS * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEY)   // expiré → on nettoie
+      return false
+    }
+    return true
+  } catch {
+    return false   // localStorage indisponible (navigation privée stricte)
+  }
+}
+
+function marquerVu() {
+  try { localStorage.setItem(STORAGE_KEY, Date.now().toString()) } catch {}
+}
+
 export default function LandingPromoModal() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
-  /* ── Déclenchement : délai OU scroll, une fois par session ── */
+  /* ── Déclenchement ── */
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (sessionStorage.getItem(STORAGE_KEY)) return
+
+    // Test rapide : ?promo=1 force l'affichage (sans marquer comme vu)
+    if (new URLSearchParams(window.location.search).get('promo') === '1') {
+      setOpen(true)
+      return
+    }
+
+    if (dejaVu()) return
 
     let done = false
     const show = () => {
       if (done) return
       done = true
-      sessionStorage.setItem(STORAGE_KEY, '1')
+      marquerVu()
       setOpen(true)
       cleanup()
     }
@@ -61,7 +91,7 @@ export default function LandingPromoModal() {
     return cleanup
   }, [])
 
-  /* ── Échap + blocage du scroll de fond quand ouvert ── */
+  /* ── Échap + blocage du scroll de fond ── */
   const close = useCallback(() => setOpen(false), [])
   useEffect(() => {
     if (!open) return
@@ -85,7 +115,6 @@ export default function LandingPromoModal() {
     <AnimatePresence>
       {open && (
         <>
-          {/* Overlay */}
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={close}
@@ -96,7 +125,6 @@ export default function LandingPromoModal() {
             }}
           />
 
-          {/* Wrapper centreur — c'est LUI qui positionne, pas de transform manuel */}
           <div className="lpm-wrap" onClick={close}>
             <motion.div
               className="lpm-card"
@@ -106,20 +134,16 @@ export default function LandingPromoModal() {
               exit={{ opacity: 0, scale: 0.96, y: 30 }}
               transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}>
 
-              {/* Bouton fermer */}
               <button onClick={close} aria-label="Fermer" className="lpm-close">
                 <IconX size={15} style={{ color: 'rgba(248,250,252,0.7)' }}/>
               </button>
 
               <div className="lpm-body">
-
-                {/* Badge essai */}
                 <div className="lpm-badge">
                   <IconClock size={12} style={{ color: '#34D399', flexShrink: 0 }}/>
                   <span>ESSAI 30 JOURS · SANS ENGAGEMENT</span>
                 </div>
 
-                {/* Titre */}
                 <h3 className="lpm-title">
                   Testez LocCam Pro,{' '}
                   <span className="lpm-gradient">gratuitement</span>
@@ -129,7 +153,6 @@ export default function LandingPromoModal() {
                   automatiquement — dès aujourd&apos;hui.
                 </p>
 
-                {/* Avantages */}
                 <div className="lpm-list">
                   {AVANTAGES.map(a => (
                     <div key={a} className="lpm-item">
@@ -141,19 +164,16 @@ export default function LandingPromoModal() {
                   ))}
                 </div>
 
-                {/* Prix */}
                 <div className="lpm-price">
                   <span className="lpm-price-val">5 000</span>
                   <span className="lpm-price-sub">XAF / mois après l&apos;essai</span>
                 </div>
 
-                {/* CTA principal */}
                 <button onClick={goRegister} className="lpm-cta">
                   <IconRocket size={16}/>
                   Démarrer mon essai Pro
                 </button>
 
-                {/* CTA secondaire */}
                 <button onClick={goTarifs} className="lpm-cta-ghost">
                   Comparer tous les plans
                 </button>
@@ -166,18 +186,18 @@ export default function LandingPromoModal() {
             .lpm-wrap {
               position: fixed; inset: 0; z-index: 201;
               display: flex; justify-content: center;
-              align-items: flex-end;            /* collé en bas sur mobile */
+              align-items: flex-end;
               padding: 0;
             }
             .lpm-card {
               width: 100%;
               max-width: 100%;
-              max-height: calc(100dvh - 48px);  /* jamais plus haut que l'écran */
+              max-height: calc(100dvh - 48px);
               overflow-y: auto;
               background: linear-gradient(165deg, #0D1B2E 0%, #0A1525 100%);
               border: 1px solid rgba(96,165,250,0.25);
               border-bottom: none;
-              border-radius: 22px 22px 0 0;     /* bottom-sheet */
+              border-radius: 22px 22px 0 0;
               box-shadow: 0 -12px 60px rgba(37,99,235,0.2), 0 -8px 40px rgba(0,0,0,0.5);
               position: relative;
               -webkit-overflow-scrolling: touch;
@@ -205,7 +225,7 @@ export default function LandingPromoModal() {
               font-family: var(--font-display, sans-serif);
               font-size: 1.3rem; font-weight: 800; line-height: 1.2;
               color: #F8FAFC; margin-bottom: 8px; letter-spacing: -0.3px;
-              padding-right: 36px;              /* évite le bouton X */
+              padding-right: 36px;
             }
             .lpm-gradient {
               background: linear-gradient(135deg, #60A5FA, #34D399);
@@ -243,16 +263,13 @@ export default function LandingPromoModal() {
               font-size: 12.5px; font-weight: 600; color: rgba(248,250,252,0.5);
             }
 
-            /* ═══ ≥ 640px — carte centrée desktop/tablette ═══ */
+            /* ═══ ≥ 640px — carte centrée ═══ */
             @media (min-width: 640px) {
-              .lpm-wrap {
-                align-items: center;            /* centrage vertical */
-                padding: 24px;
-              }
+              .lpm-wrap { align-items: center; padding: 24px; }
               .lpm-card {
                 max-width: 420px;
                 max-height: calc(100dvh - 64px);
-                border-radius: 22px;            /* coins complets */
+                border-radius: 22px;
                 border-bottom: 1px solid rgba(96,165,250,0.25);
                 box-shadow: 0 0 60px rgba(37,99,235,0.25), 0 24px 80px rgba(0,0,0,0.5);
               }
