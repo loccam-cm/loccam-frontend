@@ -54,11 +54,11 @@ export function LocataireProchainPaiement({ contrat, loading, joursRestants, pro
           </div>
           {loading ? <LocataireSkeleton className="h-10 w-44 mb-1" /> : (
             <div className="text-2xl sm:text-3xl font-bold" style={{ color: '#059669' }}>
-              <AnimatedNumber value={contrat?.loyer_mensuel ?? 0} suffix=" XAF" />
+              <AnimatedNumber value={contrat?.montant_periode ?? contrat?.loyer_mensuel ?? 0} suffix=" XAF" />
             </div>
           )}
           <div className="text-xs mt-1" style={{ color: '#64748B' }}>
-            Loyer de base — charges selon relevé mensuel
+            Loyer {contrat?.periodicite_display?.toLowerCase() ?? 'mensuel'} — charges selon relevé
           </div>
         </div>
 

@@ -82,6 +82,9 @@ export interface Contrat {
   date_fin?: string
   loyer_mensuel: number
   caution?: number
+  periodicite?: string
+  periodicite_display?: string
+  montant_periode?: number
   jour_echeance?: number
   notes?: string
   pdf_url?: string
