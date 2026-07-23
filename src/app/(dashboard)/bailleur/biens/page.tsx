@@ -31,6 +31,8 @@ import {
   IconArrowLeft,
   IconDroplet,
   IconBolt,
+  IconWorld,
+  IconWorldOff,
 } from "@tabler/icons-react";
 
 interface Structure {
@@ -215,6 +217,8 @@ function BiensPageContent() {
   const [success, setSuccess] = useState(false);
   const [editBien, setEditBien] = useState<Bien | null>(null);
   const [galerieBien, setGalerieBien] = useState<Bien | null>(null);
+  const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const EMPTY_FORM: FormData = {
     titre: "",
@@ -373,6 +377,37 @@ function BiensPageContent() {
     } catch {}
   };
 
+  // ── Marketplace : publier / dépublier ─────────────────────────
+  const handlePublier = async (id: number) => {
+    setPublishingId(id);
+    setPublishError(null);
+    try {
+      await api.post(`/biens/${id}/publier/`);
+      load();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      setPublishError(
+        e.response?.data?.error ??
+          "Impossible de publier ce bien pour le moment."
+      );
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handleDepublier = async (id: number) => {
+    setPublishingId(id);
+    setPublishError(null);
+    try {
+      await api.post(`/biens/${id}/depublier/`);
+      load();
+    } catch {
+      setPublishError("Impossible de dépublier ce bien pour le moment.");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
   const filtered = biens.filter((b) => {
     const matchSearch =
       !search ||
@@ -393,6 +428,27 @@ function BiensPageContent() {
         .bien-card{transition:all .2s ease}
         .bien-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.08)}
       `}</style>
+
+      <AnimatePresence>
+        {publishError && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold text-white"
+            style={{ background: "#DC2626", boxShadow: "0 8px 24px rgba(0,0,0,.18)" }}
+          >
+            <IconAlertCircle size={16} />
+            {publishError}
+            <button
+              onClick={() => setPublishError(null)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#fff" }}
+            >
+              <IconX size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div
         className="flex h-screen overflow-hidden"
@@ -656,12 +712,11 @@ function BiensPageContent() {
                         background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)",
                       }}
                     >
-                      {(b as any).photos?.length > 0 ? (
+                      {b.photos && b.photos.length > 0 ? (
                         <img
                           src={
-                            (b as any).photos.find((p: any) => p.est_principal)
-                              ?.url_publique ??
-                            (b as any).photos[0].url_publique
+                            b.photos.find((p) => p.est_principale)?.url ??
+                            b.photos[0].url
                           }
                           alt={b.titre}
                           className="w-full h-full object-cover"
@@ -680,8 +735,16 @@ function BiensPageContent() {
                           </span>
                         </div>
                       )}
-                      <div className="absolute top-3 right-3">
+                      <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
                         <StatutBadge statut={b.statut} />
+                        {b.est_publie && (
+                          <span
+                            className="text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1"
+                            style={{ background: "#ECFDF5", color: "#059669" }}
+                          >
+                            <IconWorld size={11} /> Publié
+                          </span>
+                        )}
                       </div>
                       <div className="absolute top-3 left-3">
                         <span
@@ -788,6 +851,69 @@ function BiensPageContent() {
                           <IconTrash size={13} />
                         </button>
                       </div>
+                      <div className="pt-1.5">
+                        {b.est_publie ? (
+                          <button
+                            onClick={() => handleDepublier(b.id)}
+                            disabled={publishingId === b.id}
+                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold"
+                            style={{
+                              background: "#FFFBEB",
+                              color: "#D97706",
+                              border: "none",
+                              cursor:
+                                publishingId === b.id ? "wait" : "pointer",
+                              opacity: publishingId === b.id ? 0.6 : 1,
+                            }}
+                          >
+                            {publishingId === b.id ? (
+                              <IconLoader2
+                                size={13}
+                                style={{ animation: "spin 0.8s linear infinite" }}
+                              />
+                            ) : (
+                              <IconWorldOff size={13} />
+                            )}
+                            Retirer de la marketplace
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handlePublier(b.id)}
+                            disabled={
+                              publishingId === b.id ||
+                              b.statut !== "libre"
+                            }
+                            title={
+                              b.statut !== "libre"
+                                ? "Seul un bien libre peut être publié"
+                                : undefined
+                            }
+                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold"
+                            style={{
+                              background:
+                                b.statut !== "libre" ? "#F1F5F9" : "#ECFDF5",
+                              color:
+                                b.statut !== "libre" ? "#94A3B8" : "#059669",
+                              border: "none",
+                              cursor:
+                                publishingId === b.id || b.statut !== "libre"
+                                  ? "not-allowed"
+                                  : "pointer",
+                              opacity: publishingId === b.id ? 0.6 : 1,
+                            }}
+                          >
+                            {publishingId === b.id ? (
+                              <IconLoader2
+                                size={13}
+                                style={{ animation: "spin 0.8s linear infinite" }}
+                              />
+                            ) : (
+                              <IconWorld size={13} />
+                            )}
+                            Publier sur la marketplace
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -818,6 +944,14 @@ function BiensPageContent() {
                           {b.titre}
                         </h3>
                         <StatutBadge statut={b.statut} />
+                        {b.est_publie && (
+                          <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                            style={{ background: "#ECFDF5", color: "#059669" }}
+                          >
+                            <IconWorld size={10} /> Publié
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <IconMapPin size={11} style={{ color: "#94A3B8" }} />
@@ -844,6 +978,48 @@ function BiensPageContent() {
                       </div>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() =>
+                          b.est_publie
+                            ? handleDepublier(b.id)
+                            : handlePublier(b.id)
+                        }
+                        disabled={
+                          publishingId === b.id ||
+                          (!b.est_publie && b.statut !== "libre")
+                        }
+                        title={
+                          b.est_publie
+                            ? "Retirer de la marketplace"
+                            : b.statut !== "libre"
+                            ? "Seul un bien libre peut être publié"
+                            : "Publier sur la marketplace"
+                        }
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{
+                          background: b.est_publie ? "#FFFBEB" : "#ECFDF5",
+                          color: b.est_publie ? "#D97706" : "#059669",
+                          border: "none",
+                          cursor:
+                            publishingId === b.id ||
+                            (!b.est_publie && b.statut !== "libre")
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            !b.est_publie && b.statut !== "libre" ? 0.5 : 1,
+                        }}
+                      >
+                        {publishingId === b.id ? (
+                          <IconLoader2
+                            size={14}
+                            style={{ animation: "spin 0.8s linear infinite" }}
+                          />
+                        ) : b.est_publie ? (
+                          <IconWorldOff size={14} />
+                        ) : (
+                          <IconWorld size={14} />
+                        )}
+                      </button>
                       <button
                         onClick={() => openEdit(b)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center"

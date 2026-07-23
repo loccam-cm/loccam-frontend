@@ -19,6 +19,7 @@ import {
   IconAlertCircle,
   IconUser,
   IconCrown,
+  IconWorld,
 } from "@tabler/icons-react";
 
 interface Props {
@@ -61,6 +62,11 @@ export function BailleurSidebar({
           icon: <IconUsers size={16} />,
           label: t("nav.locataires"),
           href: "/bailleur/locataires",
+        },
+        {
+          icon: <IconWorld size={15} />,
+          label: t("nav.demandes"),
+          href: "/bailleur/demandes",
         },
       ],
     },
