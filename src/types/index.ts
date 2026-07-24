@@ -42,6 +42,19 @@ export interface Structure {
   date_creation: string
 }
 
+export interface Photo {
+  id: number
+  // ⚠️ Ces noms correspondent au vrai PhotoSerializer Django (url / est_principale).
+  // L'ancien type utilisait url_publique / est_principal, qui n'existent pas
+  // côté API — c'est pourquoi les photos ne s'affichaient jamais.
+  url: string
+  cloudinary_id?: string
+  est_principale: boolean
+  ordre_affichage?: number
+  taille_octets?: number
+  date_upload: string
+}
+
 export interface Bien {
   id: number
   titre: string
@@ -57,20 +70,43 @@ export interface Bien {
   nb_chambres?: number
   etage?: number
   structure?: number
+  structure_id?: number | null
   statut: string
+  est_meuble?: boolean
+  est_climatise?: boolean
+  a_ascenseur?: boolean
+  // Alias dépréciés — gardés pour ne rien casser ailleurs, ne plus utiliser
   meuble?: boolean
   eau_incluse?: boolean
   elec_incluse?: boolean
-  photos?: {
-    id: number
-    url_publique: string
-    est_principal: boolean
-    nom_original: string
-    taille: number
-    date_upload: string
-    object_id: number
-  }[]
+  photos?: Photo[]
+  nb_vues?: number
+  // ── Marketplace (v2.1) ──
+  est_publie?: boolean
+  date_publication?: string | null
   date_creation?: string
+}
+
+export type StatutDemande =
+  | 'nouvelle'
+  | 'contactee'
+  | 'visite_planifiee'
+  | 'transformee'
+  | 'refusee'
+  | 'expiree'
+
+export interface DemandeContact {
+  id: number
+  bien: Bien
+  locataire: Utilisateur | null
+  nom_visiteur: string
+  telephone_visiteur: string
+  email_visiteur?: string
+  message?: string
+  statut: StatutDemande
+  statut_display?: string
+  date_creation: string
+  date_reponse?: string | null
 }
 export interface Contrat {
   id: number
