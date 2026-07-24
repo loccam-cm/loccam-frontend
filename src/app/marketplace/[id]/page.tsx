@@ -19,7 +19,6 @@ import {
   IconPhone,
   IconMail,
   IconMessage,
-  IconEye,
   IconHeart,
   IconHeartFilled,
   IconShare,
@@ -61,6 +60,7 @@ export default function BienPublicDetailPage() {
   const [activePhoto, setActivePhoto] = useState(0);
   const [estFavori, setEstFavori] = useState(false);
   const [favoriPending, setFavoriPending] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const [form, setForm] = useState({
     nom_visiteur: "", telephone_visiteur: "", email_visiteur: "", message: "",
@@ -252,6 +252,7 @@ export default function BienPublicDetailPage() {
           <div
             className="rounded-2xl overflow-hidden mb-8"
             style={{
+              position: "relative",
               display: "grid",
               gridTemplateColumns: hasPhotos && photos.length > 1 ? "1.4fr 1fr" : "1fr",
               gap: "4px",
@@ -320,6 +321,29 @@ export default function BienPublicDetailPage() {
                 ))}
               </div>
             )}
+
+            {hasPhotos && (
+              <button
+                onClick={() => {
+                  setActivePhoto(0);
+                  setLightboxOpen(true);
+                }}
+                className="flex items-center gap-1.5 text-xs font-semibold"
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  bottom: 16,
+                  padding: "8px 14px",
+                  borderRadius: "9px",
+                  background: "#fff",
+                  border: "1px solid #0F172A",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 6px rgba(15,23,42,.15)",
+                }}
+              >
+                <IconPhoto size={14} /> Afficher toutes les photos
+              </button>
+            )}
           </div>
 
           {/* ── Lightbox ── */}
@@ -383,51 +407,93 @@ export default function BienPublicDetailPage() {
                 style={{ borderTop: "1px solid #F5F4F0", borderBottom: "1px solid #F5F4F0" }}
               >
                 {bien.surface && (
-                  <div className="flex items-center gap-2">
-                    <IconRuler2 size={17} style={{ color: "#78716C" }} />
-                    <span className="text-sm font-medium" style={{ color: "#292524" }}>
-                      {bien.surface} m²
-                    </span>
-                  </div>
+                  <span className="text-sm font-medium" style={{ color: "#292524" }}>
+                    {bien.surface} m²
+                  </span>
                 )}
-                {bien.est_meuble && (
-                  <div className="flex items-center gap-2">
-                    <IconSofa size={17} style={{ color: "#78716C" }} />
-                    <span className="text-sm font-medium" style={{ color: "#292524" }}>Meublé</span>
-                  </div>
-                )}
-                {bien.est_climatise && (
-                  <div className="flex items-center gap-2">
-                    <IconSnowflake size={17} style={{ color: "#78716C" }} />
-                    <span className="text-sm font-medium" style={{ color: "#292524" }}>Climatisé</span>
-                  </div>
-                )}
-                {bien.a_ascenseur && (
-                  <div className="flex items-center gap-2">
-                    <IconArrowsUpDown size={17} style={{ color: "#78716C" }} />
-                    <span className="text-sm font-medium" style={{ color: "#292524" }}>Ascenseur</span>
-                  </div>
+                {bien.surface && (typeof bien.nb_vues === "number") && (
+                  <span style={{ color: "#D6D3CE" }}>·</span>
                 )}
                 {typeof bien.nb_vues === "number" && (
-                  <div className="flex items-center gap-2">
-                    <IconEye size={17} style={{ color: "#78716C" }} />
-                    <span className="text-sm font-medium" style={{ color: "#292524" }}>
-                      {bien.nb_vues} vues
-                    </span>
-                  </div>
+                  <span className="text-sm font-medium" style={{ color: "#292524" }}>
+                    {bien.nb_vues} vue{bien.nb_vues > 1 ? "s" : ""}
+                  </span>
                 )}
               </div>
 
               {bien.description && (
-                <div>
-                  <h2 className="text-sm font-bold mb-2" style={{ color: "#0F172A" }}>
+                <div className="mb-7" style={{ borderBottom: "1px solid #F5F4F0", paddingBottom: "28px" }}>
+                  <h2 className="text-base font-bold mb-3" style={{ color: "#0F172A" }}>
                     À propos de ce logement
                   </h2>
-                  <p className="text-sm leading-relaxed" style={{ color: "#44403C" }}>
+                  <p
+                    className="text-sm leading-relaxed"
+                    style={{
+                      color: "#44403C",
+                      display: "-webkit-box",
+                      WebkitLineClamp: descExpanded ? "unset" : 4,
+                      WebkitBoxOrient: "vertical",
+                      overflow: descExpanded ? "visible" : "hidden",
+                    }}
+                  >
                     {bien.description}
                   </p>
+                  {bien.description.length > 220 && (
+                    <button
+                      onClick={() => setDescExpanded((v) => !v)}
+                      className="text-sm font-bold mt-2 flex items-center gap-1"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "#0F172A",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      {descExpanded ? "Afficher moins" : "Afficher plus"}
+                    </button>
+                  )}
                 </div>
               )}
+
+              <div>
+                <h2 className="text-base font-bold mb-4" style={{ color: "#0F172A" }}>
+                  Ce que propose ce logement
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3.5 gap-x-6">
+                  {bien.surface && (
+                    <div className="flex items-center gap-3">
+                      <IconRuler2 size={19} style={{ color: "#44403C" }} stroke={1.5} />
+                      <span className="text-sm" style={{ color: "#292524" }}>
+                        {bien.surface} m² de surface
+                      </span>
+                    </div>
+                  )}
+                  {bien.est_meuble && (
+                    <div className="flex items-center gap-3">
+                      <IconSofa size={19} style={{ color: "#44403C" }} stroke={1.5} />
+                      <span className="text-sm" style={{ color: "#292524" }}>Logement meublé</span>
+                    </div>
+                  )}
+                  {bien.est_climatise && (
+                    <div className="flex items-center gap-3">
+                      <IconSnowflake size={19} style={{ color: "#44403C" }} stroke={1.5} />
+                      <span className="text-sm" style={{ color: "#292524" }}>Climatisation</span>
+                    </div>
+                  )}
+                  {bien.a_ascenseur && (
+                    <div className="flex items-center gap-3">
+                      <IconArrowsUpDown size={19} style={{ color: "#44403C" }} stroke={1.5} />
+                      <span className="text-sm" style={{ color: "#292524" }}>Ascenseur dans l&apos;immeuble</span>
+                    </div>
+                  )}
+                  {!bien.est_meuble && !bien.est_climatise && !bien.a_ascenseur && !bien.surface && (
+                    <p className="text-sm" style={{ color: "#A8A29E" }}>
+                      Aucun équipement renseigné par le bailleur pour ce bien.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* ── Carte contact ── */}
