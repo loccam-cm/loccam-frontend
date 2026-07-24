@@ -72,6 +72,8 @@ export interface Bien {
   structure?: number
   structure_id?: number | null
   statut: string
+  latitude?: number | null
+  longitude?: number | null
   est_meuble?: boolean
   est_climatise?: boolean
   a_ascenseur?: boolean

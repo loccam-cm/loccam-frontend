@@ -494,6 +494,42 @@ export default function BienPublicDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* ── Localisation ── */}
+              {bien.latitude && bien.longitude && (
+                <div className="mt-7 pt-7" style={{ borderTop: "1px solid #F5F4F0" }}>
+                  <h2 className="text-base font-bold mb-1" style={{ color: "#0F172A" }}>
+                    Où se trouve ce logement
+                  </h2>
+                  <p className="text-sm mb-4" style={{ color: "#78716C" }}>
+                    {bien.adresse}
+                  </p>
+                  <div
+                    className="rounded-2xl overflow-hidden"
+                    style={{ height: "320px", border: "1px solid #E2E0D9" }}
+                  >
+                    <iframe
+                      title="Localisation du bien"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${
+                        bien.longitude - 0.008
+                      }%2C${bien.latitude - 0.008}%2C${bien.longitude + 0.008}%2C${
+                        bien.latitude + 0.008
+                      }&layer=mapnik&marker=${bien.latitude}%2C${bien.longitude}`}
+                      style={{ width: "100%", height: "100%", border: "none" }}
+                      loading="lazy"
+                    />
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${bien.latitude},${bien.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold mt-3"
+                    style={{ color: "#2563EB", textDecoration: "none" }}
+                  >
+                    <IconMapPin size={15} /> Obtenir l&apos;itinéraire
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* ── Carte contact ── */}
