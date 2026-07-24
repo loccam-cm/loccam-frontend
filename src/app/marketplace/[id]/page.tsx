@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { Bien } from "@/types";
@@ -21,22 +20,16 @@ import {
   IconMail,
   IconMessage,
   IconEye,
+  IconHeart,
+  IconHeartFilled,
+  IconShare,
+  IconPhoto,
 } from "@tabler/icons-react";
 
 const TYPE_LABELS: Record<string, string> = {
-  chambre: "Chambre",
-  studio: "Studio",
-  f1: "F1",
-  f2: "F2",
-  f3: "F3",
-  f4_plus: "F4 et plus",
-  duplex: "Duplex",
-  villa: "Villa",
-  boutique: "Boutique",
-  bureau: "Bureau",
-  magasin: "Magasin",
-  entrepot: "Entrepôt",
-  autre: "Autre",
+  chambre: "Chambre", studio: "Studio", f1: "F1", f2: "F2", f3: "F3",
+  f4_plus: "F4 et plus", duplex: "Duplex", villa: "Villa", boutique: "Boutique",
+  bureau: "Bureau", magasin: "Magasin", entrepot: "Entrepôt", autre: "Autre",
 };
 
 function Skeleton({ className = "" }: { className?: string }) {
@@ -44,12 +37,17 @@ function Skeleton({ className = "" }: { className?: string }) {
     <div
       className={`rounded-2xl ${className}`}
       style={{
-        background: "linear-gradient(90deg,#E2E8F0 25%,#F1F5F9 50%,#E2E8F0 75%)",
+        background: "linear-gradient(90deg,#EDEBE6 25%,#F5F4F0 50%,#EDEBE6 75%)",
         backgroundSize: "200% 100%",
         animation: "shimmer 1.5s infinite",
       }}
     />
   );
+}
+
+function isLoggedIn() {
+  if (typeof window === "undefined") return false;
+  return !!localStorage.getItem("access_token");
 }
 
 export default function BienPublicDetailPage() {
@@ -59,13 +57,13 @@ export default function BienPublicDetailPage() {
   const [bien, setBien] = useState<Bien | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [estFavori, setEstFavori] = useState(false);
+  const [favoriPending, setFavoriPending] = useState(false);
 
   const [form, setForm] = useState({
-    nom_visiteur: "",
-    telephone_visiteur: "",
-    email_visiteur: "",
-    message: "",
+    nom_visiteur: "", telephone_visiteur: "", email_visiteur: "", message: "",
   });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -85,6 +83,50 @@ export default function BienPublicDetailPage() {
       }
     })();
   }, [id]);
+
+  useEffect(() => {
+    if (!isLoggedIn() || !id) return;
+    api
+      .get(`/favoris/`)
+      .then((res) => {
+        const list = res.data.results as { bien: { id: number } }[];
+        setEstFavori(list.some((f) => String(f.bien.id) === String(id)));
+      })
+      .catch(() => {});
+  }, [id]);
+
+  const toggleFavori = async () => {
+    if (!isLoggedIn()) {
+      toast("Connectez-vous pour enregistrer ce bien en favori.");
+      return;
+    }
+    setFavoriPending(true);
+    try {
+      if (estFavori) {
+        await api.delete(`/favoris/${id}/`);
+        setEstFavori(false);
+      } else {
+        await api.post(`/favoris/${id}/`);
+        setEstFavori(true);
+      }
+    } catch {
+      toast.error("Impossible de mettre à jour vos favoris.");
+    } finally {
+      setFavoriPending(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: bien?.titre, url });
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success("Lien copié dans le presse-papiers.");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,9 +153,9 @@ export default function BienPublicDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#F8FAFC" }}>
-        <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "24px 20px" }}>
-          <Skeleton className="h-80 mb-6" />
+      <div style={{ minHeight: "100vh", background: "#fff" }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "24px 20px" }}>
+          <Skeleton className="h-[420px] mb-6" />
           <Skeleton className="h-6 w-1/2 mb-3" />
           <Skeleton className="h-4 w-1/3" />
         </div>
@@ -124,20 +166,20 @@ export default function BienPublicDetailPage() {
   if (notFound || !bien) {
     return (
       <div
-        style={{ minHeight: "100vh", background: "#F8FAFC" }}
+        style={{ minHeight: "100vh", background: "#fff" }}
         className="flex flex-col items-center justify-center text-center px-6"
       >
-        <IconBuilding size={40} style={{ color: "#CBD5E1" }} />
+        <IconBuilding size={40} style={{ color: "#D6D3CE" }} />
         <h1 className="text-lg font-bold mt-4 mb-2" style={{ color: "#0F172A" }}>
           Ce bien n&apos;est plus disponible
         </h1>
-        <p className="text-sm mb-5" style={{ color: "#64748B" }}>
+        <p className="text-sm mb-5" style={{ color: "#78716C" }}>
           Il a peut-être été loué ou retiré par le bailleur.
         </p>
         <Link
           href="/marketplace"
-          className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white"
-          style={{ background: "#2563EB" }}
+          className="text-sm font-semibold px-5 py-2.5 rounded-full text-white"
+          style={{ background: "#0F172A" }}
         >
           Retour à la recherche
         </Link>
@@ -146,132 +188,230 @@ export default function BienPublicDetailPage() {
   }
 
   const photos = bien.photos ?? [];
+  const hasPhotos = photos.length > 0;
 
   return (
     <>
       <style>{`
         @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
         @keyframes spin{to{transform:rotate(360deg)}}
+        .gal-tile{transition:filter .2s ease}
+        .gal-tile:hover{filter:brightness(0.88)}
       `}</style>
 
-      <div style={{ minHeight: "100vh", background: "#F8FAFC" }}>
-        <header style={{ borderBottom: "1px solid #E2E8F0", background: "#fff" }}>
+      <div style={{ minHeight: "100vh", background: "#fff" }}>
+        <header style={{ borderBottom: "1px solid #F5F4F0" }}>
           <div
-            style={{ maxWidth: "1000px", margin: "0 auto", padding: "14px 20px" }}
+            className="flex items-center justify-between"
+            style={{ maxWidth: "1100px", margin: "0 auto", padding: "16px 20px" }}
           >
             <Link
               href="/marketplace"
               className="flex items-center gap-1.5 text-sm font-semibold"
-              style={{ color: "#475569" }}
+              style={{ color: "#44403C" }}
             >
               <IconArrowLeft size={15} /> Retour à la recherche
             </Link>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full"
+                style={{ background: "none", border: "none", color: "#44403C", cursor: "pointer" }}
+              >
+                <IconShare size={14} /> Partager
+              </button>
+              <button
+                onClick={toggleFavori}
+                disabled={favoriPending}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full"
+                style={{ background: "none", border: "none", color: "#44403C", cursor: "pointer" }}
+              >
+                {estFavori ? (
+                  <IconHeartFilled size={14} style={{ color: "#E11D48" }} />
+                ) : (
+                  <IconHeart size={14} />
+                )}
+                {estFavori ? "Enregistré" : "Enregistrer"}
+              </button>
+            </div>
           </div>
         </header>
 
-        <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "24px 20px 60px" }}>
-          {/* ── Galerie ── */}
-          <div className="mb-6">
-            <div
-              className="rounded-2xl overflow-hidden mb-2"
+        <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "20px 20px 60px" }}>
+          <h1 className="text-xl font-extrabold tracking-tight mb-1.5" style={{ color: "#0F172A" }}>
+            {bien.titre}
+          </h1>
+          <div className="flex items-center gap-1.5 mb-5">
+            <IconMapPin size={14} style={{ color: "#A8A29E" }} />
+            <span className="text-sm" style={{ color: "#57534E" }}>
+              {bien.adresse}
+            </span>
+          </div>
+
+          {/* ── Galerie collage ── */}
+          <div
+            className="rounded-2xl overflow-hidden mb-8"
+            style={{
+              display: "grid",
+              gridTemplateColumns: hasPhotos && photos.length > 1 ? "1.4fr 1fr" : "1fr",
+              gap: "4px",
+              height: "420px",
+            }}
+          >
+            <button
+              onClick={() => hasPhotos && setLightboxOpen(true)}
+              className="gal-tile"
               style={{
-                height: "380px",
-                background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)",
+                border: "none",
+                padding: 0,
+                cursor: hasPhotos ? "pointer" : "default",
+                background: "linear-gradient(135deg,#F5F4F0,#EDEBE6)",
+                overflow: "hidden",
               }}
             >
-              {photos.length > 0 ? (
+              {hasPhotos ? (
                 <img
-                  src={photos[activePhoto]?.url ?? photos[0].url}
+                  src={photos[0].url}
                   alt={bien.titre}
                   className="w-full h-full object-cover"
+                  style={{ display: "block" }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <IconBuilding size={48} style={{ color: "#93C5FD" }} />
+                  <IconBuilding size={48} style={{ color: "#D6D3CE" }} />
                 </div>
               )}
-            </div>
+            </button>
+
             {photos.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {photos.map((p, i) => (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateRows: "1fr 1fr",
+                  gap: "4px",
+                }}
+              >
+                {photos.slice(1, 5).map((p, i) => (
                   <button
                     key={p.id}
-                    onClick={() => setActivePhoto(i)}
-                    className="flex-shrink-0 rounded-lg overflow-hidden"
-                    style={{
-                      width: "72px",
-                      height: "56px",
-                      border: i === activePhoto ? "2px solid #2563EB" : "2px solid transparent",
-                      cursor: "pointer",
-                      padding: 0,
+                    onClick={() => {
+                      setActivePhoto(i + 1);
+                      setLightboxOpen(true);
                     }}
+                    className="gal-tile relative"
+                    style={{ border: "none", padding: 0, cursor: "pointer", overflow: "hidden" }}
                   >
-                    <img src={p.url} alt="" className="w-full h-full object-cover" />
+                    <img src={p.url} alt="" className="w-full h-full object-cover" style={{ display: "block" }} />
+                    {i === 3 && photos.length > 5 && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{ background: "rgba(15,23,42,.5)" }}
+                      >
+                        <span className="text-white text-sm font-bold flex items-center gap-1.5">
+                          <IconPhoto size={16} /> +{photos.length - 5}
+                        </span>
+                      </div>
+                    )}
                   </button>
+                ))}
+                {Array.from({ length: Math.max(0, 4 - (photos.length - 1)) }).map((_, i) => (
+                  <div key={`empty-${i}`} style={{ background: "#F5F4F0" }} />
                 ))}
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* ── Lightbox ── */}
+          {lightboxOpen && hasPhotos && (
+            <div
+              className="fixed inset-0 flex flex-col items-center justify-center"
+              style={{ background: "rgba(15,23,42,.96)", zIndex: 100 }}
+              onClick={() => setLightboxOpen(false)}
+            >
+              <button
+                onClick={() => setLightboxOpen(false)}
+                className="absolute top-5 right-6 text-white text-sm font-semibold"
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                Fermer ✕
+              </button>
+              <img
+                src={photos[activePhoto]?.url ?? photos[0].url}
+                alt=""
+                style={{ maxWidth: "90vw", maxHeight: "78vh", objectFit: "contain", borderRadius: 8 }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              {photos.length > 1 && (
+                <div className="flex gap-2 mt-4 overflow-x-auto px-6" onClick={(e) => e.stopPropagation()}>
+                  {photos.map((p, i) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setActivePhoto(i)}
+                      style={{
+                        width: 56,
+                        height: 42,
+                        flexShrink: 0,
+                        borderRadius: 6,
+                        overflow: "hidden",
+                        border: i === activePhoto ? "2px solid #fff" : "2px solid transparent",
+                        opacity: i === activePhoto ? 1 : 0.55,
+                        padding: 0,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <img src={p.url} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {/* ── Détails ── */}
             <div className="md:col-span-2">
               <span
                 className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                style={{ background: "#EFF6FF", color: "#2563EB" }}
+                style={{ background: "#F5F4F0", color: "#44403C" }}
               >
                 {TYPE_LABELS[bien.type_bien] ?? bien.type_bien}
               </span>
-              <h1 className="text-xl font-extrabold mt-3 mb-1.5" style={{ color: "#0F172A" }}>
-                {bien.titre}
-              </h1>
-              <div className="flex items-center gap-1.5 mb-5">
-                <IconMapPin size={14} style={{ color: "#94A3B8" }} />
-                <span className="text-sm" style={{ color: "#64748B" }}>
-                  {bien.adresse}
-                </span>
-              </div>
 
               <div
-                className="flex flex-wrap gap-4 py-4 mb-5"
-                style={{ borderTop: "1px solid #E2E8F0", borderBottom: "1px solid #E2E8F0" }}
+                className="flex flex-wrap gap-5 py-5 my-5"
+                style={{ borderTop: "1px solid #F5F4F0", borderBottom: "1px solid #F5F4F0" }}
               >
                 {bien.surface && (
                   <div className="flex items-center gap-2">
-                    <IconRuler2 size={16} style={{ color: "#94A3B8" }} />
-                    <span className="text-sm font-medium" style={{ color: "#334155" }}>
+                    <IconRuler2 size={17} style={{ color: "#78716C" }} />
+                    <span className="text-sm font-medium" style={{ color: "#292524" }}>
                       {bien.surface} m²
                     </span>
                   </div>
                 )}
                 {bien.est_meuble && (
                   <div className="flex items-center gap-2">
-                    <IconSofa size={16} style={{ color: "#94A3B8" }} />
-                    <span className="text-sm font-medium" style={{ color: "#334155" }}>
-                      Meublé
-                    </span>
+                    <IconSofa size={17} style={{ color: "#78716C" }} />
+                    <span className="text-sm font-medium" style={{ color: "#292524" }}>Meublé</span>
                   </div>
                 )}
                 {bien.est_climatise && (
                   <div className="flex items-center gap-2">
-                    <IconSnowflake size={16} style={{ color: "#94A3B8" }} />
-                    <span className="text-sm font-medium" style={{ color: "#334155" }}>
-                      Climatisé
-                    </span>
+                    <IconSnowflake size={17} style={{ color: "#78716C" }} />
+                    <span className="text-sm font-medium" style={{ color: "#292524" }}>Climatisé</span>
                   </div>
                 )}
                 {bien.a_ascenseur && (
                   <div className="flex items-center gap-2">
-                    <IconArrowsUpDown size={16} style={{ color: "#94A3B8" }} />
-                    <span className="text-sm font-medium" style={{ color: "#334155" }}>
-                      Ascenseur
-                    </span>
+                    <IconArrowsUpDown size={17} style={{ color: "#78716C" }} />
+                    <span className="text-sm font-medium" style={{ color: "#292524" }}>Ascenseur</span>
                   </div>
                 )}
                 {typeof bien.nb_vues === "number" && (
                   <div className="flex items-center gap-2">
-                    <IconEye size={16} style={{ color: "#94A3B8" }} />
-                    <span className="text-sm font-medium" style={{ color: "#334155" }}>
+                    <IconEye size={17} style={{ color: "#78716C" }} />
+                    <span className="text-sm font-medium" style={{ color: "#292524" }}>
                       {bien.nb_vues} vues
                     </span>
                   </div>
@@ -279,11 +419,11 @@ export default function BienPublicDetailPage() {
               </div>
 
               {bien.description && (
-                <div className="mb-6">
+                <div>
                   <h2 className="text-sm font-bold mb-2" style={{ color: "#0F172A" }}>
-                    Description
+                    À propos de ce logement
                   </h2>
-                  <p className="text-sm leading-relaxed" style={{ color: "#475569" }}>
+                  <p className="text-sm leading-relaxed" style={{ color: "#44403C" }}>
                     {bien.description}
                   </p>
                 </div>
@@ -294,22 +434,23 @@ export default function BienPublicDetailPage() {
             <div className="md:col-span-1">
               <div
                 className="rounded-2xl p-5 sticky"
-                style={{ background: "#fff", border: "1px solid #E2E8F0", top: "20px" }}
+                style={{
+                  background: "#fff",
+                  border: "1px solid #E2E0D9",
+                  boxShadow: "0 8px 28px rgba(15,23,42,.08)",
+                  top: "20px",
+                }}
               >
-                <div className="text-xl font-extrabold mb-0.5" style={{ color: "#059669" }}>
+                <div className="text-xl font-extrabold mb-0.5" style={{ color: "#0F172A" }}>
                   {bien.prix.toLocaleString("fr-FR")} XAF
-                  <span className="text-xs font-medium" style={{ color: "#94A3B8" }}>
-                    {" "}/mois
-                  </span>
+                  <span className="text-sm font-medium" style={{ color: "#78716C" }}> /mois</span>
                 </div>
-                <p className="text-xs mb-4" style={{ color: "#94A3B8" }}>
+                <p className="text-xs mb-4" style={{ color: "#A8A29E" }}>
                   Charges (eau, électricité) non incluses
                 </p>
 
                 {sent ? (
-                  <div
-                    className="flex flex-col items-center text-center py-5 gap-2"
-                  >
+                  <div className="flex flex-col items-center text-center py-5 gap-2">
                     <div
                       className="w-11 h-11 rounded-full flex items-center justify-center"
                       style={{ background: "#ECFDF5" }}
@@ -319,13 +460,13 @@ export default function BienPublicDetailPage() {
                     <p className="text-sm font-semibold" style={{ color: "#0F172A" }}>
                       Demande envoyée
                     </p>
-                    <p className="text-xs" style={{ color: "#64748B" }}>
+                    <p className="text-xs" style={{ color: "#78716C" }}>
                       Le bailleur vous contactera directement au numéro fourni.
                     </p>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-                    <p className="text-xs font-semibold mb-1" style={{ color: "#475569" }}>
+                    <p className="text-xs font-semibold mb-1" style={{ color: "#44403C" }}>
                       Intéressé ? Laissez vos coordonnées
                     </p>
                     <input
@@ -333,57 +474,52 @@ export default function BienPublicDetailPage() {
                       onChange={(e) => setForm((f) => ({ ...f, nom_visiteur: e.target.value }))}
                       placeholder="Votre nom"
                       className="text-sm"
-                      style={{ padding: "10px 12px", borderRadius: "10px", border: "1px solid #E2E8F0" }}
+                      style={{ padding: "10px 12px", borderRadius: "10px", border: "1px solid #E2E0D9" }}
                     />
                     <div className="relative">
                       <IconPhone
                         size={14}
-                        style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94A3B8" }}
+                        style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A8A29E" }}
                       />
                       <input
                         value={form.telephone_visiteur}
                         onChange={(e) => setForm((f) => ({ ...f, telephone_visiteur: e.target.value }))}
                         placeholder="Téléphone"
                         className="text-sm w-full"
-                        style={{ padding: "10px 12px 10px 34px", borderRadius: "10px", border: "1px solid #E2E8F0" }}
+                        style={{ padding: "10px 12px 10px 34px", borderRadius: "10px", border: "1px solid #E2E0D9" }}
                       />
                     </div>
                     <div className="relative">
                       <IconMail
                         size={14}
-                        style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94A3B8" }}
+                        style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A8A29E" }}
                       />
                       <input
                         value={form.email_visiteur}
                         onChange={(e) => setForm((f) => ({ ...f, email_visiteur: e.target.value }))}
                         placeholder="Email (optionnel)"
                         className="text-sm w-full"
-                        style={{ padding: "10px 12px 10px 34px", borderRadius: "10px", border: "1px solid #E2E8F0" }}
+                        style={{ padding: "10px 12px 10px 34px", borderRadius: "10px", border: "1px solid #E2E0D9" }}
                       />
                     </div>
                     <div className="relative">
-                      <IconMessage
-                        size={14}
-                        style={{ position: "absolute", left: 12, top: 12, color: "#94A3B8" }}
-                      />
+                      <IconMessage size={14} style={{ position: "absolute", left: 12, top: 12, color: "#A8A29E" }} />
                       <textarea
                         value={form.message}
                         onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                         placeholder="Un message pour le bailleur (optionnel)"
                         rows={3}
                         className="text-sm w-full"
-                        style={{ padding: "10px 12px 10px 34px", borderRadius: "10px", border: "1px solid #E2E8F0", resize: "vertical" }}
+                        style={{ padding: "10px 12px 10px 34px", borderRadius: "10px", border: "1px solid #E2E0D9", resize: "vertical" }}
                       />
                     </div>
                     {formError && (
-                      <p className="text-xs font-medium" style={{ color: "#DC2626" }}>
-                        {formError}
-                      </p>
+                      <p className="text-xs font-medium" style={{ color: "#DC2626" }}>{formError}</p>
                     )}
                     <button
                       type="submit"
                       disabled={sending}
-                      className="flex items-center justify-center gap-2 text-sm font-bold py-2.5 rounded-xl text-white mt-1"
+                      className="flex items-center justify-center gap-2 text-sm font-bold py-3 rounded-full text-white mt-1"
                       style={{
                         background: "linear-gradient(135deg,#2563EB,#1D4ED8)",
                         border: "none",
@@ -391,12 +527,10 @@ export default function BienPublicDetailPage() {
                         opacity: sending ? 0.7 : 1,
                       }}
                     >
-                      {sending && (
-                        <IconLoader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
-                      )}
+                      {sending && <IconLoader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />}
                       Je suis intéressé(e)
                     </button>
-                    <p className="text-xs text-center" style={{ color: "#94A3B8" }}>
+                    <p className="text-xs text-center" style={{ color: "#A8A29E" }}>
                       Aucun engagement — le bailleur reprendra contact avec vous.
                     </p>
                   </form>
