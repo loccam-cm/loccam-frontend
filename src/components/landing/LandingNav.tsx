@@ -6,11 +6,12 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconBuilding, IconX, IconMenu2 } from "@tabler/icons-react";
 
-const LINKS = [
+const LINKS: { label: string; href: string; route?: boolean }[] = [
   { label: "L'outil", href: "#fonctionnalites" },
   { label: "Logique", href: "#comment" },
   { label: "Législation", href: "#bail" },
   { label: "Tarifs", href: "#tarifs" },
+  { label: "Marketplace", href: "/marketplace", route: true },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -56,11 +57,17 @@ export default function LandingNav() {
 
           {/* Links */}
           <div className="nav-links">
-            {LINKS.map((l) => (
-              <a key={l.label} href={l.href} className="nav-link">
-                {l.label}
-              </a>
-            ))}
+            {LINKS.map((l) =>
+              l.route ? (
+                <Link key={l.label} href={l.href} className="nav-link">
+                  {l.label}
+                </Link>
+              ) : (
+                <a key={l.label} href={l.href} className="nav-link">
+                  {l.label}
+                </a>
+              )
+            )}
           </div>
 
           {/* CTA */}
@@ -104,22 +111,39 @@ export default function LandingNav() {
                   gap: "4px",
                 }}
               >
-                {LINKS.map((l) => (
-                  <a
-                    key={l.label}
-                    href={l.href}
-                    onClick={() => setMenu(false)}
-                    style={{
-                      fontSize: "15px",
-                      fontWeight: 500,
-                      color: "rgba(248,250,252,0.7)",
-                      textDecoration: "none",
-                      padding: "10px 8px",
-                    }}
-                  >
-                    {l.label}
-                  </a>
-                ))}
+                {LINKS.map((l) =>
+                  l.route ? (
+                    <Link
+                      key={l.label}
+                      href={l.href}
+                      onClick={() => setMenu(false)}
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 500,
+                        color: "rgba(248,250,252,0.7)",
+                        textDecoration: "none",
+                        padding: "10px 8px",
+                      }}
+                    >
+                      {l.label}
+                    </Link>
+                  ) : (
+                    
+                      key={l.label}
+                      href={l.href}
+                      onClick={() => setMenu(false)}
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 500,
+                        color: "rgba(248,250,252,0.7)",
+                        textDecoration: "none",
+                        padding: "10px 8px",
+                      }}
+                    >
+                      {l.label}
+                    </a>
+                  )
+                )}
                 <div
                   style={{
                     height: "1px",
