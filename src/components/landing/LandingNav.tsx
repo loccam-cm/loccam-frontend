@@ -128,7 +128,7 @@ export default function LandingNav() {
                       {l.label}
                     </Link>
                   ) : (
-                    
+                    <a
                       key={l.label}
                       href={l.href}
                       onClick={() => setMenu(false)}
