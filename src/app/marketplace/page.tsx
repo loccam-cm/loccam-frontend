@@ -289,7 +289,7 @@ export default function MarketplaceHomePage() {
             params: { type_bien: g.val },
           })
           .then((res) => [g.val, res.data.results] as const)
-          .catch(() => [g.val, []] as const)
+          .catch(() => [g.val, [] as Bien[]] as const)
       )
     ).then((entries) => {
       const map: Record<string, Bien[]> = {};
