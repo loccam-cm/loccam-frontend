@@ -209,7 +209,7 @@ export default function BienPublicDetailPage() {
           Il a peut-être été loué ou retiré par le bailleur.
         </p>
         <Link
-          href="/marketplace"
+          href="/marketplace/recherche"
           className="text-sm font-semibold px-5 py-2.5 rounded-full text-white"
           style={{ background: "#0F172A" }}
         >
@@ -240,7 +240,7 @@ export default function BienPublicDetailPage() {
             style={{ maxWidth: "1100px", margin: "0 auto", padding: "16px 20px" }}
           >
             <Link
-              href="/marketplace"
+              href="/marketplace/recherche"
               className="flex items-center gap-1.5 text-sm font-semibold"
               style={{ color: "#44403C" }}
             >
