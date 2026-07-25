@@ -23,6 +23,7 @@ import {
   IconHeartFilled,
   IconShare,
   IconPhoto,
+  IconBrandWhatsapp,
 } from "@tabler/icons-react";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -584,6 +585,38 @@ export default function BienPublicDetailPage() {
                 <p className="text-xs mb-4" style={{ color: "#A8A29E" }}>
                   Charges (eau, électricité) non incluses
                 </p>
+
+                {bien.proprietaire_telephone && (
+                  <div className="flex gap-2 mb-5">
+                    <a
+                      href={`https://wa.me/${bien.proprietaire_telephone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                        `Bonjour, je suis intéressé(e) par "${bien.titre}" vu sur LocCam.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-2 text-sm font-bold py-2.5 rounded-xl text-white"
+                      style={{ background: "#25D366", textDecoration: "none" }}
+                    >
+                      <IconBrandWhatsapp size={17} /> WhatsApp
+                    </a>
+                    <a
+                      href={`tel:${bien.proprietaire_telephone}`}
+                      className="flex-1 flex items-center justify-center gap-2 text-sm font-bold py-2.5 rounded-xl"
+                      style={{ background: "#F5F4F0", color: "#0F172A", textDecoration: "none" }}
+                    >
+                      <IconPhone size={16} /> Appeler
+                    </a>
+                  </div>
+                )}
+
+                <div
+                  className="flex items-center gap-2 mb-4"
+                  style={{ color: "#A8A29E" }}
+                >
+                  <div style={{ flex: 1, height: 1, background: "#F0EEE9" }} />
+                  <span className="text-xs">ou envoyer un message</span>
+                  <div style={{ flex: 1, height: 1, background: "#F0EEE9" }} />
+                </div>
 
                 {sent ? (
                   <div className="flex flex-col items-center text-center py-5 gap-2">

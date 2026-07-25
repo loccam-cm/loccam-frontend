@@ -87,6 +87,7 @@ export interface Bien {
   // ── Marketplace (v2.1) ──
   est_publie?: boolean
   date_publication?: string | null
+  proprietaire_telephone?: string
   date_creation?: string
 }
 
