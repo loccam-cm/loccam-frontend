@@ -86,7 +86,7 @@ function BienCard({
 }) {
   return (
     <Link href={`/marketplace/${b.id}`}>
-      <div className="mp-card" style={{ width: "220px" }}>
+      <div className="mp-card w-[158px] sm:w-[190px] lg:w-[220px]">
         <div
           className="relative rounded-2xl overflow-hidden mb-2.5"
           style={{
@@ -183,10 +183,13 @@ function CarrouselGroupe({
 
   return (
     <div className="mb-10">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Icon size={18} style={{ color: "#0F172A" }} stroke={1.5} />
-          <h2 className="text-base font-extrabold tracking-tight" style={{ color: "#0F172A" }}>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon size={17} style={{ color: "#0F172A", flexShrink: 0 }} stroke={1.5} />
+          <h2
+            className="text-sm sm:text-base font-extrabold tracking-tight truncate"
+            style={{ color: "#0F172A" }}
+          >
             {titre}
           </h2>
         </div>
@@ -209,7 +212,11 @@ function CarrouselGroupe({
             ? Array(4)
                 .fill(0)
                 .map((_, i) => (
-                  <div key={i} style={{ width: "220px", flexShrink: 0 }}>
+                  <div
+                    key={i}
+                    className="w-[158px] sm:w-[190px] lg:w-[220px]"
+                    style={{ flexShrink: 0 }}
+                  >
                     <Skeleton className="aspect-square mb-2.5" />
                     <Skeleton className="h-3.5 w-3/4 mb-2" />
                     <Skeleton className="h-3.5 w-1/2" />
@@ -365,7 +372,7 @@ export default function MarketplaceHomePage() {
         .mp-heart:active{transform:scale(0.85)}
       `}</style>
 
-      <div style={{ minHeight: "100vh", background: "#FFFFFF" }}>
+      <div style={{ minHeight: "100vh", background: "#FFFFFF", overflowX: "hidden" }}>
         {/* ── Header ── */}
         <header style={{ borderBottom: "1px solid #EDEBE6" }}>
           <div
@@ -400,24 +407,23 @@ export default function MarketplaceHomePage() {
             borderBottom: "1px solid #F5F4F0",
           }}
         >
-          <div style={{ maxWidth: "900px", margin: "0 auto", padding: "56px 20px 44px", textAlign: "center" }}>
+          <div style={{ maxWidth: "900px", margin: "0 auto" }} className="px-4 sm:px-5 pt-9 sm:pt-14 pb-8 sm:pb-11 text-center">
             <h1
-              className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2"
+              className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight mb-2 px-2"
               style={{ color: "#0F172A" }}
             >
               Trouvez votre prochain logement à Douala
             </h1>
-            <p className="text-sm mb-8" style={{ color: "#78716C" }}>
+            <p className="text-xs sm:text-sm mb-6 sm:mb-8 px-2" style={{ color: "#78716C" }}>
               Studios, chambres, appartements, villas — publiés directement par des bailleurs vérifiés.
             </p>
 
             <div
-              className="flex flex-col sm:flex-row items-stretch sm:items-center mx-auto"
+              className="flex flex-col sm:flex-row items-stretch sm:items-center mx-auto rounded-[26px] sm:rounded-full"
               style={{
                 maxWidth: "700px",
                 background: "#fff",
                 border: "1px solid #E2E0D9",
-                borderRadius: "999px",
                 boxShadow: "0 4px 16px rgba(15,23,42,.07)",
                 padding: "6px",
               }}
@@ -437,6 +443,7 @@ export default function MarketplaceHomePage() {
                 </div>
               </div>
 
+              <div className="sm:hidden" style={{ height: 1, background: "#F0EEE9", margin: "0 4px" }} />
               <div className="hidden sm:block" style={{ width: 1, height: 34, background: "#E2E0D9" }} />
 
               <div className="flex-1 flex items-center gap-2.5 px-4 py-2.5">
@@ -456,6 +463,7 @@ export default function MarketplaceHomePage() {
                 </div>
               </div>
 
+              <div className="sm:hidden" style={{ height: 1, background: "#F0EEE9", margin: "0 4px" }} />
               <div className="hidden sm:block" style={{ width: 1, height: 34, background: "#E2E0D9" }} />
 
               <div className="flex-1 flex items-center gap-2.5 px-4 py-2.5">
@@ -501,7 +509,7 @@ export default function MarketplaceHomePage() {
         </div>
 
         {/* ── Carrousels par type de bien ── */}
-        <div style={{ maxWidth: "1180px", margin: "0 auto", padding: "40px 20px 70px" }}>
+        <div style={{ maxWidth: "1180px", margin: "0 auto" }} className="px-4 sm:px-5 pt-8 sm:pt-10 pb-14 sm:pb-[70px]">
           {!loading && groupesAffiches.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div
