@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { Bien } from "@/types";
+import { Bien, PaginatedResponse } from "@/types";
 import {
   IconBuilding,
   IconMapPin,
@@ -61,6 +61,8 @@ export default function BienPublicDetailPage() {
   const [estFavori, setEstFavori] = useState(false);
   const [favoriPending, setFavoriPending] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [nearby, setNearby] = useState<Bien[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
 
   const [form, setForm] = useState({
     nom_visiteur: "", telephone_visiteur: "", email_visiteur: "", message: "",
@@ -94,6 +96,36 @@ export default function BienPublicDetailPage() {
       })
       .catch(() => {});
   }, [id]);
+
+  // ── Biens dans les environs (par proximité GPS si dispo, sinon plus récents) ──
+  useEffect(() => {
+    if (!bien) return;
+    setNearbyLoading(true);
+    api
+      .get<PaginatedResponse<Bien>>("/marketplace/biens/")
+      .then((res) => {
+        const autres = res.data.results.filter((b) => b.id !== bien.id);
+        const toRad = (v: number) => (v * Math.PI) / 180;
+        const distanceKm = (a: Bien, b2: Bien) => {
+          if (!a.latitude || !a.longitude || !b2.latitude || !b2.longitude) return null;
+          const R = 6371;
+          const dLat = toRad(b2.latitude - a.latitude);
+          const dLon = toRad(b2.longitude - a.longitude);
+          const s =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(a.latitude)) * Math.cos(toRad(b2.latitude)) * Math.sin(dLon / 2) ** 2;
+          return 2 * R * Math.asin(Math.sqrt(s));
+        };
+        const avecDistance = autres.map((b) => ({ b, d: distanceKm(bien, b) }));
+        const trouvables = avecDistance.filter((x) => x.d !== null) as { b: Bien; d: number }[];
+        const sansGps = avecDistance.filter((x) => x.d === null).map((x) => x.b);
+        trouvables.sort((x, y) => x.d - y.d);
+        const tries = [...trouvables.map((x) => x.b), ...sansGps];
+        setNearby(tries.slice(0, 4));
+      })
+      .catch(() => {})
+      .finally(() => setNearbyLoading(false));
+  }, [bien]);
 
   const toggleFavori = async () => {
     if (!isLoggedIn()) {
@@ -197,6 +229,8 @@ export default function BienPublicDetailPage() {
         @keyframes spin{to{transform:rotate(360deg)}}
         .gal-tile{transition:filter .2s ease}
         .gal-tile:hover{filter:brightness(0.88)}
+        .mp-card{transition:transform .25s ease, box-shadow .25s ease}
+        .mp-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px rgba(15,23,42,.10)}
       `}</style>
 
       <div style={{ minHeight: "100vh", background: "#fff" }}>
@@ -640,6 +674,74 @@ export default function BienPublicDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* ── D'autres biens dans les environs ── */}
+          {(nearbyLoading || nearby.length > 0) && (
+            <div className="mt-14 pt-10" style={{ borderTop: "1px solid #F5F4F0" }}>
+              <h2 className="text-lg font-extrabold tracking-tight mb-5" style={{ color: "#0F172A" }}>
+                D&apos;autres biens dans les environs
+              </h2>
+              {nearbyLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-5 gap-y-6">
+                  {Array(4)
+                    .fill(0)
+                    .map((_, i) => (
+                      <div key={i}>
+                        <div
+                          className="aspect-square rounded-2xl mb-2.5"
+                          style={{
+                            background: "linear-gradient(90deg,#EDEBE6 25%,#F5F4F0 50%,#EDEBE6 75%)",
+                            backgroundSize: "200% 100%",
+                            animation: "shimmer 1.5s infinite",
+                          }}
+                        />
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-5 gap-y-6">
+                  {nearby.map((b) => (
+                    <Link key={b.id} href={`/marketplace/${b.id}`}>
+                      <div className="mp-card">
+                        <div
+                          className="relative rounded-2xl overflow-hidden mb-2.5"
+                          style={{
+                            aspectRatio: "1 / 1",
+                            background: "linear-gradient(135deg,#F5F4F0,#EDEBE6)",
+                          }}
+                        >
+                          {b.photos && b.photos.length > 0 ? (
+                            <img
+                              src={b.photos.find((p) => p.est_principale)?.url ?? b.photos[0].url}
+                              alt={b.titre}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <IconBuilding size={28} style={{ color: "#D6D3CE" }} />
+                            </div>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-semibold truncate" style={{ color: "#0F172A" }}>
+                          {b.titre}
+                        </h3>
+                        <div className="flex items-center gap-1 mb-1">
+                          <IconMapPin size={11} style={{ color: "#A8A29E", flexShrink: 0 }} />
+                          <span className="text-xs truncate" style={{ color: "#78716C" }}>
+                            {b.adresse}
+                          </span>
+                        </div>
+                        <div className="text-sm" style={{ color: "#0F172A" }}>
+                          <span className="font-bold">{b.prix.toLocaleString("fr-FR")} XAF</span>
+                          <span style={{ color: "#78716C" }}> / mois</span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
