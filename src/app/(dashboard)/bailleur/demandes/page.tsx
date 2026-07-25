@@ -15,12 +15,14 @@ import {
   IconMapPin,
   IconMessage,
   IconClock,
-  IconCheck,
   IconX,
   IconCalendarEvent,
   IconFileCheck,
   IconLoader2,
   IconInbox,
+  IconBuilding,
+  IconBell,
+  IconArrowRight,
 } from "@tabler/icons-react";
 
 function Skeleton({ className = "" }: { className?: string }) {
@@ -57,12 +59,32 @@ const FILTRES: { val: StatutDemande | "toutes"; lbl: string }[] = [
   { val: "refusee", lbl: "Refusées" },
 ];
 
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "à l'instant";
+  if (diffMin < 60) return `il y a ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `il y a ${diffH} h`;
+  const diffJ = Math.floor(diffH / 24);
+  if (diffJ < 7) return `il y a ${diffJ} j`;
+  return d.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+  });
+}
+
 export default function DemandesPage() {
   const { user } = useAuth();
   const [demandes, setDemandes] = useState<DemandeContact[]>([]);
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filtre, setFiltre] = useState<StatutDemande | "toutes">("toutes");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,23 +93,68 @@ export default function DemandesPage() {
       if (filtre !== "toutes") params.statut = filtre;
       const res = await api.get<PaginatedResponse<DemandeContact>>("/demandes-contact/", { params });
       setDemandes(res.data.results);
+      setNextUrl(res.data.next);
     } catch {
       setDemandes([]);
+      setNextUrl(null);
     } finally {
       setLoading(false);
     }
   }, [filtre]);
 
+  const loadCounts = useCallback(async () => {
+    const statuts: (StatutDemande | "toutes")[] = [
+      "toutes", "nouvelle", "contactee", "visite_planifiee", "transformee", "refusee",
+    ];
+    const entries = await Promise.all(
+      statuts.map((s) =>
+        api
+          .get<PaginatedResponse<DemandeContact>>("/demandes-contact/", {
+            params: { ...(s !== "toutes" ? { statut: s } : {}), page_size: 1 },
+          })
+          .then((res) => [s, res.data.count] as const)
+          .catch(() => [s, 0] as const)
+      )
+    );
+    const map: Record<string, number> = {};
+    entries.forEach(([s, c]) => (map[s] = c));
+    setCounts(map);
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    loadCounts();
+  }, [loadCounts]);
+
+  const loadMore = async () => {
+    if (!nextUrl) return;
+    setLoadingMore(true);
+    try {
+      const res = await api.get<PaginatedResponse<DemandeContact>>(nextUrl);
+      setDemandes((prev) => [...prev, ...res.data.results]);
+      setNextUrl(res.data.next);
+    } catch {
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const changerStatut = async (id: number, statut: StatutDemande) => {
     setUpdatingId(id);
     try {
       await api.patch(`/demandes-contact/${id}/statut/`, { statut });
-      toast.success("Demande mise à jour.");
+      if (statut === "transformee") {
+        toast.success("Demande marquée comme transformée.", {
+          description: "Pense à créer le contrat correspondant dans \"Contrats\" avec les infos du visiteur.",
+        });
+      } else {
+        toast.success("Demande mise à jour.");
+      }
       load();
+      loadCounts();
     } catch {
       toast.error("Impossible de mettre à jour cette demande.");
     } finally {
@@ -95,7 +162,14 @@ export default function DemandesPage() {
     }
   };
 
+  const handleRefuser = (id: number) => {
+    if (!window.confirm("Refuser cette demande ? Cette action est réversible depuis le filtre \"Refusées\" si besoin de revenir en arrière manuellement.")) return;
+    changerStatut(id, "refusee");
+  };
+
   if (!user) return null;
+
+  const nbNouvelles = counts["nouvelle"] ?? 0;
 
   return (
     <>
@@ -110,7 +184,7 @@ export default function DemandesPage() {
       >
         <div className="flex-1 flex flex-col overflow-hidden">
           <header
-            className="flex items-center gap-4 px-6 h-16 flex-shrink-0 bg-white"
+            className="flex items-center gap-4 px-4 sm:px-6 h-16 flex-shrink-0 bg-white"
             style={{ borderBottom: "1px solid #E2E8F0", boxShadow: "0 1px 3px rgba(0,0,0,.04)" }}
           >
             <Link
@@ -122,33 +196,75 @@ export default function DemandesPage() {
               <span className="hidden sm:inline">Tableau de bord</span>
             </Link>
             <div className="h-5 w-px" style={{ background: "#E2E8F0" }} />
-            <div className="flex items-center gap-2 flex-1">
-              <IconWorld size={18} style={{ color: "#2563EB" }} />
-              <h1 className="text-sm font-bold" style={{ color: "#0F172A" }}>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <IconWorld size={18} style={{ color: "#2563EB", flexShrink: 0 }} />
+              <h1 className="text-sm font-bold truncate" style={{ color: "#0F172A" }}>
                 Demandes marketplace
               </h1>
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             <div className="max-w-3xl mx-auto">
-              {/* ── Filtres ── */}
-              <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-                {FILTRES.map((f) => (
-                  <button
-                    key={f.val}
-                    onClick={() => setFiltre(f.val)}
-                    className="text-xs font-semibold px-3.5 py-2 rounded-lg flex-shrink-0"
-                    style={{
-                      background: filtre === f.val ? "#0F172A" : "#fff",
-                      color: filtre === f.val ? "#fff" : "#475569",
-                      border: `1px solid ${filtre === f.val ? "#0F172A" : "#E2E8F0"}`,
-                      cursor: "pointer",
-                    }}
+              {/* ── Bannière nouvelles demandes ── */}
+              {nbNouvelles > 0 && filtre !== "nouvelle" && (
+                <button
+                  onClick={() => setFiltre("nouvelle")}
+                  className="w-full flex items-center gap-3 mb-5 p-4 rounded-2xl text-left"
+                  style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", cursor: "pointer" }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "#2563EB" }}
                   >
-                    {f.lbl}
-                  </button>
-                ))}
+                    <IconBell size={16} color="#fff" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold" style={{ color: "#0F172A" }}>
+                      {nbNouvelles} nouvelle{nbNouvelles > 1 ? "s" : ""} demande{nbNouvelles > 1 ? "s" : ""}
+                    </p>
+                    <p className="text-xs" style={{ color: "#64748B" }}>
+                      En attente d&apos;une réponse de ta part
+                    </p>
+                  </div>
+                  <IconArrowRight size={16} style={{ color: "#2563EB", flexShrink: 0 }} />
+                </button>
+              )}
+
+              {/* ── Filtres avec compteurs ── */}
+              <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+                {FILTRES.map((f) => {
+                  const c = counts[f.val];
+                  return (
+                    <button
+                      key={f.val}
+                      onClick={() => setFiltre(f.val)}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg flex-shrink-0"
+                      style={{
+                        background: filtre === f.val ? "#0F172A" : "#fff",
+                        color: filtre === f.val ? "#fff" : "#475569",
+                        border: `1px solid ${filtre === f.val ? "#0F172A" : "#E2E8F0"}`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {f.lbl}
+                      {typeof c === "number" && c > 0 && (
+                        <span
+                          className="flex items-center justify-center text-[10px] font-bold rounded-full"
+                          style={{
+                            minWidth: 16,
+                            height: 16,
+                            padding: "0 4px",
+                            background: filtre === f.val ? "rgba(255,255,255,.25)" : "#F1F5F9",
+                            color: filtre === f.val ? "#fff" : "#475569",
+                          }}
+                        >
+                          {c}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* ── Liste ── */}
@@ -195,23 +311,39 @@ export default function DemandesPage() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0 }}
-                          className="bg-white rounded-2xl p-5"
+                          className="bg-white rounded-2xl p-4 sm:p-5"
                           style={{ border: "1px solid #E2E8F0" }}
                         >
                           <div className="flex items-start justify-between gap-3 mb-3">
-                            <div>
-                              <Link
-                                href={`/bailleur/biens`}
-                                className="text-sm font-bold hover:underline"
-                                style={{ color: "#0F172A" }}
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div
+                                className="rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
+                                style={{ width: 44, height: 44, background: "#F1F5F9" }}
                               >
-                                {d.bien.titre}
-                              </Link>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <IconMapPin size={11} style={{ color: "#94A3B8" }} />
-                                <span className="text-xs" style={{ color: "#64748B" }}>
-                                  {d.bien.adresse}
-                                </span>
+                                {d.bien.photo_principale ? (
+                                  <img
+                                    src={d.bien.photo_principale}
+                                    alt={d.bien.titre}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <IconBuilding size={18} style={{ color: "#CBD5E1" }} />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  href="/bailleur/biens"
+                                  className="text-sm font-bold hover:underline"
+                                  style={{ color: "#0F172A" }}
+                                >
+                                  {d.bien.titre}
+                                </Link>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <IconMapPin size={11} style={{ color: "#94A3B8", flexShrink: 0 }} />
+                                  <span className="text-xs truncate" style={{ color: "#64748B" }}>
+                                    {d.bien.adresse}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                             <span
@@ -223,14 +355,12 @@ export default function DemandesPage() {
                           </div>
 
                           <div
-                            className="flex flex-wrap gap-4 py-3 mb-3"
+                            className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-3 mb-3"
                             style={{ borderTop: "1px solid #F1F5F9", borderBottom: "1px solid #F1F5F9" }}
                           >
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-semibold" style={{ color: "#334155" }}>
-                                {d.nom_visiteur}
-                              </span>
-                            </div>
+                            <span className="text-sm font-semibold" style={{ color: "#334155" }}>
+                              {d.nom_visiteur}
+                            </span>
                             <a
                               href={`tel:${d.telephone_visiteur}`}
                               className="flex items-center gap-1.5 text-sm"
@@ -247,6 +377,13 @@ export default function DemandesPage() {
                                 <IconMail size={13} /> {d.email_visiteur}
                               </a>
                             )}
+                            <span
+                              className="flex items-center gap-1 text-xs ml-auto"
+                              style={{ color: "#94A3B8" }}
+                              title={new Date(d.date_creation).toLocaleString("fr-FR")}
+                            >
+                              <IconClock size={11} /> {formatDate(d.date_creation)}
+                            </span>
                           </div>
 
                           {d.message && (
@@ -290,7 +427,7 @@ export default function DemandesPage() {
                               </button>
                               <button
                                 disabled={enCours}
-                                onClick={() => changerStatut(d.id, "refusee")}
+                                onClick={() => handleRefuser(d.id)}
                                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg"
                                 style={{ background: "#FEF2F2", color: "#DC2626", border: "none", cursor: "pointer" }}
                               >
@@ -307,6 +444,22 @@ export default function DemandesPage() {
                       );
                     })}
                   </AnimatePresence>
+
+                  {nextUrl && (
+                    <div className="flex justify-center mt-3">
+                      <button
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                        className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl"
+                        style={{ background: "#fff", border: "1px solid #E2E8F0", color: "#334155", cursor: "pointer" }}
+                      >
+                        {loadingMore && (
+                          <IconLoader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                        )}
+                        Voir plus de demandes
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
