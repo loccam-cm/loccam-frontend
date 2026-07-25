@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -27,7 +28,24 @@ import {
   IconBuildingWarehouse,
   IconChevronLeft,
   IconChevronRight,
+  IconMap,
+  IconList,
 } from "@tabler/icons-react";
+
+const MarketplaceMap = dynamic(() => import("@/components/MarketplaceMap"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        background: "linear-gradient(90deg,#F5F4F0 25%,#FBFAF8 50%,#F5F4F0 75%)",
+        backgroundSize: "200% 100%",
+        animation: "shimmer 1.5s infinite",
+      }}
+    />
+  ),
+});
 
 const CATEGORIES: { val: string; lbl: string; icon: React.ElementType }[] = [
   { val: "", lbl: "Tous", icon: IconApps },
@@ -72,6 +90,8 @@ export default function MarketplacePage() {
   const [showFilters, setShowFilters] = useState(false);
   const [favoris, setFavoris] = useState<Set<number>>(new Set());
   const [pendingFavori, setPendingFavori] = useState<number | null>(null);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [categorie, setCategorie] = useState("");
@@ -424,144 +444,225 @@ export default function MarketplacePage() {
           )}
         </div>
 
-        {/* ── Grille de résultats ── */}
-        <div style={{ maxWidth: "1180px", margin: "0 auto", padding: "0 20px 70px" }}>
-          {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8">
-              {Array(8)
-                .fill(0)
-                .map((_, i) => (
-                  <div key={i}>
-                    <Skeleton className="aspect-square mb-3" />
-                    <Skeleton className="h-3.5 w-3/4 mb-2" />
-                    <Skeleton className="h-3.5 w-1/2" />
-                  </div>
-                ))}
-            </div>
-          ) : biens.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-                style={{ background: "#F5F4F0" }}
-              >
-                <IconHome2 size={28} style={{ color: "#A8A29E" }} />
-              </div>
-              <h3 className="text-base font-bold mb-2" style={{ color: "#0F172A" }}>
-                Aucun bien ne correspond à votre recherche
-              </h3>
-              <p className="text-sm" style={{ color: "#78716C" }}>
-                Essayez d'élargir vos critères ou une autre catégorie.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8">
-                {biens.map((b, i) => {
-                  const estFavori = favoris.has(b.id);
-                  return (
-                    <motion.div
-                      key={b.id}
-                      initial={{ opacity: 0, y: 14 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: Math.min(i, 8) * 0.03 }}
-                    >
-                      <Link href={`/marketplace/${b.id}`}>
-                        <div className="mp-card">
-                          <div
-                            className="relative rounded-2xl overflow-hidden mb-2.5"
-                            style={{
-                              aspectRatio: "1 / 1",
-                              background: "linear-gradient(135deg,#F5F4F0,#EDEBE6)",
-                            }}
-                          >
-                            {b.photos && b.photos.length > 0 ? (
-                              <img
-                                src={b.photos.find((p) => p.est_principale)?.url ?? b.photos[0].url}
-                                alt={b.titre}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <IconBuilding size={32} style={{ color: "#D6D3CE" }} />
-                              </div>
-                            )}
-                            <button
-                              onClick={(e) => toggleFavori(e, b.id)}
-                              className="mp-heart absolute top-2.5 right-2.5 flex items-center justify-center"
-                              style={{
-                                width: 30,
-                                height: 30,
-                                background: "none",
-                                border: "none",
-                                cursor: pendingFavori === b.id ? "wait" : "pointer",
-                              }}
-                            >
-                              {pendingFavori === b.id ? (
-                                <IconLoader2
-                                  size={17}
-                                  color="#fff"
-                                  style={{
-                                    animation: "spin .8s linear infinite",
-                                    filter: "drop-shadow(0 1px 2px rgba(0,0,0,.5))",
-                                  }}
-                                />
-                              ) : estFavori ? (
-                                <IconHeartFilled
-                                  size={19}
-                                  style={{ color: "#E11D48", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.35))" }}
-                                />
-                              ) : (
-                                <IconHeart
-                                  size={19}
-                                  style={{ color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.5))" }}
-                                  strokeWidth={2}
-                                />
-                              )}
-                            </button>
-                          </div>
-                          <div className="flex items-start justify-between gap-2">
-                            <h3
-                              className="text-sm font-semibold truncate"
-                              style={{ color: "#0F172A" }}
-                            >
-                              {b.titre}
-                            </h3>
-                          </div>
-                          <div className="flex items-center gap-1 mb-1">
-                            <IconMapPin size={11} style={{ color: "#A8A29E", flexShrink: 0 }} />
-                            <span className="text-xs truncate" style={{ color: "#78716C" }}>
-                              {b.adresse}
-                            </span>
-                          </div>
-                          <div className="text-sm" style={{ color: "#0F172A" }}>
-                            <span className="font-bold">{b.prix.toLocaleString("fr-FR")} XAF</span>
-                            <span style={{ color: "#78716C" }}> / mois</span>
-                          </div>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              {nextUrl && (
-                <div className="flex justify-center mt-10">
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full"
-                    style={{ background: "#fff", border: "1px solid #E2E0D9", color: "#0F172A" }}
-                  >
-                    {loadingMore && (
-                      <IconLoader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
-                    )}
-                    Voir plus de biens
-                  </button>
+        {/* ── Résultats : liste + carte (comme Airbnb) ── */}
+        <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 20px 70px" }}>
+          <div className="flex gap-7">
+            <div className="flex-1 min-w-0">
+              {loading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-8">
+                  {Array(6)
+                    .fill(0)
+                    .map((_, i) => (
+                      <div key={i}>
+                        <Skeleton className="aspect-square mb-3" />
+                        <Skeleton className="h-3.5 w-3/4 mb-2" />
+                        <Skeleton className="h-3.5 w-1/2" />
+                      </div>
+                    ))}
                 </div>
+              ) : biens.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                    style={{ background: "#F5F4F0" }}
+                  >
+                    <IconHome2 size={28} style={{ color: "#A8A29E" }} />
+                  </div>
+                  <h3 className="text-base font-bold mb-2" style={{ color: "#0F172A" }}>
+                    Aucun bien ne correspond à votre recherche
+                  </h3>
+                  <p className="text-sm" style={{ color: "#78716C" }}>
+                    Essayez d'élargir vos critères ou une autre catégorie.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-8">
+                    {biens.map((b, i) => {
+                      const estFavori = favoris.has(b.id);
+                      return (
+                        <motion.div
+                          key={b.id}
+                          initial={{ opacity: 0, y: 14 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(i, 8) * 0.03 }}
+                          onMouseEnter={() => setHoveredId(b.id)}
+                          onMouseLeave={() => setHoveredId(null)}
+                        >
+                          <Link href={`/marketplace/${b.id}`}>
+                            <div className="mp-card">
+                              <div
+                                className="relative rounded-2xl overflow-hidden mb-2.5"
+                                style={{
+                                  aspectRatio: "1 / 1",
+                                  background: "linear-gradient(135deg,#F5F4F0,#EDEBE6)",
+                                  outline: hoveredId === b.id ? "2px solid #0F172A" : "none",
+                                  outlineOffset: "2px",
+                                }}
+                              >
+                                {b.photos && b.photos.length > 0 ? (
+                                  <img
+                                    src={b.photos.find((p) => p.est_principale)?.url ?? b.photos[0].url}
+                                    alt={b.titre}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <IconBuilding size={32} style={{ color: "#D6D3CE" }} />
+                                  </div>
+                                )}
+                                <button
+                                  onClick={(e) => toggleFavori(e, b.id)}
+                                  className="mp-heart absolute top-2.5 right-2.5 flex items-center justify-center"
+                                  style={{
+                                    width: 30,
+                                    height: 30,
+                                    background: "none",
+                                    border: "none",
+                                    cursor: pendingFavori === b.id ? "wait" : "pointer",
+                                  }}
+                                >
+                                  {pendingFavori === b.id ? (
+                                    <IconLoader2
+                                      size={17}
+                                      color="#fff"
+                                      style={{
+                                        animation: "spin .8s linear infinite",
+                                        filter: "drop-shadow(0 1px 2px rgba(0,0,0,.5))",
+                                      }}
+                                    />
+                                  ) : estFavori ? (
+                                    <IconHeartFilled
+                                      size={19}
+                                      style={{ color: "#E11D48", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.35))" }}
+                                    />
+                                  ) : (
+                                    <IconHeart
+                                      size={19}
+                                      style={{ color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.5))" }}
+                                      strokeWidth={2}
+                                    />
+                                  )}
+                                </button>
+                              </div>
+                              <div className="flex items-start justify-between gap-2">
+                                <h3
+                                  className="text-sm font-semibold truncate"
+                                  style={{ color: "#0F172A" }}
+                                >
+                                  {b.titre}
+                                </h3>
+                              </div>
+                              <div className="flex items-center gap-1 mb-1">
+                                <IconMapPin size={11} style={{ color: "#A8A29E", flexShrink: 0 }} />
+                                <span className="text-xs truncate" style={{ color: "#78716C" }}>
+                                  {b.adresse}
+                                </span>
+                              </div>
+                              <div className="text-sm" style={{ color: "#0F172A" }}>
+                                <span className="font-bold">{b.prix.toLocaleString("fr-FR")} XAF</span>
+                                <span style={{ color: "#78716C" }}> / mois</span>
+                              </div>
+                            </div>
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  {nextUrl && (
+                    <div className="flex justify-center mt-10">
+                      <button
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                        className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full"
+                        style={{ background: "#fff", border: "1px solid #E2E0D9", color: "#0F172A" }}
+                      >
+                        {loadingMore && (
+                          <IconLoader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                        )}
+                        Voir plus de biens
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </div>
+
+            {/* ── Carte desktop, sticky ── */}
+            {!loading && biens.length > 0 && (
+              <div
+                className="hidden lg:block flex-shrink-0"
+                style={{
+                  width: "440px",
+                  position: "sticky",
+                  top: "140px",
+                  height: "calc(100vh - 160px)",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  border: "1px solid #EDEBE6",
+                }}
+              >
+                <MarketplaceMap biens={biens} hoveredId={hoveredId} onHover={setHoveredId} />
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ── Bouton flottant carte (mobile) ── */}
+        {!loading && biens.length > 0 && !mobileMapOpen && (
+          <button
+            onClick={() => setMobileMapOpen(true)}
+            className="lg:hidden flex items-center gap-2 text-sm font-semibold"
+            style={{
+              position: "fixed",
+              bottom: "24px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 50,
+              padding: "12px 20px",
+              borderRadius: "999px",
+              background: "#0F172A",
+              color: "#fff",
+              border: "none",
+              boxShadow: "0 8px 24px rgba(15,23,42,.35)",
+              cursor: "pointer",
+            }}
+          >
+            <IconMap size={16} /> Afficher la carte
+          </button>
+        )}
+
+        {/* ── Carte plein écran (mobile) ── */}
+        {mobileMapOpen && (
+          <div
+            className="lg:hidden"
+            style={{ position: "fixed", inset: 0, zIndex: 60, background: "#fff" }}
+          >
+            <div style={{ width: "100%", height: "100%" }}>
+              <MarketplaceMap biens={biens} hoveredId={hoveredId} onHover={setHoveredId} />
+            </div>
+            <button
+              onClick={() => setMobileMapOpen(false)}
+              className="flex items-center gap-2 text-sm font-semibold"
+              style={{
+                position: "fixed",
+                bottom: "24px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "12px 20px",
+                borderRadius: "999px",
+                background: "#0F172A",
+                color: "#fff",
+                border: "none",
+                boxShadow: "0 8px 24px rgba(15,23,42,.35)",
+                cursor: "pointer",
+              }}
+            >
+              <IconList size={16} /> Afficher la liste
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
