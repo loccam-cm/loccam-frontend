@@ -10,6 +10,21 @@ import UploadFichier from "@/components/UploadFichier";
 import BienGallerieManager from "@/components/biens/BienGallerieManager";
 import { useSearchParams } from "next/navigation";
 import PlanGate from '@/components/plan/PlanGate';
+import dynamic from "next/dynamic";
+
+const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: 260,
+        borderRadius: 12,
+        background: "linear-gradient(90deg,#F1F5F9 25%,#F8FAFC 50%,#F1F5F9 75%)",
+        backgroundSize: "200% 100%",
+      }}
+    />
+  ),
+});
 import {
   IconHome2,
   IconPlus,
@@ -55,6 +70,8 @@ interface FormData {
   a_ascenseur: boolean; // nouveau champ
   tarif_eau: string; // nouveau — crée un Tarif
   tarif_elec: string; // nouveau — crée un Tarif
+  latitude: number | null; // RG-15 — requis uniquement si bien isolé
+  longitude: number | null;
 }
 
 const TYPES_BIEN = [
@@ -234,10 +251,14 @@ function BiensPageContent() {
     a_ascenseur: false,
     tarif_eau: "",
     tarif_elec: "",
+    latitude: null,
+    longitude: null,
   };
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const setF = (k: keyof FormData, v: string | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
+  const setLatLng = (lat: number, lng: number) =>
+    setForm((f) => ({ ...f, latitude: lat, longitude: lng }));
 
   // ── Chargement ──────────────────────────────────────────────
   const load = async () => {
@@ -280,12 +301,14 @@ function BiensPageContent() {
       type_bien: b.type_bien,
       categorie: b.categorie,
       surface: b.surface?.toString() ?? "",
-      structure: b.structure?.toString() ?? "",
-      est_meuble: (b as any).est_meuble ?? false,
-      est_climatise: (b as any).est_climatise ?? false,
-      a_ascenseur: (b as any).a_ascenseur ?? false,
+      structure: b.structure_id?.toString() ?? "",
+      est_meuble: b.est_meuble ?? false,
+      est_climatise: b.est_climatise ?? false,
+      a_ascenseur: b.a_ascenseur ?? false,
       tarif_eau: "",
       tarif_elec: "", // rechargés depuis l'API si besoin
+      latitude: b.latitude ?? null,
+      longitude: b.longitude ?? null,
     });
     setErrors({});
     setShowForm(true);
@@ -297,7 +320,10 @@ function BiensPageContent() {
     if (!form.titre.trim()) e.titre = "Le titre est requis";
     if (!form.adresse.trim()) e.adresse = "L'adresse est requise";
     if (!form.prix || isNaN(Number(form.prix))) e.prix = "Loyer invalide";
-    if (!form.structure) e.structure = "Choisissez une structure";
+    // RG-15 : GPS obligatoire uniquement si le bien n'est rattaché à aucune structure
+    if (!form.structure && (form.latitude === null || form.longitude === null)) {
+      e.latitude = "Placez le bien sur la carte (obligatoire pour un bien isolé)";
+    }
     if (form.tarif_eau && isNaN(Number(form.tarif_eau)))
       e.tarif_eau = "Valeur invalide";
     if (form.tarif_elec && isNaN(Number(form.tarif_elec)))
@@ -320,10 +346,13 @@ function BiensPageContent() {
         type_bien: form.type_bien,
         categorie: form.categorie,
         surface: form.surface ? Number(form.surface) : null,
-        structure: Number(form.structure),
+        structure: form.structure ? Number(form.structure) : null,
         est_meuble: form.est_meuble,
         est_climatise: form.est_climatise,
         a_ascenseur: form.a_ascenseur,
+        ...(!form.structure
+          ? { latitude: form.latitude, longitude: form.longitude }
+          : {}),
       };
 
       let bienId: number;
@@ -1165,8 +1194,7 @@ function BiensPageContent() {
                         </Field>
                       </div>
                       <Field
-                        label="Structure / Immeuble"
-                        required
+                        label="Structure / Immeuble (optionnel)"
                         error={errors.structure}
                       >
                         <select
@@ -1180,7 +1208,7 @@ function BiensPageContent() {
                               : "#E2E8F0",
                           }}
                         >
-                          <option value="">-- Choisir une structure --</option>
+                          <option value="">-- Aucune (bien isolé) --</option>
                           {structures.map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.nom}
@@ -1190,13 +1218,28 @@ function BiensPageContent() {
                         {structures.length === 0 && (
                           <p
                             className="text-xs mt-1.5 flex items-center gap-1"
-                            style={{ color: "#D97706" }}
+                            style={{ color: "#94A3B8" }}
                           >
-                            <IconAlertCircle size={12} /> Créez d&apos;abord une
-                            structure dans &ldquo;Structures&rdquo;
+                            <IconAlertCircle size={12} /> Aucune structure —
+                            ce bien sera créé comme bien isolé (GPS requis
+                            ci-dessous)
                           </p>
                         )}
                       </Field>
+
+                      {!form.structure && (
+                        <Field
+                          label="Localisation GPS (obligatoire pour un bien isolé — RG-15)"
+                          error={errors.latitude}
+                        >
+                          <LocationPicker
+                            latitude={form.latitude}
+                            longitude={form.longitude}
+                            onChange={setLatLng}
+                          />
+                        </Field>
+                      )}
+
                       <Field label="Description">
                         <textarea
                           value={form.description}

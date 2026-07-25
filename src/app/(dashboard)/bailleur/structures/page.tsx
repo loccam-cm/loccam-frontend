@@ -1,6 +1,22 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+
+const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: 260,
+        borderRadius: 12,
+        background: "linear-gradient(90deg,#F1F5F9 25%,#F8FAFC 50%,#F1F5F9 75%)",
+        backgroundSize: "200% 100%",
+        animation: "shimmer 1.5s infinite",
+      }}
+    />
+  ),
+});
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -38,6 +54,8 @@ interface Structure {
   type_structure: string;
   adresse: string;
   ville?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   description?: string;
   nb_biens?: number;
   nb_biens_occupes?: number;
@@ -50,6 +68,8 @@ interface FormData {
   type_structure: string;
   adresse: string;
   ville: string;
+  latitude: number | null;
+  longitude: number | null;
   description: string;
 }
 
@@ -586,6 +606,8 @@ export default function StructuresPage() {
     type_structure: "immeuble",
     adresse: "",
     ville: "Douala",
+    latitude: null,
+    longitude: null,
     description: "",
   };
   const [form, setForm] = useState<FormData>(emptyForm);
@@ -621,6 +643,8 @@ export default function StructuresPage() {
       type_structure: s.type_structure,
       adresse: s.adresse,
       ville: s.ville ?? "Douala",
+      latitude: s.latitude ?? null,
+      longitude: s.longitude ?? null,
       description: s.description ?? "",
     });
     setErrors({});
@@ -677,6 +701,9 @@ export default function StructuresPage() {
 
   const set = (k: keyof FormData, v: string) =>
     setForm((p) => ({ ...p, [k]: v }));
+
+  const setLatLng = (lat: number, lng: number) =>
+    setForm((p) => ({ ...p, latitude: lat, longitude: lng }));
 
   const filtered = structures.filter(
     (s) =>
@@ -1150,6 +1177,19 @@ export default function StructuresPage() {
                             </option>
                           ))}
                         </select>
+                      </div>
+                      <div>
+                        <label
+                          className="block text-xs font-semibold mb-1.5"
+                          style={{ color: "#374151" }}
+                        >
+                          Position sur la carte
+                        </label>
+                        <LocationPicker
+                          latitude={form.latitude}
+                          longitude={form.longitude}
+                          onChange={setLatLng}
+                        />
                       </div>
                     </div>
                   </div>
