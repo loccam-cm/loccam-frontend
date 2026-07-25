@@ -82,6 +82,7 @@ export interface Bien {
   eau_incluse?: boolean
   elec_incluse?: boolean
   photos?: Photo[]
+  photo_principale?: string | null
   nb_vues?: number
   // ── Marketplace (v2.1) ──
   est_publie?: boolean
