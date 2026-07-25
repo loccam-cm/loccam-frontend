@@ -741,12 +741,9 @@ function BiensPageContent() {
                         background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)",
                       }}
                     >
-                      {b.photos && b.photos.length > 0 ? (
+                      {b.photo_principale ? (
                         <img
-                          src={
-                            b.photos.find((p) => p.est_principale)?.url ??
-                            b.photos[0].url
-                          }
+                          src={b.photo_principale}
                           alt={b.titre}
                           className="w-full h-full object-cover"
                         />
